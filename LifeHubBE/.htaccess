@@ -1,0 +1,21 @@
+RewriteEngine On
+RewriteBase /umbertini/
+
+# Impedisci l'esplorazione delle directory
+Options -Indexes
+
+# Regola specifica per l'app Angular in /shopping/
+# Se la richiesta inizia con shopping/ ed è per un file che non esiste,
+# servi l'index.html dell'app Angular per permettere il routing lato client.
+RewriteCond %{REQUEST_URI} ^/umbertini/shopping/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^shopping/(.*)$ shopping/index.html [L]
+
+# Se la richiesta non è un file o una directory reale, e non riguarda l'app spesa
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^$ home.php [L]
+
+# Se l'utente accede alla root /umbertini/, mostra home.php
+DirectoryIndex home.php
