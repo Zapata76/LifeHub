@@ -13,6 +13,7 @@ import { MealsService, MealPlan, Recipe } from './meals.service';
           <div class="header-row header-bottom">
             <div class="header-controls">
                 <button class="btn-primary btn-sm" (click)="generateShoppingList()">🛒 Genera Spesa</button>
+                <a href="../recipes/" class="home-link">Ricette</a>
                 <a href="../home.php" class="home-link">Home Hub</a>
             </div>
           </div>

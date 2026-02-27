@@ -1,0 +1,18 @@
+RewriteEngine On
+
+# Imposta il MIME type corretto per i file JS se non riconosciuti
+AddType application/javascript .js
+
+DirectoryIndex index.php index.html
+
+# Se il file esiste fisicamente, servilo direttamente
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Se il file NON esiste, e non è una cartella, rimanda a index.php (per gestire il routing)
+# Ma escludi esplicitamente i file che dovrebbero essere statici (.js, .css, .ico, .png, etc)
+# per evitare che ritornino il contenuto di index.php (HTML) invece di un 404 reale
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot)$ [NC]
+RewriteRule ^ index.php [L]

@@ -17,5 +17,6 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^$ home.php [L]
 
-# Se l'utente accede alla root /umbertini/, mostra home.php
-DirectoryIndex home.php
+# Se l'utente accede alla root /umbertini/, mostra home.php.
+# Nelle sottocartelle usa index.php/index.html per evitare 403 con Options -Indexes.
+DirectoryIndex home.php index.php index.html

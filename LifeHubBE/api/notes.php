@@ -4,15 +4,7 @@
  */
 session_start();
 require_once '../includes/auth.php';
-
-// Verifica autenticazione (Note accessibili solo a admin e adult come da specifica)
-requireLoginApi();
-$user = currentUser();
-if (!in_array($user['role'], array('admin', 'adult'))) {
-    header('HTTP/1.1 403 Forbidden');
-    echo json_encode(array('error' => 'Permesso negato per questa sezione'));
-    exit;
-}
+$user = require_roles_api(array('admin', 'adult', 'child'));
 
 header('Content-Type: application/json');
 

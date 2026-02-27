@@ -1,20 +1,10 @@
 <?php
 /**
- * Router API per l'App Attività (Tasks)
+ * Router API per l'App AttivitÃ  (Tasks)
  */
 session_start();
 require_once '../includes/auth.php';
-
-requireLoginApi();
-$user = currentUser();
-
-// Attività accessibili a admin e adult (child può vedere ma non editare, o come preferisci)
-// Per ora seguiamo la specifica: admin e adult hanno accesso pieno.
-if (!in_array($user['role'], array('admin', 'adult'))) {
-    header('HTTP/1.1 403 Forbidden');
-    echo json_encode(array('error' => 'Permesso negato'));
-    exit;
-}
+$user = require_roles_api(array('admin', 'adult', 'child'));
 
 header('Content-Type: application/json');
 

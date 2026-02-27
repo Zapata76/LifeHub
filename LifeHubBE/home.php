@@ -4,15 +4,6 @@ require_once 'includes/auth.php';
 requireLogin();
 
 $user = currentUser();
-
-// Controllo timeout sessione (3 giorni come da specifica)
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity'] > 259200)) {
-    session_unset();
-    session_destroy();
-    header("Location: login.php");
-    exit;
-}
-$_SESSION['last_activity'] = time(); // Aggiorna ultima attività
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -240,7 +231,7 @@ $_SESSION['last_activity'] = time(); // Aggiorna ultima attività
             <div class="card-desc">Pianificazione pasti e menu settimanale.</div>
         </a>
 
-        <a href="#" class="card">
+        <a href="recipes/" class="card">
             <div class="card-emoji">📖</div>
             <div class="card-title">Ricette</div>
             <div class="card-desc">Archivio digitale delle ricette preferite.</div>
@@ -248,7 +239,7 @@ $_SESSION['last_activity'] = time(); // Aggiorna ultima attività
 
         <!-- Solo Admin -->
         <?php if ($user['role'] === 'admin'): ?>
-            <a href="#" class="card">
+            <a href="users/" class="card">
                 <div class="card-emoji">⚙️</div>
                 <div class="card-title">Gestione Utenti</div>
                 <div class="card-desc">Amministrazione ruoli e permessi del sistema.</div>
@@ -259,3 +250,4 @@ $_SESSION['last_activity'] = time(); // Aggiorna ultima attività
 
 </body>
 </html>
+

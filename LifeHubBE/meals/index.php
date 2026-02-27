@@ -2,22 +2,11 @@
 session_start();
 require_once '../includes/auth.php';
 
-// Protezione Pasti: Solo admin e adult
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../login.php");
-    exit;
-}
+$user = require_roles_page(array('admin', 'adult', 'child'), '../');
 
-$user = currentUser();
-if (!in_array($user['role'], array('admin', 'adult'))) {
-    echo "<h1>Accesso Negato</h1><p>Non hai i permessi per accedere alla Pianificazione Pasti.</p><a href='../home.php'>Torna alla Home</a>";
-    exit;
-}
-
-// Servi l'app Angular Meals
 if (file_exists('index.html')) {
     readfile('index.html');
 } else {
-    echo "<h1>App in fase di deploy</h1><p>L'applicazione Angular per la Pianificazione Pasti non è ancora stata caricata.</p>";
+    echo "<h1>App in fase di deploy</h1><p>L'applicazione Angular per la pianificazione pasti non e ancora stata caricata.</p>";
 }
 ?>

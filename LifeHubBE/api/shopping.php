@@ -164,10 +164,10 @@ switch ($action) {
         $data = get_json_input();
         $product_id = isset($data['product_id']) ? (int)$data['product_id'] : 0;
         $quantity = isset($data['quantity']) ? trim($data['quantity']) : '1';
-        $supermarket_id = (isset($data['supermarket_id']) && (int)$data['supermarket_id'] > 0) ? (int)$data['supermarket_id'] : 0;
+        $supermarket_id = (isset($data['supermarket_id']) && $data['supermarket_id'] !== null && (int)$data['supermarket_id'] > 0) ? (int)$data['supermarket_id'] : null;
         if (!$product_id) exit_with_error("Prodotto obbligatorio");
 
-        if ($supermarket_id > 0) {
+        if ($supermarket_id !== null) {
             $stmt = $conn->prepare("INSERT INTO shopping_list (product_id, quantity, supermarket_id, added_by) VALUES (?, ?, ?, ?)");
             $stmt->bind_param("isii", $product_id, $quantity, $supermarket_id, $user['id']);
         } else {
@@ -176,7 +176,7 @@ switch ($action) {
         }
 
         if ($stmt->execute()) echo json_encode(array('id' => $stmt->insert_id, 'message' => 'Aggiunto alla lista'));
-        else exit_with_error("Errore inserimento lista");
+        else exit_with_error("Errore inserimento lista: " . $conn->error);
         break;
 
     case 'update_list_item':
@@ -232,7 +232,12 @@ function ensure_shopping_list_supermarket_column($conn) {
     if ($alreadyChecked) return;
 
     $columnCheck = $conn->query("SHOW COLUMNS FROM shopping_list LIKE 'supermarket_id'");
-    if ($columnCheck && $columnCheck->num_rows === 0) {
+    if ($columnCheck && $columnCheck->num_rows > 0) {
+        $row = $columnCheck->fetch_assoc();
+        if ($row['Null'] === 'NO') {
+            $conn->query("ALTER TABLE shopping_list MODIFY supermarket_id INT(11) NULL DEFAULT NULL");
+        }
+    } else {
         $conn->query("ALTER TABLE shopping_list ADD COLUMN supermarket_id INT(11) NULL DEFAULT NULL AFTER quantity");
         $conn->query("ALTER TABLE shopping_list ADD KEY supermarket_id (supermarket_id)");
     }

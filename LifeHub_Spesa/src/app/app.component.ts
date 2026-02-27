@@ -52,7 +52,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
 
               <div class="add-controls">
                 <select [(ngModel)]="selectedSupermarketId" class="market-select">
-                  <option [ngValue]="0">Tutti i supermercati</option>
+                  <option [ngValue]="0">Qualsiasi supermercato</option>
                   <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}</option>
                 </select>
                 <input type="text" [(ngModel)]="itemQuantity" placeholder="Qtà" class="qty-input">
@@ -68,10 +68,10 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
             <div class="list-filter-row">
               <label for="listFilterMarket">Filtro supermercato</label>
               <select id="listFilterMarket" [(ngModel)]="listFilterSupermarketId">
-                <option [ngValue]="0">Tutti</option>
+                <option [ngValue]="0">Mostra tutti i prodotti</option>
                 <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}</option>
               </select>
-              <small>Con filtro attivo, include anche i prodotti senza supermercato assegnato.</small>
+              <small>I prodotti senza supermercato specifico sono sempre visibili.</small>
             </div>
 
             <ul class="shopping-list">
