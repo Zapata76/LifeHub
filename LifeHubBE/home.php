@@ -204,7 +204,7 @@ $user = currentUser();
             <div class="card-desc">Gestione dei task e delle cose da fare.</div>
         </a>
 
-        <!-- <a href="#" class="card">
+        <a href="#" class="card">
             <div class="card-emoji">📦</div>
             <div class="card-title">Inventario</div>
             <div class="card-desc">Organizzazione e ricerca oggetti in casa.</div>
@@ -214,15 +214,15 @@ $user = currentUser();
             <div class="card-emoji">🎯</div>
             <div class="card-title">Obiettivi</div>
             <div class="card-desc">Tracker progressi, abitudini e traguardi.</div>
-        </a> -->
+        </a>
 
         <!-- Solo Admin + Adult -->
         <?php if (in_array($user['role'], array('admin', 'adult'))): ?>
-            <!-- <a href="#" class="card">
+            <a href="#" class="card">
                 <div class="card-emoji">📂</div>
                 <div class="card-title">Documenti</div>
                 <div class="card-desc">Archivio digitale sicuro dei documenti di famiglia.</div>
-            </a> -->
+            </a>
         <?php endif; ?>
 
         <a href="meals/" class="card">

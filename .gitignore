@@ -50,3 +50,11 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
+
+# LifeHubFE local runtime/deploy config (not for repo)
+LifeHubFE/src/assets/runtime-config.json
+LifeHubFE/config/deploy.local.json
+
+#user specific files
+notes
+products
