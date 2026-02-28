@@ -1,9 +1,5 @@
 {
   "appTitle": "Life Hub",
-  "calendarIds": [
-    "calendar-id-1@group.calendar.google.com",
-    "calendar-id-2@group.calendar.google.com"
-  ],
   "calendarOptions": {
     "ctz": "Europe/Rome",
     "mode": "MONTH",

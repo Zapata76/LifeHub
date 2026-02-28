@@ -12,7 +12,6 @@ export interface CalendarOptions {
 
 export interface RuntimeConfigFile {
   appTitle?: string;
-  calendarIds?: string[];
   calendarOptions?: Partial<CalendarOptions>;
 }
 
@@ -28,7 +27,6 @@ const DEFAULT_CALENDAR_OPTIONS: CalendarOptions = {
 @Injectable({ providedIn: 'root' })
 export class RuntimeConfigService {
   private appTitleValue = DEFAULT_APP_TITLE;
-  private calendarIdsValue: string[] = [];
   private calendarOptionsValue: CalendarOptions = { ...DEFAULT_CALENDAR_OPTIONS };
 
   constructor(private http: HttpClient) {}
@@ -41,18 +39,11 @@ export class RuntimeConfigService {
       .then((cfg: RuntimeConfigFile | undefined) => {
         const config = cfg || {};
         this.appTitleValue = (config.appTitle || '').trim() || DEFAULT_APP_TITLE;
-        this.calendarIdsValue = Array.isArray(config.calendarIds)
-          ? config.calendarIds.filter(id => typeof id === 'string' && id.trim().length > 0)
-          : [];
         this.calendarOptionsValue = {
           ...DEFAULT_CALENDAR_OPTIONS,
           ...(config.calendarOptions || {})
         };
       });
-  }
-
-  get calendarIds(): string[] {
-    return this.calendarIdsValue;
   }
 
   get appTitle(): string {

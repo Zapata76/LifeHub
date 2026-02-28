@@ -3,6 +3,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable } from 'rxjs';
 import { AuthService, HubUser } from './auth.service';
 import { RuntimeConfigService } from './runtime-config.service';
+import { CalendarsService, HubCalendar } from './calendars.service';
 
 @Component({
   selector: 'app-calendar-page',
@@ -38,7 +39,7 @@ import { RuntimeConfigService } from './runtime-config.service';
 
       <ng-template #noCalendar>
         <div class="calendar-empty">
-          Nessun calendario configurato. Crea il file src/assets/runtime-config.json con gli ID dei calendari.
+          Nessun calendario associato al tuo account. Chiedi all'amministratore di configurare i tuoi calendari nella sezione Gestione Utenti.
         </div>
       </ng-template>
     </div>
@@ -126,18 +127,26 @@ export class CalendarPageComponent implements OnInit {
   constructor(
     private auth: AuthService,
     private runtimeConfig: RuntimeConfigService,
+    private calendarsService: CalendarsService,
     private sanitizer: DomSanitizer
   ) {
     this.user$ = this.auth.user$;
   }
 
   ngOnInit(): void {
-    const url = this.buildCalendarEmbedUrl(this.runtimeConfig.calendarIds);
-    this.calendarUrl = url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+    this.loadCalendars();
 
     if (!this.auth.user) {
-      this.auth.me().subscribe();
+      this.auth.me().subscribe(() => this.loadCalendars());
     }
+  }
+
+  private loadCalendars() {
+    this.calendarsService.getMyCalendars().subscribe(cals => {
+      const ids = cals.map(c => c.google_id);
+      const url = this.buildCalendarEmbedUrl(ids);
+      this.calendarUrl = url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+    });
   }
 
   private buildCalendarEmbedUrl(calendars: string[]): string | null {
