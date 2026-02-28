@@ -1,6 +1,6 @@
 <?php
 /**
- * API Archivio Ricette
+ * Recipes Archive API
  */
 session_start();
 require_once '../includes/auth.php';
@@ -35,7 +35,7 @@ switch ($action) {
         $sql .= " GROUP BY r.id ORDER BY r.name ASC";
 
         $result = $conn->query($sql);
-        if (!$result) exit_with_error("Errore query ricette: " . $conn->error);
+        if (!$result) exit_with_error("Error querying recipes: " . $conn->error);
 
         $data = array();
         while ($row = $result->fetch_assoc()) $data[] = $row;
@@ -44,21 +44,21 @@ switch ($action) {
 
     case 'get_recipe_details':
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        if (!$id) exit_with_error("ID ricetta obbligatorio");
+        if (!$id) exit_with_error("Recipe ID is required");
 
         $stmt = $conn->prepare("SELECT * FROM recipes WHERE id = ?");
-        if (!$stmt) exit_with_error("Errore prepare: " . $conn->error);
+        if (!$stmt) exit_with_error("Prepare error: " . $conn->error);
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $recipe = stmt_fetch_one_assoc($stmt);
-        if (!$recipe) exit_with_error("Ricetta non trovata", 404);
+        if (!$recipe) exit_with_error("Recipe not found", 404);
 
         $ingStmt = $conn->prepare("SELECT ri.*, p.name AS product_name
                                    FROM recipe_ingredients ri
                                    LEFT JOIN products p ON p.id = ri.product_id
                                    WHERE ri.recipe_id = ?
                                    ORDER BY ri.id ASC");
-        if (!$ingStmt) exit_with_error("Errore prepare ingredienti: " . $conn->error);
+        if (!$ingStmt) exit_with_error("Prepare error (ingredients): " . $conn->error);
         $ingStmt->bind_param("i", $id);
         $ingStmt->execute();
         $recipe['ingredients'] = stmt_fetch_all_assoc($ingStmt);
@@ -88,35 +88,59 @@ switch ($action) {
         break;
 
     case 'save_recipe':
-        $data = get_json_input();
-        if (!is_array($data)) exit_with_error("Payload non valido");
+        // Support for both JSON and Multipart/form-data
+        if (!empty($_POST)) {
+            $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+            $name = isset($_POST['name']) ? trim($_POST['name']) : '';
+            $category = isset($_POST['category']) ? trim($_POST['category']) : '';
+            $instructions = isset($_POST['instructions']) ? trim($_POST['instructions']) : '';
+            $description = isset($_POST['description']) ? trim($_POST['description']) : '';
+            $prep_time = (isset($_POST['prep_time_minutes']) && $_POST['prep_time_minutes'] !== '') ? (int)$_POST['prep_time_minutes'] : null;
+            $difficulty = isset($_POST['difficulty']) ? trim($_POST['difficulty']) : '';
+            $author_name = isset($_POST['author_name']) ? trim($_POST['author_name']) : '';
+            $image_url = isset($_POST['existing_image']) ? trim($_POST['existing_image']) : null;
+            $ingredients_json = isset($_POST['ingredients']) ? $_POST['ingredients'] : '[]';
+            $ingredients = json_decode($ingredients_json, true);
+            if (!is_array($ingredients)) $ingredients = array();
+        } else {
+            $data = get_json_input();
+            if (!is_array($data)) exit_with_error("Invalid payload");
+            $id = isset($data['id']) ? (int)$data['id'] : 0;
+            $name = isset($data['name']) ? trim($data['name']) : '';
+            $category = isset($data['category']) ? trim($data['category']) : '';
+            $instructions = isset($data['instructions']) ? trim($data['instructions']) : '';
+            $description = isset($data['description']) ? trim($data['description']) : '';
+            $prep_time = (isset($data['prep_time_minutes']) && $data['prep_time_minutes'] !== '') ? (int)$data['prep_time_minutes'] : null;
+            $difficulty = isset($data['difficulty']) ? trim($data['difficulty']) : '';
+            $author_name = isset($data['author_name']) ? trim($data['author_name']) : '';
+            $image_url = isset($data['image_url']) ? trim($data['image_url']) : null;
+            $ingredients = isset($data['ingredients']) && is_array($data['ingredients']) ? $data['ingredients'] : array();
+        }
+
+        // Photo upload handling
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $filename = uniqid('recipe_') . '.' . $ext;
+            if (!is_dir('../uploads/recipes')) mkdir('../uploads/recipes', 0777, true);
+            $image_url = 'uploads/recipes/' . $filename;
+            move_uploaded_file($_FILES['photo']['tmp_name'], '../' . $image_url);
+        }
         
         // Ensure table exists before saving
         ensure_recipes_schema($conn);
 
-        $id = isset($data['id']) ? (int)$data['id'] : 0;
-        $name = isset($data['name']) ? trim($data['name']) : '';
-        $category = isset($data['category']) ? trim($data['category']) : '';
-        $instructions = isset($data['instructions']) ? trim($data['instructions']) : '';
-        $description = isset($data['description']) ? trim($data['description']) : '';
-        $prep_time = isset($data['prep_time_minutes']) && $data['prep_time_minutes'] !== '' ? (int)$data['prep_time_minutes'] : null;
-        $difficulty = isset($data['difficulty']) ? trim($data['difficulty']) : '';
-        $author_name = isset($data['author_name']) ? trim($data['author_name']) : '';
-        $image_url = isset($data['image_url']) ? trim($data['image_url']) : null;
-        $ingredients = isset($data['ingredients']) && is_array($data['ingredients']) ? $data['ingredients'] : array();
-
-        if ($name === '') exit_with_error("Titolo ricetta obbligatorio");
+        if ($name === '') exit_with_error("Recipe title is required");
 
         if ($id > 0) {
             $stmt = $conn->prepare("UPDATE recipes
                                     SET name = ?, category = ?, description = ?, instructions = ?, prep_time_minutes = ?, difficulty = ?, author_name = ?, image_url = ?, updated_at = NOW()
                                     WHERE id = ?");
-            if (!$stmt) exit_with_error("Errore prepare update: " . $conn->error);
+            if (!$stmt) exit_with_error("Prepare error (update): " . $conn->error);
             $stmt->bind_param("ssssisssi", $name, $category, $description, $instructions, $prep_time, $difficulty, $author_name, $image_url, $id);
         } else {
             $stmt = $conn->prepare("INSERT INTO recipes (name, category, description, instructions, prep_time_minutes, difficulty, author_name, image_url, created_by, created_at, updated_at)
                                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
-            if (!$stmt) exit_with_error("Errore prepare insert: " . $conn->error);
+            if (!$stmt) exit_with_error("Prepare error (insert): " . $conn->error);
             $stmt->bind_param("ssssisssi", $name, $category, $description, $instructions, $prep_time, $difficulty, $author_name, $image_url, $user['id']);
         }
 

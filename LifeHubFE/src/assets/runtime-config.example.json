@@ -1,0 +1,9 @@
+{
+  "appTitle": "Life Hub",
+  "calendarOptions": {
+    "ctz": "Europe/Rome",
+    "mode": "MONTH",
+    "wkst": "2",
+    "bgcolor": "#ffffff"
+  }
+}

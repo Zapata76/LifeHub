@@ -1,6 +1,6 @@
 <?php
 /**
- * Router API per Meal Plan + integrazione Spesa
+ * API Router for Meal Plan + Shopping integration
  */
 session_start();
 require_once '../includes/auth.php';
@@ -15,13 +15,13 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 switch ($action) {
 
-    // --- RICETTE (solo lettura per il planner) ---
+    // --- RECIPES (read-only for the planner) ---
     case 'get_recipes':
         $sql = "SELECT id, name, category, prep_time_minutes, difficulty
                 FROM recipes
                 ORDER BY name ASC";
         $result = $conn->query($sql);
-        if (!$result) exit_with_error("Errore lettura ricette: " . $conn->error);
+        if (!$result) exit_with_error("Error reading recipes: " . $conn->error);
 
         $data = array();
         while ($row = $result->fetch_assoc()) $data[] = $row;
@@ -30,21 +30,21 @@ switch ($action) {
 
     case 'get_recipe_details':
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        if (!$id) exit_with_error("ID ricetta obbligatorio");
+        if (!$id) exit_with_error("Recipe ID is required");
 
         $stmt = $conn->prepare("SELECT * FROM recipes WHERE id = ?");
-        if (!$stmt) exit_with_error("Errore prepare: " . $conn->error);
+        if (!$stmt) exit_with_error("Prepare error: " . $conn->error);
         $stmt->bind_param("i", $id);
         $stmt->execute();
         $recipe = stmt_fetch_one_assoc($stmt);
-        if (!$recipe) exit_with_error("Ricetta non trovata", 404);
+        if (!$recipe) exit_with_error("Recipe not found", 404);
 
         $ingStmt = $conn->prepare("SELECT ri.*, p.name AS product_name
                                    FROM recipe_ingredients ri
                                    LEFT JOIN products p ON ri.product_id = p.id
                                    WHERE ri.recipe_id = ?
                                    ORDER BY ri.id ASC");
-        if (!$ingStmt) exit_with_error("Errore ingredienti: " . $conn->error);
+        if (!$ingStmt) exit_with_error("Error reading ingredients: " . $conn->error);
         $ingStmt->bind_param("i", $id);
         $ingStmt->execute();
         $recipe['ingredients'] = stmt_fetch_all_assoc($ingStmt);
@@ -63,7 +63,7 @@ switch ($action) {
                                 WHERE mp.meal_date BETWEEN ? AND ?
                                 ORDER BY mp.meal_date ASC,
                                 FIELD(mp.meal_type, 'lunch', 'dinner') ASC");
-        if (!$stmt) exit_with_error("Errore query meal plan: " . $conn->error);
+        if (!$stmt) exit_with_error("Error querying meal plan: " . $conn->error);
         $stmt->bind_param("ss", $start, $end);
         $stmt->execute();
         echo json_encode(stmt_fetch_all_assoc($stmt));
@@ -71,7 +71,7 @@ switch ($action) {
 
     case 'save_meal':
         $data = get_json_input();
-        if (!is_array($data)) exit_with_error("Payload non valido");
+        if (!is_array($data)) exit_with_error("Invalid payload");
 
         $id = isset($data['id']) ? (int)$data['id'] : 0;
         $meal_date = isset($data['meal_date']) ? $data['meal_date'] : '';
@@ -79,55 +79,55 @@ switch ($action) {
         $recipe_id = (isset($data['recipe_id']) && (int)$data['recipe_id'] > 0) ? (int)$data['recipe_id'] : null;
         $notes = isset($data['notes']) ? $data['notes'] : '';
 
-        if (!$meal_date || !$meal_type) exit_with_error("Data e tipo pasto obbligatori");
-        if (!in_array($meal_type, array('lunch', 'dinner'))) exit_with_error("Tipo pasto non valido");
+        if (!$meal_date || !$meal_type) exit_with_error("Date and meal type are required");
+        if (!in_array($meal_type, array('lunch', 'dinner'))) exit_with_error("Invalid meal type");
 
         if ($id > 0) {
             if ($recipe_id === null) {
                 $stmt = $conn->prepare("UPDATE meal_plan SET meal_date = ?, meal_type = ?, recipe_id = NULL, notes = ? WHERE id = ?");
-                if (!$stmt) exit_with_error("Errore update meal: " . $conn->error);
+                if (!$stmt) exit_with_error("Error updating meal: " . $conn->error);
                 $stmt->bind_param("sssi", $meal_date, $meal_type, $notes, $id);
             } else {
                 $stmt = $conn->prepare("UPDATE meal_plan SET meal_date = ?, meal_type = ?, recipe_id = ?, notes = ? WHERE id = ?");
-                if (!$stmt) exit_with_error("Errore update meal: " . $conn->error);
+                if (!$stmt) exit_with_error("Error updating meal: " . $conn->error);
                 $stmt->bind_param("ssisi", $meal_date, $meal_type, $recipe_id, $notes, $id);
             }
         } else {
             if ($recipe_id === null) {
                 $stmt = $conn->prepare("INSERT INTO meal_plan (meal_date, meal_type, recipe_id, notes)
                                         VALUES (?, ?, NULL, ?)");
-                if (!$stmt) exit_with_error("Errore insert meal: " . $conn->error);
+                if (!$stmt) exit_with_error("Error inserting meal: " . $conn->error);
                 $stmt->bind_param("sss", $meal_date, $meal_type, $notes);
             } else {
                 $stmt = $conn->prepare("INSERT INTO meal_plan (meal_date, meal_type, recipe_id, notes)
                                         VALUES (?, ?, ?, ?)");
-                if (!$stmt) exit_with_error("Errore insert meal: " . $conn->error);
+                if (!$stmt) exit_with_error("Error inserting meal: " . $conn->error);
                 $stmt->bind_param("ssis", $meal_date, $meal_type, $recipe_id, $notes);
             }
         }
 
         if ($stmt->execute()) {
             echo json_encode(array(
-                'message' => 'Pasto salvato',
+                'message' => 'Meal saved',
                 'id' => ($id > 0 ? $id : (int)$stmt->insert_id)
             ));
         } else {
-            exit_with_error("Errore salvataggio pasto: " . $stmt->error);
+            exit_with_error("Error saving meal: " . $stmt->error);
         }
         break;
 
-    // --- INTEGRAZIONE SPESA ---
+    // --- SHOPPING INTEGRATION ---
     case 'generate_shopping_list':
         $data = get_json_input();
         $meal_ids = isset($data['meal_ids']) && is_array($data['meal_ids']) ? $data['meal_ids'] : array();
-        if (empty($meal_ids)) exit_with_error("Nessun pasto selezionato");
+        if (empty($meal_ids)) exit_with_error("No meals selected");
 
         $id_list = array();
         foreach ($meal_ids as $meal_id) {
             $id_list[] = (int)$meal_id;
         }
         $id_list = array_values(array_unique(array_filter($id_list)));
-        if (empty($id_list)) exit_with_error("ID pasti non validi");
+        if (empty($id_list)) exit_with_error("Invalid meal IDs");
 
         $ids_string = implode(',', $id_list);
         $sql = "SELECT ri.product_id, ri.ingredient_name, ri.quantity
@@ -135,7 +135,7 @@ switch ($action) {
                 JOIN recipe_ingredients ri ON mp.recipe_id = ri.recipe_id
                 WHERE mp.id IN ($ids_string)";
         $result = $conn->query($sql);
-        if (!$result) exit_with_error("Errore recupero ingredienti: " . $conn->error);
+        if (!$result) exit_with_error("Error retrieving ingredients: " . $conn->error);
 
         $resolvedByName = array();
         $byProduct = array();
@@ -204,7 +204,7 @@ switch ($action) {
         }
 
         echo json_encode(array(
-            'message' => "Lista spesa aggiornata: $inserted nuovi, $updated aggiornati, $skipped ingredienti non associati a prodotto.",
+            'message' => "Shopping list updated: $inserted new, $updated updated, $skipped ingredients not associated to a product.",
             'inserted' => $inserted,
             'updated' => $updated,
             'skipped' => $skipped
@@ -212,7 +212,7 @@ switch ($action) {
         break;
 
     default:
-        exit_with_error('Azione non valida: ' . $action, 404);
+        exit_with_error('Invalid action: ' . $action, 404);
 }
 
 function get_json_input() {

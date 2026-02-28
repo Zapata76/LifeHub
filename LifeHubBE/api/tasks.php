@@ -1,6 +1,6 @@
 <?php
 /**
- * Router API per l'App AttivitÃ  (Tasks)
+ * API Router for the Tasks App
  */
 session_start();
 require_once '../includes/auth.php';
@@ -33,7 +33,7 @@ switch ($action) {
         $priority = isset($data['priority']) ? $data['priority'] : 'medium';
         $due_date = !empty($data['due_date']) ? $data['due_date'] : null;
 
-        if (!$title) exit_with_error("Titolo obbligatorio");
+        if (!$title) exit_with_error("Title is required");
 
         if ($id > 0) {
             $stmt = $conn->prepare("UPDATE tasks SET title = ?, description = ?, assigned_to = ?, status = ?, priority = ?, due_date = ? WHERE id = ?");
@@ -44,23 +44,23 @@ switch ($action) {
         }
 
         if ($stmt->execute()) {
-            echo json_encode(array('message' => 'Task salvato', 'id' => ($id > 0 ? $id : $stmt->insert_id)));
+            echo json_encode(array('message' => 'Task saved', 'id' => ($id > 0 ? $id : $stmt->insert_id)));
         } else {
-            exit_with_error("Errore salvataggio task: " . $conn->error);
+            exit_with_error("Error saving task: " . $conn->error);
         }
         break;
 
     case 'delete_task':
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-        if (!$id) exit_with_error("ID mancante");
+        if (!$id) exit_with_error("Missing ID");
         $stmt = $conn->prepare("DELETE FROM tasks WHERE id = ?");
         $stmt->bind_param("i", $id);
-        if ($stmt->execute()) echo json_encode(array('message' => 'Task eliminato'));
-        else exit_with_error("Errore eliminazione");
+        if ($stmt->execute()) echo json_encode(array('message' => 'Task deleted'));
+        else exit_with_error("Error deleting task");
         break;
 
     case 'get_family_members':
-        // Per assegnare task ai membri della famiglia
+        // For assigning tasks to family members
         $result = $conn->query("SELECT id, username, role FROM users ORDER BY username ASC");
         $data = array();
         if ($result) {
@@ -71,7 +71,7 @@ switch ($action) {
 
     default:
         header('HTTP/1.1 404 Not Found');
-        echo json_encode(array('error' => 'Azione non valida'));
+        echo json_encode(array('error' => 'Invalid action'));
 }
 
 function exit_with_error($msg) {

@@ -1,22 +1,14 @@
 RewriteEngine On
-RewriteBase /umbertini/
 
-# Impedisci l'esplorazione delle directory
+# Prevent directory listing
 Options -Indexes
 
-# Regola specifica per l'app Angular in /shopping/
-# Se la richiesta inizia con shopping/ ed è per un file che non esiste,
-# servi l'index.html dell'app Angular per permettere il routing lato client.
-RewriteCond %{REQUEST_URI} ^/umbertini/shopping/
+# Default file for the directory
+DirectoryIndex index.html index.php
+
+# For any request that is not a real file (like api/auth.php)
+# or a real directory, fallback to index.html to let Angular handle client-side routing.
+# This rule works regardless of the subfolder the app is installed in.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^shopping/(.*)$ shopping/index.html [L]
-
-# Se la richiesta non è un file o una directory reale, e non riguarda l'app spesa
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^$ home.php [L]
-
-# Se l'utente accede alla root /umbertini/, mostra home.php.
-# Nelle sottocartelle usa index.php/index.html per evitare 403 con Options -Indexes.
-DirectoryIndex home.php index.php index.html
+RewriteRule ^ index.html [L]
