@@ -25,14 +25,14 @@ import { NotesService, Note } from './notes.service';
             <div class="header-controls">
                 <button class="btn-primary btn-sm" (click)="createNewNote()">+ Nuova</button>
                 <span class="user-badge" *ngIf="userAuthor">{{ userAuthor }}</span>
-                <a href="#/home" class="home-link">Home Hub</a>
+                <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>
       </header>
 
       <main>
-        <!-- Editor Nota (Modal) -->
+        <!-- Note Editor (Modal) -->
         <div class="modal" *ngIf="editingNote" (click)="cancelEdit()">
           <div class="modal-content card" (click)="$event.stopPropagation()" [style.border-top-color]="editingNote.color">
             
@@ -41,10 +41,10 @@ import { NotesService, Note } from './notes.service';
                 
                 <textarea [(ngModel)]="editingNote.content" placeholder="Inizia a scrivere..." class="note-textarea" [disabled]="isSaving"></textarea>
                 
-                <!-- Gestione Foto nell'editor -->
+                <!-- Photo handling in editor -->
                 <div class="photo-section">
                     <div class="photo-preview-container" *ngIf="previewUrl || editingNote.image_url">
-                        <img [src]="previewUrl || '/umbertini/' + editingNote.image_url" class="photo-preview">
+                        <img [src]="previewUrl || editingNote.image_url" class="photo-preview">
                         <button class="remove-photo" (click)="removePhoto()" *ngIf="!isSaving">&times;</button>
                     </div>
                     <div class="photo-upload" *ngIf="!previewUrl && !editingNote.image_url && !isSaving">
@@ -73,11 +73,11 @@ import { NotesService, Note } from './notes.service';
           </div>
         </div>
 
-        <!-- Elenco Note (Grid) -->
+        <!-- Notes List (Grid) -->
         <div class="notes-grid">
           <div class="note-card card" *ngFor="let n of notes" [style.border-top-color]="n.color" (click)="editNote(n)">
             <div class="note-img-preview" *ngIf="n.image_url">
-                <img [src]="'/umbertini/' + n.image_url">
+                <img [src]="n.image_url">
             </div>
             <div class="note-body">
                 <div class="note-header">
@@ -129,7 +129,7 @@ import { NotesService, Note } from './notes.service';
     .note-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a2a; padding-top: 10px; font-size: 0.75rem; }
     .delete-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; }
 
-    /* Modal / Editor Corretto */
+    /* Modal / Editor Corrected */
     .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 10px; }
     .modal-content { width: 100%; max-width: 550px; max-height: 95vh; display: flex; flex-direction: column; border-top: 6px solid #4f8cff; }
     .modal-body-scroll { padding: 20px; overflow-y: auto; flex-grow: 1; }
@@ -173,7 +173,7 @@ export class NotesPageComponent implements OnInit {
 
   ngOnInit() {
     this.loadNotes();
-    // In un caso reale userei un servizio auth, qui simuliamo dal primo caricamento note
+    // In a real case I would use an auth service, here we simulate from the first note load
   }
 
   loadNotes() {
@@ -183,8 +183,8 @@ export class NotesPageComponent implements OnInit {
         is_pinned: Number(n.is_pinned) === 1
       }));
       if (this.notes.length > 0 && !this.userAuthor) {
-          // Piccola scorciatoia per mostrare un nome utente nell'header senza creare un altro servizio
-          // (Questo verra migliorato quando avremo un servizio user centralizzato)
+          // Small shortcut to show a username in the header without creating another service
+          // (This will be improved when we have a centralized user service)
       }
     });
   }

@@ -26,8 +26,8 @@ import { MealsService, MealPlan, Recipe } from './meals.service';
           <div class="header-row header-bottom">
             <div class="header-controls">
                 <button class="btn-primary btn-sm" (click)="generateShoppingList()">Genera Spesa</button>
-                <a href="#/recipes" class="home-link">Ricette</a>
-                <a href="#/home" class="home-link">Home Hub</a>
+                <a routerLink="/recipes" class="home-link">Ricette</a>
+                <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>
@@ -57,7 +57,7 @@ import { MealsService, MealPlan, Recipe } from './meals.service';
           </div>
         </div>
 
-        <!-- Editor Pasto (Modal) -->
+        <!-- Meal Editor (Modal) -->
         <div class="modal" *ngIf="editingMeal" (click)="editingMeal = null">
           <div class="modal-content card" (click)="$event.stopPropagation()">
             <h2>Pianifica Pasto</h2>

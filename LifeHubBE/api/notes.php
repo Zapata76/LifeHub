@@ -1,6 +1,6 @@
 <?php
 /**
- * Router API Unificato per l'App Note
+ * Unified API Router for the Notes App
  */
 session_start();
 require_once '../includes/auth.php';
@@ -21,7 +21,7 @@ switch ($action) {
         
         if (!$result) {
             header('HTTP/1.1 500 Internal Server Error');
-            echo json_encode(array('error' => 'Errore query: ' . $conn->error));
+            echo json_encode(array('error' => 'Query error: ' . $conn->error));
             exit;
         }
 
@@ -31,7 +31,7 @@ switch ($action) {
         break;
 
     case 'save_note':
-        // Supporto per Multipart (Foto) o JSON
+        // Support for Multipart (Photo) or JSON
         $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         $title = isset($_POST['title']) ? trim($_POST['title']) : 'Senza titolo';
         $content = isset($_POST['content']) ? $_POST['content'] : '';
@@ -39,7 +39,7 @@ switch ($action) {
         $is_pinned = isset($_POST['is_pinned']) ? (int)$_POST['is_pinned'] : 0;
         $image_url = isset($_POST['existing_image']) ? $_POST['existing_image'] : null;
 
-        // Gestione upload foto
+        // Photo upload handling
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
             $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
             $filename = uniqid('note_') . '.' . $ext;
@@ -61,10 +61,10 @@ switch ($action) {
         }
 
         if ($stmt->execute()) {
-            echo json_encode(array('message' => 'Nota salvata', 'id' => ($id > 0 ? $id : $stmt->insert_id)));
+            echo json_encode(array('message' => 'Note saved', 'id' => ($id > 0 ? $id : $stmt->insert_id)));
         } else {
             header('HTTP/1.1 500 Internal Server Error');
-            echo json_encode(array('error' => 'Errore esecuzione: ' . $stmt->error));
+            echo json_encode(array('error' => 'Execution error: ' . $stmt->error));
         }
         break;
 
@@ -77,18 +77,18 @@ switch ($action) {
         $stmt = $conn->prepare("DELETE FROM notes WHERE id = ?");
         if (!$stmt) exit_with_sql_error($conn);
         $stmt->bind_param("i", $id);
-        if ($stmt->execute()) echo json_encode(array('message' => 'Nota eliminata'));
-        else echo json_encode(array('error' => 'Errore eliminazione: ' . $stmt->error));
+        if ($stmt->execute()) echo json_encode(array('message' => 'Note deleted'));
+        else echo json_encode(array('error' => 'Deletion error: ' . $stmt->error));
         break;
 
     default:
         header('HTTP/1.1 404 Not Found');
-        echo json_encode(array('error' => 'Azione non valida: ' . $action));
+        echo json_encode(array('error' => 'Invalid action: ' . $action));
 }
 
 function exit_with_sql_error($conn) {
     header('HTTP/1.1 500 Internal Server Error');
-    echo json_encode(array('error' => 'Errore SQL: ' . $conn->error));
+    echo json_encode(array('error' => 'SQL Error: ' . $conn->error));
     exit;
 }
 ?>

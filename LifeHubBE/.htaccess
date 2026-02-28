@@ -1,18 +1,14 @@
 RewriteEngine On
-RewriteBase /umbertini/
 
-# Impedisci l'esplorazione delle directory
+# Prevent directory listing
 Options -Indexes
 
 # Default file for the directory
 DirectoryIndex index.html index.php
 
-# Se la richiesta e' per l'API (e la cartella esiste o il file esiste), lasciala passare
-RewriteCond %{REQUEST_URI} ^/umbertini/api/ [NC]
-RewriteRule ^ - [L]
-
-# Per qualsiasi altra richiesta che non e' un file o una directory reale,
-# rimanda a index.html per gestire il routing Angular lato client.
+# For any request that is not a real file (like api/auth.php)
+# or a real directory, fallback to index.html to let Angular handle client-side routing.
+# This rule works regardless of the subfolder the app is installed in.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]

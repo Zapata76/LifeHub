@@ -22,7 +22,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
           <div class="header-row header-bottom">
             <div class="header-controls">
                 <span class="user-badge" *ngIf="user">{{ user.username }}</span>
-                <a href="#/home" class="home-link">Home Hub</a>
+                <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>
@@ -34,7 +34,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
       </header>
 
       <main [ngSwitch]="view">
-        <!-- VISTA: LISTA SPESA -->
+        <!-- VIEW: SHOPPING LIST -->
         <div *ngSwitchCase="'list'" class="grid">
           <section class="card">
             <div class="card-header">
@@ -62,7 +62,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
               <div class="add-controls">
                 <select [(ngModel)]="selectedSupermarketId" class="market-select">
                   <option [ngValue]="0">Qualsiasi supermercato</option>
-                  <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}</option>
+                  <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}</option>
                 </select>
                 <input type="text" [(ngModel)]="itemQuantity" placeholder="Qt&agrave;" class="qty-input">
                 <button (click)="addToList()" [disabled]="!selectedProductId" class="add-btn">+</button>
@@ -78,7 +78,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
               <label for="listFilterMarket">Filtro supermercato</label>
               <select id="listFilterMarket" [(ngModel)]="listFilterSupermarketId">
                 <option [ngValue]="0">Mostra tutti i prodotti</option>
-                <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}</option>
+                <option *ngFor="let s of supermarkets" [ngValue]="s.id">{{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}</option>
               </select>
               <small>I prodotti senza supermercato specifico sono sempre visibili.</small>
             </div>
@@ -88,7 +88,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
                 <input type="checkbox" [checked]="!!item.is_checked" (change)="toggleItem(item)">
                 
                 <div class="item-img-container" *ngIf="item.image_url">
-                    <img [src]="'/umbertini/' + item.image_url" class="thumb">
+                    <img [src]="item.image_url" class="thumb">
                 </div>
 
                 <div class="item-content" (click)="editItem(item)">
@@ -107,7 +107,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
           </section>
         </div>
 
-        <!-- VISTA: REGISTRA PREZZI -->
+        <!-- VIEW: RECORD PRICES -->
         <div *ngSwitchCase="'prices'" class="grid">
           <section class="card">
             <h2>Registra Prezzo</h2>
@@ -136,7 +136,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
                 <label>Supermercato</label>
                 <select [(ngModel)]="newPrice.supermarket_id" name="market" required>
                   <option [value]="0" disabled>Seleziona supermercato...</option>
-                  <option *ngFor="let s of supermarkets" [value]="s.id">{{ s.name }} ({{ s.location }})</option>
+                  <option *ngFor="let s of supermarkets" [value]="s.id">{{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}</option>
                 </select>
               </div>
               <div class="form-group">
@@ -152,17 +152,17 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
           </section>
         </div>
 
-        <!-- VISTA: ANAGRAFICA PRODOTTI E CATEGORIE -->
+        <!-- VIEW: PRODUCTS AND CATEGORIES REGISTRY -->
         <div *ngSwitchCase="'products'" class="grid">
           
-          <!-- Sezione Anagrafica Prodotti -->
+          <!-- Products Registry Section -->
           <section class="card full-width">
             <div class="card-header">
               <h2>Anagrafica Prodotti</h2>
               <button class="btn-primary btn-sm" (click)="showProductForm = true" *ngIf="!showProductForm">+ Nuovo</button>
             </div>
 
-            <!-- Form Prodotto (Integrato) -->
+            <!-- Product Form (Integrated) -->
             <div class="inline-form" *ngIf="showProductForm">
                 <h3 class="form-title">{{ editingProduct ? 'Modifica' : 'Nuovo' }} Prodotto</h3>
                 <form (submit)="saveProduct()" class="stacked-form">
@@ -182,8 +182,8 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
                     <div class="form-group">
                         <label>Foto Prodotto (Scatta o Scegli)</label>
                         <div class="photo-upload-row">
-                            <img *ngIf="previewUrl || newProduct.image_url" [src]="previewUrl || '/umbertini/' + newProduct.image_url" class="thumb-large">
-                            <input type="file" 
+                            <img *ngIf="previewUrl || newProduct.image_url" [src]="previewUrl || newProduct.image_url" class="thumb-large">
+                            <input type="file"
                                    (change)="onFileSelected($event)" 
                                    accept="image/*" 
                                    capture="environment" 
@@ -208,7 +208,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
             <ul class="item-list">
               <li *ngFor="let p of filteredProducts">
                 <div class="item-info clickable" (click)="startEditProduct(p)">
-                  <img *ngIf="p.image_url" [src]="'/umbertini/' + p.image_url" class="thumb">
+                  <img *ngIf="p.image_url" [src]="p.image_url" class="thumb">
                   <div class="text-info">
                       <span class="name">{{ p.name }}</span>
                       <span class="category">{{ p.category_name || 'Nessuna' }}</span>
@@ -219,7 +219,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
             </ul>
           </section>
 
-          <!-- Sezione Categorie -->
+          <!-- Categories Section -->
           <section class="card full-width">
             <h2>Categorie</h2>
             <div class="add-item-box">

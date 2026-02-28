@@ -17,7 +17,7 @@ export interface Note {
   providedIn: 'root'
 })
 export class NotesService {
-  private apiUrl = '/umbertini/api/notes.php';
+  private apiUrl = 'api/notes.php';
 
   constructor(private http: HttpClient) { }
 

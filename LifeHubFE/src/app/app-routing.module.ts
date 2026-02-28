@@ -6,6 +6,7 @@ import { CalendarPageComponent } from './calendar-page.component';
 import { HomePageComponent } from './home-page.component';
 import { LoginPageComponent } from './login-page.component';
 import { LogoutPageComponent } from './logout-page.component';
+import { AboutPageComponent } from './about-page.component';
 import { MealsPageComponent } from './meals-page.component';
 import { NotesPageComponent } from './notes-page.component';
 import { RecipesPageComponent } from './recipes-page.component';
@@ -16,6 +17,7 @@ import { UsersPageComponent } from './users-page.component';
 const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
   { path: 'logout', component: LogoutPageComponent },
+  { path: 'about', component: AboutPageComponent },
   { path: 'home', component: HomePageComponent, canActivate: [AuthGuard] },
   { path: 'calendar', component: CalendarPageComponent, canActivate: [AuthGuard] },
   { path: 'shopping', component: ShoppingPageComponent, canActivate: [AuthGuard] },

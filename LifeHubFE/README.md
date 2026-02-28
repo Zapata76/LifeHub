@@ -16,7 +16,7 @@ Run `ng build` to build the project. The build artifacts will be stored in the `
 
 ## Local configuration (not committed)
 
-1. Copy `config/deploy.example.json` to `config/deploy.local.json` and set your `baseHref` (for example `/umbertini/lifehubfe/`).
+1. Copy `config/deploy.example.json` to `config/deploy.local.json` and set your `baseHref` (for example `/lifehubfe/`).
 2. Copy `src/assets/runtime-config.example.json` to `src/assets/runtime-config.json` and set your `appTitle` and `calendarIds`.
 3. Run `npm run build`.
 

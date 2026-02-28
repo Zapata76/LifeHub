@@ -72,6 +72,10 @@ import { RuntimeConfigService } from './runtime-config.service';
           </a>
         </div>
       </main>
+
+      <footer>
+        <a routerLink="/about" class="credits-link">Project Credits & Developer</a>
+      </footer>
     </div>
   `,
   styles: [`
@@ -186,6 +190,22 @@ import { RuntimeConfigService } from './runtime-config.service';
     }
     @media (min-width: 601px) and (max-width: 1024px) {
       .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    footer {
+      max-width: 1200px;
+      margin: 40px auto 20px;
+      padding: 20px;
+      text-align: center;
+      border-top: 1px solid #2a2a2a;
+    }
+    .credits-link {
+      color: #9aa0a6;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    .credits-link:hover {
+      color: #4f8cff;
     }
   `]
 })

@@ -1,11 +1,11 @@
 <?php
 /**
- * Router API Unificato per l'App Spesa
+ * Unified API Router for the Shopping App
  */
 session_start();
 require_once '../includes/auth.php';
 
-// Verifica autenticazione (REST API style)
+// Verify authentication (REST API style)
 requireLoginApi();
 
 header('Content-Type: application/json');
@@ -18,12 +18,12 @@ ensure_shopping_list_supermarket_column($conn);
 
 switch ($action) {
     
-    // --- UTENTE ---
+    // --- USER ---
     case 'get_user':
         echo json_encode($user);
         break;
 
-    // --- CATEGORIE ---
+    // --- CATEGORIES ---
     case 'get_categories':
         $result = $conn->query("SELECT * FROM categories ORDER BY name ASC");
         $data = array();
@@ -66,7 +66,7 @@ switch ($action) {
         else exit_with_error("Errore eliminazione categoria");
         break;
 
-    // --- PRODOTTI ---
+    // --- PRODUCTS ---
     case 'get_products':
         $sql = "SELECT p.*, c.name as category_name 
                 FROM products p 
@@ -125,7 +125,7 @@ switch ($action) {
         else exit_with_error("Errore eliminazione prodotto");
         break;
 
-    // --- SUPERMERCATI ---
+    // --- SUPERMARKETS ---
     case 'get_supermarkets':
         $result = $conn->query("SELECT * FROM supermarkets ORDER BY name ASC");
         $data = array();

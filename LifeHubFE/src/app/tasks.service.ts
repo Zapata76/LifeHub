@@ -23,7 +23,7 @@ export interface FamilyMember {
   providedIn: 'root'
 })
 export class TasksService {
-  private apiUrl = '/umbertini/api/tasks.php';
+  private apiUrl = 'api/tasks.php';
 
   constructor(private http: HttpClient) { }
 

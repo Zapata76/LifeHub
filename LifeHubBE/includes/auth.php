@@ -1,6 +1,6 @@
 <?php
 /**
- * Gestione Autenticazione
+ * Authentication Management
  */
 
 require_once 'db.php';
@@ -14,14 +14,14 @@ function requireLogin() {
 }
 
 /**
- * Versione per API: restituisce JSON 401 se non autorizzato
+ * API version: returns JSON 401 if unauthorized
  */
 function requireLoginApi() {
     enforce_session_timeout(true, 'login.php');
     if (!isset($_SESSION['user_id'])) {
         header('Content-Type: application/json');
         header('HTTP/1.1 401 Unauthorized');
-        echo json_encode(array('error' => 'Non autorizzato'));
+        echo json_encode(array('error' => 'Unauthorized'));
         exit;
     }
 }
@@ -59,7 +59,7 @@ function require_roles_api($allowedRoles) {
     if (!user_has_any_role($user, $allowedRoles)) {
         header('Content-Type: application/json');
         header('HTTP/1.1 403 Forbidden');
-        echo json_encode(array('error' => 'Permesso negato'));
+        echo json_encode(array('error' => 'Permission denied'));
         exit;
     }
     return $user;
@@ -75,7 +75,7 @@ function require_roles_page($allowedRoles, $homePath) {
 
     $user = currentUser();
     if (!user_has_any_role($user, $allowedRoles)) {
-        echo "<h1>Accesso Negato</h1><p>Non hai i permessi per accedere a questa sezione.</p><a href='" . htmlspecialchars($homePath . "home.php") . "'>Torna alla Home</a>";
+        echo "<h1>Access Denied</h1><p>You do not have permission to access this section.</p><a href='" . htmlspecialchars($homePath . "home.php") . "'>Back to Home</a>";
         exit;
     }
     return $user;
@@ -90,7 +90,7 @@ function require_admin_page($homePath) {
 }
 
 function enforce_session_timeout($apiMode, $loginPath) {
-    $timeoutSeconds = 259200; // 3 giorni
+    $timeoutSeconds = 259200; // 3 days
     if (!isset($_SESSION['user_id'])) return;
 
     if (isset($_SESSION['last_activity']) && (time() - (int)$_SESSION['last_activity'] > $timeoutSeconds)) {
@@ -99,7 +99,7 @@ function enforce_session_timeout($apiMode, $loginPath) {
         if ($apiMode) {
             header('Content-Type: application/json');
             header('HTTP/1.1 401 Unauthorized');
-            echo json_encode(array('error' => 'Sessione scaduta'));
+            echo json_encode(array('error' => 'Session expired'));
             exit;
         }
         header("Location: " . $loginPath);
@@ -110,55 +110,56 @@ function enforce_session_timeout($apiMode, $loginPath) {
 }
 
 /**
- * Tenta il login
+ * Attempt login
  * @param string $username
  * @param string $password
- * @return bool|string True se successo, altrimenti messaggio di errore
+ * @return bool|string True if successful, otherwise error message
  */
 function login($username, $password) {
     global $conn;
-    
-    // In PHP vecchio, usiamo prepared statements con mysqli
+
+    // Use prepared statements
     $stmt = $conn->prepare("SELECT id, username, password, role FROM users WHERE username = ?");
     if (!$stmt) {
-        return "Errore di sistema: " . $conn->error;
+        return "System error: " . $conn->error;
     }
-    
+
     $stmt->bind_param("s", $username);
     $stmt->execute();
-    
-    // Fallback per get_result() che potrebbe non essere disponibile in alcune installazioni mysqlnd
+
+    // Fallback for get_result() which might not be available in some mysqlnd installations
     $stmt->store_result();
     if ($stmt->num_rows === 1) {
+        $id = 0; $uname = ''; $db_password = ''; $role = '';
         $stmt->bind_result($id, $uname, $db_password, $role);
         $stmt->fetch();
-        
+
         $authenticated = false;
-        
-        // Verifica password: prova password_verify (PHP 5.5+) altrimenti md5 (legacy)
+
+        // Verify password: try password_verify (PHP 5.5+) otherwise md5 (legacy)
         if (function_exists('password_verify')) {
             if (password_verify($password, $db_password)) {
                 $authenticated = true;
             }
-        } 
-        
-        // Se non autenticato con password_verify (o non esiste), prova MD5
+        }
+
+        // If not authenticated with password_verify (or not exists), try MD5
         if (!$authenticated && $db_password === md5($password)) {
             $authenticated = true;
         }
 
         if ($authenticated) {
-            // Rigenera ID sessione per sicurezza
+            // Regenerate session ID for security
             session_regenerate_id(true);
-            
+
             $_SESSION['user_id'] = $id;
             $_SESSION['username'] = $uname;
             $_SESSION['role'] = normalize_role($role);
             $_SESSION['last_activity'] = time();
-            
+
             return true;
         }
     }
-    
-    return "Username o password errati";
+
+    return "Invalid username or password";
 }

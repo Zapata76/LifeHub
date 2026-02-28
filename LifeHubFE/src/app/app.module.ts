@@ -16,6 +16,7 @@ import { HomePageComponent } from './home-page.component';
 import { UsersPageComponent } from './users-page.component';
 import { CalendarPageComponent } from './calendar-page.component';
 import { LogoutPageComponent } from './logout-page.component';
+import { AboutPageComponent } from './about-page.component';
 import { RuntimeConfigService } from './runtime-config.service';
 
 export function initRuntimeConfig(runtimeConfig: RuntimeConfigService): () => Promise<void> {
@@ -34,7 +35,8 @@ export function initRuntimeConfig(runtimeConfig: RuntimeConfigService): () => Pr
     HomePageComponent,
     UsersPageComponent,
     CalendarPageComponent,
-    LogoutPageComponent
+    LogoutPageComponent,
+    AboutPageComponent
   ],
   imports: [
     BrowserModule,

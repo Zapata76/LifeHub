@@ -11,7 +11,7 @@ export interface HubUser {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = '/umbertini/api/auth.php';
+  private apiUrl = 'api/auth.php';
   private userSubject = new BehaviorSubject<HubUser | null>(null);
   user$ = this.userSubject.asObservable();
 

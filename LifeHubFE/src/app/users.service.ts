@@ -10,7 +10,7 @@ export interface HubManagedUser {
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
-  private apiUrl = '/umbertini/api/users.php';
+  private apiUrl = 'api/users.php';
 
   constructor(private http: HttpClient) {}
 

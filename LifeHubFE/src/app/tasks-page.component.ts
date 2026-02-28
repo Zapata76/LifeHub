@@ -22,14 +22,14 @@ import { TasksService, Task, FamilyMember } from './tasks.service';
             <div class="header-controls">
                 <button class="btn-primary btn-sm" (click)="createNewTask()">+ Nuova</button>
                 <span class="user-badge" *ngIf="familyMember">{{ familyMember }}</span>
-                <a href="#/home" class="home-link">Home Hub</a>
+                <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>
       </header>
 
       <main>
-        <!-- Editor Task (Modal) -->
+        <!-- Task Editor (Modal) -->
         <div class="modal" *ngIf="editingTask" (click)="cancelEdit()">
           <div class="modal-content card" (click)="$event.stopPropagation()">
             <h2>{{ editingTask.id ? 'Modifica' : 'Nuova' }} Attivita</h2>
@@ -86,9 +86,9 @@ import { TasksService, Task, FamilyMember } from './tasks.service';
           </div>
         </div>
 
-        <!-- Bacheca Kanban -->
+        <!-- Kanban Board -->
         <div class="kanban-board">
-            <!-- Colonna TODO -->
+            <!-- TODO Column -->
             <div class="kanban-col">
                 <h3 class="col-title">DA FARE ({{ getTasksByStatus('todo').length }})</h3>
                 <div class="task-list">
@@ -106,7 +106,7 @@ import { TasksService, Task, FamilyMember } from './tasks.service';
                 </div>
             </div>
 
-            <!-- Colonna DOING -->
+            <!-- DOING Column -->
             <div class="kanban-col">
                 <h3 class="col-title">IN CORSO ({{ getTasksByStatus('doing').length }})</h3>
                 <div class="task-list">
@@ -120,7 +120,7 @@ import { TasksService, Task, FamilyMember } from './tasks.service';
                 </div>
             </div>
 
-            <!-- Colonna DONE -->
+            <!-- DONE Column -->
             <div class="kanban-col">
                 <h3 class="col-title">FATTO ({{ getTasksByStatus('done').length }})</h3>
                 <div class="task-list">

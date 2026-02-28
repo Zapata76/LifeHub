@@ -21,7 +21,7 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
           <div class="header-row header-bottom">
             <div class="header-controls">
               <button class="btn-primary btn-sm" (click)="startNewRecipe()">Nuova ricetta</button>
-              <a href="#/home" class="home-link">Home Hub</a>
+              <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>
@@ -49,11 +49,16 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
               [class.active]="editingRecipe && editingRecipe.id === recipe.id"
               (click)="selectRecipe(recipe.id!)"
             >
-              <div class="recipe-name">{{ recipe.name }}</div>
-              <div class="recipe-meta">
-                <span *ngIf="recipe.category">{{ recipe.category }}</span>
-                <span *ngIf="recipe.prep_time_minutes">{{ recipe.prep_time_minutes }} min</span>
-                <span *ngIf="recipe.difficulty">{{ recipe.difficulty }}</span>
+              <div class="recipe-row">
+                <img *ngIf="recipe.image_url" [src]="recipe.image_url" class="recipe-thumb" />
+                <div class="recipe-info">
+                  <div class="recipe-name">{{ recipe.name }}</div>
+                  <div class="recipe-meta">
+                    <span *ngIf="recipe.category">{{ recipe.category }}</span>
+                    <span *ngIf="recipe.prep_time_minutes">{{ recipe.prep_time_minutes }} min</span>
+                    <span *ngIf="recipe.difficulty">{{ recipe.difficulty }}</span>
+                  </div>
+                </div>
               </div>
             </li>
             <li *ngIf="recipes.length === 0" class="muted">Nessuna ricetta trovata</li>
@@ -133,8 +138,19 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
           </div>
 
           <div class="form-group">
-            <label>Foto</label>
-            <div class="muted">Fase 2: upload immagine ricetta.</div>
+            <label>Foto Ricetta</label>
+            <div class="photo-upload-container">
+              <div class="photo-preview-wrapper" *ngIf="previewUrl || editingRecipe.image_url">
+                <img [src]="previewUrl || editingRecipe.image_url" class="recipe-photo-preview" />
+                <button class="remove-photo-btn" (click)="removePhoto()" title="Rimuovi foto">&times;</button>
+              </div>
+              <div class="upload-controls" *ngIf="!previewUrl && !editingRecipe.image_url">
+                <label class="camera-label">
+                  <span class="icon">&#128247;</span> Scatta o scegli foto
+                  <input type="file" (change)="onFileSelected($event)" accept="image/*" capture="environment" hidden />
+                </label>
+              </div>
+            </div>
           </div>
 
           <div class="footer-actions">
@@ -171,7 +187,10 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
     .recipe-list { list-style: none; margin: 0; padding: 0; max-height: 68vh; overflow: auto; }
     .recipe-list li { padding: 10px; border: 1px solid #2a2a2a; border-radius: 8px; margin-bottom: 8px; cursor: pointer; background: #222; }
     .recipe-list li.active { border-color: #4f8cff; background: #1f2d43; }
-    .recipe-name { font-weight: 600; margin-bottom: 4px; }
+    .recipe-row { display: flex; gap: 12px; align-items: center; }
+    .recipe-thumb { width: 45px; height: 45px; object-fit: cover; border-radius: 6px; border: 1px solid #333; flex-shrink: 0; }
+    .recipe-info { flex-grow: 1; min-width: 0; }
+    .recipe-name { font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .recipe-meta { font-size: 0.75rem; color: #9aa0a6; display: flex; gap: 10px; flex-wrap: wrap; }
 
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -193,6 +212,14 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
     .dropdown-item:last-child { border-bottom: none; }
     .dropdown-item:hover { background: #253451; }
     .cat-prefix { color: #4f8cff; font-weight: 700; font-size: 0.74rem; text-transform: uppercase; margin-right: 5px; }
+
+    .photo-upload-container { margin-top: 5px; }
+    .photo-preview-wrapper { position: relative; width: 100%; max-width: 300px; border-radius: 12px; overflow: hidden; border: 1px solid #333; }
+    .recipe-photo-preview { width: 100%; display: block; object-fit: cover; max-height: 250px; }
+    .remove-photo-btn { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; }
+    .camera-label { display: inline-flex; align-items: center; gap: 10px; background: #2a2a2a; border: 2px dashed #444; padding: 20px; border-radius: 12px; cursor: pointer; color: #4f8cff; width: 100%; box-sizing: border-box; justify-content: center; font-weight: 600; }
+    .camera-label:hover { background: #333; border-color: #4f8cff; }
+    .camera-label .icon { font-size: 1.5rem; }
 
     .footer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     button { border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
@@ -224,6 +251,10 @@ export class RecipesPageComponent implements OnInit {
   activeIngredientDropdown: number | null = null;
 
   editingRecipe: Recipe = this.emptyRecipe();
+  
+  selectedFile: File | null = null;
+  previewUrl: string | null = null;
+  isSaving: boolean = false;
 
   constructor(private recipesService: RecipesService) {}
 
@@ -267,6 +298,8 @@ export class RecipesPageComponent implements OnInit {
   }
 
   selectRecipe(id: number) {
+    this.selectedFile = null;
+    this.previewUrl = null;
     this.recipesService.getRecipeDetails(id).subscribe(recipe => {
       this.editingRecipe = {
         ...recipe,
@@ -293,6 +326,24 @@ export class RecipesPageComponent implements OnInit {
     this.editingRecipe = this.emptyRecipe();
     this.ingredientProductSearch = {};
     this.activeIngredientDropdown = null;
+    this.selectedFile = null;
+    this.previewUrl = null;
+  }
+
+  onFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      this.selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e: any) => this.previewUrl = e.target.result;
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removePhoto() {
+    this.selectedFile = null;
+    this.previewUrl = null;
+    this.editingRecipe.image_url = null;
   }
 
   addIngredient() {
@@ -407,23 +458,41 @@ export class RecipesPageComponent implements OnInit {
   }
 
   saveRecipe() {
-    const payload: Recipe = {
-      ...this.editingRecipe,
-      ingredients: this.editingRecipe.ingredients
-        .map(i => {
-          const productId = i.product_id ? Number(i.product_id) : null;
-          const fallbackName = this.getProductNameById(productId);
-          return {
-            ...i,
-            ingredient_name: ((i.ingredient_name || '').trim() || fallbackName),
-            quantity: (i.quantity || '').trim(),
-            product_id: productId
-          };
-        })
-        .filter(i => i.ingredient_name !== '' || !!i.product_id)
-    };
+    if (!this.editingRecipe.name.trim()) return;
+    this.isSaving = true;
 
-    this.recipesService.saveRecipe(payload).subscribe(response => {
+    const ingredients = this.editingRecipe.ingredients
+      .map(i => {
+        const productId = i.product_id ? Number(i.product_id) : null;
+        const fallbackName = this.getProductNameById(productId);
+        return {
+          ...i,
+          ingredient_name: ((i.ingredient_name || '').trim() || fallbackName),
+          quantity: (i.quantity || '').trim(),
+          product_id: productId
+        };
+      })
+      .filter(i => i.ingredient_name !== '' || !!i.product_id);
+
+    const formData = new FormData();
+    if (this.editingRecipe.id) formData.append('id', this.editingRecipe.id.toString());
+    formData.append('name', this.editingRecipe.name);
+    formData.append('category', this.editingRecipe.category || '');
+    formData.append('description', this.editingRecipe.description || '');
+    formData.append('instructions', this.editingRecipe.instructions || '');
+    formData.append('prep_time_minutes', this.editingRecipe.prep_time_minutes ? this.editingRecipe.prep_time_minutes.toString() : '');
+    formData.append('difficulty', this.editingRecipe.difficulty || 'media');
+    formData.append('author_name', this.editingRecipe.author_name || '');
+    formData.append('ingredients', JSON.stringify(ingredients));
+    
+    if (this.selectedFile) {
+      formData.append('photo', this.selectedFile);
+    } else if (this.editingRecipe.image_url) {
+      formData.append('existing_image', this.editingRecipe.image_url);
+    }
+
+    this.recipesService.saveRecipe(formData).subscribe(response => {
+      this.isSaving = false;
       this.loadRecipes();
       this.loadStaticData();
       if (response && response.id) {
@@ -432,6 +501,9 @@ export class RecipesPageComponent implements OnInit {
         this.startNewRecipe();
       }
       alert('Ricetta salvata');
+    }, err => {
+      this.isSaving = false;
+      alert('Errore salvataggio: ' + (err.error?.error || err.message));
     });
   }
 

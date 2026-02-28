@@ -32,7 +32,7 @@ export interface MealPlan {
   providedIn: 'root'
 })
 export class MealsService {
-  private apiUrl = '/umbertini/api/meals.php';
+  private apiUrl = 'api/meals.php';
 
   constructor(private http: HttpClient) { }
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * API Autenticazione per LifeHubFE
+ * Authentication API for LifeHubFE
  */
 session_start();
 require_once '../includes/auth.php';
@@ -12,7 +12,7 @@ $action = isset($_GET['action']) ? $_GET['action'] : 'me';
 switch ($action) {
     case 'me':
         if (!isset($_SESSION['user_id'])) {
-            exit_with_error('Non autorizzato', 401);
+            exit_with_error('Unauthorized', 401);
         }
         enforce_session_timeout(true, '../login.php');
         echo json_encode(currentUser());
@@ -24,13 +24,13 @@ switch ($action) {
         $password = isset($data['password']) ? (string)$data['password'] : '';
 
         if ($username === '' || $password === '') {
-            exit_with_error('Username e password obbligatori');
+            exit_with_error('Username and password are required');
         }
 
         $result = login($username, $password);
         if ($result === true) {
             echo json_encode(array(
-                'message' => 'Login effettuato',
+                'message' => 'Login successful',
                 'user' => currentUser()
             ));
         } else {
@@ -41,11 +41,11 @@ switch ($action) {
     case 'logout':
         session_unset();
         session_destroy();
-        echo json_encode(array('message' => 'Logout effettuato'));
+        echo json_encode(array('message' => 'Logout successful'));
         break;
 
     default:
-        exit_with_error('Azione non valida: ' . $action, 404);
+        exit_with_error('Invalid action: ' . $action, 404);
 }
 
 function get_json_input() {

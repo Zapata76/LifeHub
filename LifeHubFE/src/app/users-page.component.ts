@@ -22,7 +22,7 @@ import { HubManagedUser, UsersService } from './users.service';
           </div>
           <div class="header-row header-bottom">
             <div class="header-controls">
-              <a href="#/home" class="home-link">Home Hub</a>
+              <a routerLink="/home" class="home-link">Home Hub</a>
             </div>
           </div>
         </div>

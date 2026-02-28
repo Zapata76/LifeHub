@@ -43,7 +43,7 @@ export interface ShoppingItem {
   providedIn: 'root'
 })
 export class ShoppingService {
-  private apiUrl = '/umbertini/api/shopping.php';
+  private apiUrl = 'api/shopping.php';
 
   constructor(private http: HttpClient) { }
 

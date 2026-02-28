@@ -1,14 +1,14 @@
 <?php
 /**
- * Configurazione Database e Costanti
+ * Database Configuration and Constants
  */
 
-// Parametri connessione DB
+// DB connection parameters
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'lifehub');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 
-// Altre configurazioni
+// Other configurations
 define('SITE_NAME', 'Life Hub');
-define('SESSION_TIMEOUT', 259200); // 3 giorni in secondi
+define('SESSION_TIMEOUT', 259200); // 3 days in seconds

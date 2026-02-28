@@ -34,7 +34,7 @@ export interface ProductCatalogItem {
   providedIn: 'root'
 })
 export class RecipesService {
-  private apiUrl = '/umbertini/api/recipes.php';
+  private apiUrl = 'api/recipes.php';
 
   constructor(private http: HttpClient) { }
 
@@ -58,8 +58,8 @@ export class RecipesService {
     return this.http.get<ProductCatalogItem[]>(`${this.apiUrl}?action=get_products_catalog`, { withCredentials: true });
   }
 
-  saveRecipe(recipe: Recipe): Observable<{ message: string; id: number }> {
-    return this.http.post<{ message: string; id: number }>(`${this.apiUrl}?action=save_recipe`, recipe, { withCredentials: true });
+  saveRecipe(formData: FormData): Observable<{ message: string; id: number }> {
+    return this.http.post<{ message: string; id: number }>(`${this.apiUrl}?action=save_recipe`, formData, { withCredentials: true });
   }
 
   deleteRecipe(id: number): Observable<{ message: string }> {
