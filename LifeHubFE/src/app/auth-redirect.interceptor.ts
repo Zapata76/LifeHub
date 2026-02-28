@@ -8,11 +8,15 @@ import {
 } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+import { Router } from '@angular/router';
+import { Injector } from '@angular/core';
 
 let redirectingToLogin = false;
 
 @Injectable()
 export class AuthRedirectInterceptor implements HttpInterceptor {
+  constructor(private injector: Injector) {}
+
   intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     return next.handle(req).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -40,11 +44,11 @@ export class AuthRedirectInterceptor implements HttpInterceptor {
 
   private redirectToLogin(): void {
     if (redirectingToLogin) return;
-    if ((window.location.hash || '').indexOf('/login') !== -1) return;
+    if (window.location.pathname.indexOf('/login') !== -1) return;
     redirectingToLogin = true;
-    const pathname = window.location.pathname || '/';
-    const dir = pathname.endsWith('/') ? pathname : pathname.substring(0, pathname.lastIndexOf('/') + 1);
-    const baseDir = dir || '/';
-    window.location.assign(`${window.location.origin}${baseDir}#/login`);
+    const router = this.injector.get(Router);
+    router.navigate(['/login']).then(() => {
+      redirectingToLogin = false;
+    });
   }
 }
