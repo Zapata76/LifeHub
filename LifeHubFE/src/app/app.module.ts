@@ -18,6 +18,8 @@ import { CalendarPageComponent } from './calendar-page.component';
 import { LogoutPageComponent } from './logout-page.component';
 import { AboutPageComponent } from './about-page.component';
 import { RuntimeConfigService } from './runtime-config.service';
+import { ServiceWorkerModule } from '@angular/service-worker';
+import { environment } from '../environments/environment';
 
 export function initRuntimeConfig(runtimeConfig: RuntimeConfigService): () => Promise<void> {
   return () => runtimeConfig.load();
@@ -42,7 +44,8 @@ export function initRuntimeConfig(runtimeConfig: RuntimeConfigService): () => Pr
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
-    FormsModule
+    FormsModule,
+    ServiceWorkerModule.register('ngsw-worker.js', { enabled: environment.production })
   ],
   providers: [
     {
