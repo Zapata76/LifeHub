@@ -1,0 +1,147 @@
+<div class="container dark-theme">
+  <header>
+    <div class="header-content">
+      <div class="header-row header-top">
+        <h1 class="page-title">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </span>
+          <span>Archivio Documenti</span>
+        </h1>
+      </div>
+      <div class="header-row header-bottom">
+        <div class="header-controls">
+          <a routerLink="/home" class="home-link">Home Hub</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card list-panel">
+      <div class="card-header">
+        <h2>Documenti</h2>
+        <button class="btn-primary btn-add-circle" (click)="startNewDoc()" title="Nuovo documento">+</button>
+      </div>
+      <div class="filters">
+        <input type="text" [(ngModel)]="searchQuery" (input)="loadDocuments()" placeholder="Cerca per titolo, tag..." />
+      </div>
+
+      <ul class="doc-list">
+        <li *ngFor="let doc of documents" [class.active]="selectedDoc && selectedDoc.id === doc.id" (click)="selectDoc(doc)">
+          <div class="doc-row">
+            <div class="doc-info">
+              <div class="doc-name">{{ doc.title }}</div>
+              <div class="doc-meta">
+                <span>{{ doc.category }}</span>
+                <span>{{ doc.created_at | date: 'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li *ngIf="documents.length === 0" class="muted">Nessun documento trovato</li>
+      </ul>
+    </section>
+
+    <section class="card editor-panel">
+      <!-- VIEW MODE -->
+      <div *ngIf="!isEditingMode && selectedDoc.id">
+        <div class="doc-detail-header">
+          <h2>{{ selectedDoc.title }}</h2>
+          <div class="doc-detail-meta">
+            <span class="badge">{{ selectedDoc.category }}</span>
+            <span class="meta-item">📅 {{ selectedDoc.created_at | date: 'dd/MM/yyyy' }}</span>
+          </div>
+        </div>
+
+        <div class="doc-detail-content">
+          <div class="detail-section" *ngIf="selectedDoc.tags">
+            <h3>Tag</h3>
+            <div class="tags-container">
+              <span *ngFor="let tag of selectedDoc.tags.split(',')" class="tag-badge">{{ tag.trim() }}</span>
+            </div>
+          </div>
+
+          <div class="detail-section" *ngIf="selectedDoc.notes">
+            <h3>Note</h3>
+            <div class="notes-display">{{ selectedDoc.notes }}</div>
+          </div>
+
+          <div class="detail-section">
+            <h3>File</h3>
+            <div class="file-view-container">
+              <a [href]="selectedDoc.file_path" target="_blank" class="btn-secondary btn-file">
+                <span class="icon">📄</span> Apri/Scarica Documento
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn-primary" (click)="isEditingMode = true">Modifica</button>
+          <button class="btn-danger" (click)="deleteDocument(selectedDoc.id)">Elimina</button>
+        </div>
+      </div>
+
+      <!-- EDIT MODE -->
+      <div *ngIf="isEditingMode || !selectedDoc.id">
+        <h2>{{ selectedDoc?.id ? 'Modifica Documento' : 'Nuovo Documento' }}</h2>
+        <div class="form-grid">
+          <div class="form-group col-2">
+            <label>Titolo</label>
+            <input type="text" [(ngModel)]="selectedDoc.title" placeholder="Es. Contratto Affitto 2024" />
+          </div>
+          <div class="form-group">
+            <label>Categoria</label>
+            <select [(ngModel)]="selectedDoc.category">
+              <option value="Contratti">Contratti</option>
+              <option value="Certificati">Certificati</option>
+              <option value="Bollette">Bollette</option>
+              <option value="Garanzie">Garanzie</option>
+              <option value="Altro">Altro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tag (separati da virgola)</label>
+            <input type="text" [(ngModel)]="selectedDoc.tags" placeholder="Es. casa, 2024, importante" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Note</label>
+          <textarea [(ngModel)]="selectedDoc.notes" placeholder="Descrizione o dettagli del documento"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>File (PDF, Immagine)</label>
+          <div class="file-upload-container">
+            <div class="file-preview" *ngIf="selectedDoc.file_path && !selectedFile">
+              <span class="muted">File attuale: {{ selectedDoc.file_path }}</span>
+            </div>
+            <div class="upload-controls">
+              <label class="upload-btn">
+                <span class="icon">📁</span> {{ selectedFile ? selectedFile.name : 'Seleziona file' }}
+                <input type="file" (change)="onFileSelected($event)" hidden />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <button class="btn-primary" (click)="saveDocument()" [disabled]="!selectedDoc.title?.trim() || isSaving">
+            <span *ngIf="!isSaving">Salva documento</span>
+            <span *ngIf="isSaving" class="spinner-inline">Attendere...</span>
+          </button>
+          <button class="btn-secondary" (click)="cancelEdit()" [disabled]="isSaving">Annulla</button>
+          <button class="btn-danger" *ngIf="selectedDoc.id" (click)="deleteDocument(selectedDoc.id)">Elimina</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

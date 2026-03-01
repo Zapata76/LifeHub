@@ -1,0 +1,396 @@
+<div class="container dark-theme">
+  <header>
+    <div class="header-content">
+      <div class="header-row header-top">
+        <h1 class="page-title">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 7H7.1" />
+              <circle cx="10" cy="19" r="1.5" />
+              <circle cx="17" cy="19" r="1.5" />
+            </svg>
+          </span>
+          <span>Lista della spesa</span>
+        </h1>
+      </div>
+      <div class="header-row header-bottom">
+        <div class="header-controls">
+          <span class="user-badge" *ngIf="user">{{ user.username }}</span>
+          <a routerLink="/home" class="home-link">Home Hub</a>
+        </div>
+      </div>
+    </div>
+    <nav class="main-nav">
+      <button (click)="view = 'list'" [class.active]="view === 'list'">Lista</button>
+      <button (click)="view = 'prices'" [class.active]="view === 'prices'">Prezzi</button>
+      <button (click)="view = 'products'" [class.active]="view === 'products'">Anagrafica</button>
+    </nav>
+  </header>
+
+  <main [ngSwitch]="view">
+    <!-- VIEW: SHOPPING LIST -->
+    <div *ngSwitchCase="'list'" class="grid">
+      <section class="card">
+        <div class="card-header">
+          <h2>Lista Spesa</h2>
+          <button class="btn-danger btn-sm" (click)="clearChecked()" *ngIf="hasCheckedItems()">Pulisci</button>
+        </div>
+
+        <div class="add-item-container">
+          <div class="search-select">
+            <input
+              type="text"
+              [(ngModel)]="productSearchTerm"
+              (focus)="showProductDropdown = true"
+              (blur)="hideProductDropdown()"
+              placeholder="Cerca prodotto..."
+              class="search-input"
+            />
+
+            <div class="dropdown-list" *ngIf="showProductDropdown">
+              <div class="dropdown-item" *ngFor="let p of sortedAndFilteredProducts" (click)="selectProduct(p)">
+                <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
+              </div>
+            </div>
+          </div>
+
+          <div class="add-controls">
+            <select [(ngModel)]="selectedSupermarketId" class="market-select">
+              <option [ngValue]="0">Qualsiasi supermercato</option>
+              <option *ngFor="let s of supermarkets" [ngValue]="s.id">
+                {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+              </option>
+            </select>
+            <input type="text" [(ngModel)]="itemQuantity" placeholder="Qt&agrave;" class="qty-input" />
+            <button (click)="addToList()" [disabled]="!selectedProductId" class="add-btn">+</button>
+          </div>
+
+          <div class="selected-info" *ngIf="selectedProductName">
+            Aggiungendo: <strong>{{ selectedProductName }}</strong>
+            <span (click)="deselectProduct()" class="clear-selection">&times;</span>
+          </div>
+        </div>
+
+        <div class="list-filter-row">
+          <label for="listFilterMarket">Filtro supermercato</label>
+          <select id="listFilterMarket" [(ngModel)]="listFilterSupermarketId">
+            <option [ngValue]="0">Mostra tutti i prodotti</option>
+            <option *ngFor="let s of supermarkets" [ngValue]="s.id">
+              {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+            </option>
+          </select>
+          <small>I prodotti senza supermercato specifico sono sempre visibili.</small>
+        </div>
+
+        <ul class="shopping-list">
+          <li *ngFor="let item of filteredShoppingList" [class.checked]="!!item.is_checked">
+            <input type="checkbox" [checked]="!!item.is_checked" (change)="toggleItem(item)" />
+
+            <div class="item-img-container" *ngIf="item.image_url">
+              <img [src]="item.image_url" class="thumb" />
+            </div>
+
+            <div class="item-content" (click)="editItem(item)">
+              <span class="item-name">{{ item.product_name }}</span>
+              <span class="item-cat">{{ item.category_name }}</span>
+              <span class="item-market" *ngIf="item.supermarket_name">Solo: {{ item.supermarket_name }}</span>
+            </div>
+
+            <div class="item-actions">
+              <span class="qty-badge">{{ item.quantity }}</span>
+              <button class="delete-btn" (click)="deleteItem(item); $event.stopPropagation()">&times;</button>
+            </div>
+          </li>
+          <li *ngIf="filteredShoppingList.length === 0" class="muted">Nessun prodotto con il filtro selezionato</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- VIEW: RECORD PRICES -->
+    <div *ngSwitchCase="'prices'" class="grid">
+      <!-- List FIRST -->
+      <section class="card full-width">
+        <h2>Prezzi Registrati</h2>
+        <div class="search-box">
+          <input
+            type="text"
+            placeholder="Filtra per prodotto, categoria o supermercato..."
+            [(ngModel)]="priceListSearch"
+          />
+        </div>
+        <ul class="item-list price-history-list">
+          <li *ngFor="let group of groupedPrices" class="price-group-item">
+            <div class="price-main-row">
+              <div class="item-info">
+                <img
+                  *ngIf="group.latest.photo_path"
+                  [src]="group.latest.photo_path"
+                  class="thumb clickable"
+                  (click)="openImage(group.latest.photo_path)"
+                />
+                <div class="text-info">
+                  <span class="name">
+                    <span class="cat-prefix" *ngIf="group.category_name">{{ group.category_name }}</span>
+                    {{ group.product_name }}
+                  </span>
+                  <span class="market-info"
+                    >{{ group.supermarket_name }}{{ group.supermarket_location ? ' (' + group.supermarket_location + ')' : '' }}</span
+                  >
+                  <span class="price-meta">
+                    <strong>{{ group.latest.price | number: '1.2-2' }} &euro;</strong>
+                    <span *ngIf="group.latest.format">/ {{ group.latest.format }}</span>
+                    &bull; <small>{{ group.latest.created_at | date: 'dd/MM/yyyy' }}</small>
+                  </span>
+                </div>
+              </div>
+              <div class="group-actions">
+                <button
+                  *ngIf="group.history.length > 1"
+                  (click)="toggleGroup(group.key)"
+                  class="expand-btn"
+                  [class.rotated]="expandedGroups.has(group.key)"
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M7 10l5 5 5-5z" />
+                  </svg>
+                </button>
+                <button class="delete-btn-sm" (click)="deletePrice(group.latest)">&times;</button>
+              </div>
+            </div>
+
+            <div class="price-history-details" *ngIf="expandedGroups.has(group.key)">
+              <div class="history-item" *ngFor="let h of group.history.slice(1)">
+                <div class="h-info">
+                  <img
+                    *ngIf="h.photo_path"
+                    [src]="h.photo_path"
+                    class="thumb-sm clickable"
+                    (click)="openImage(h.photo_path)"
+                  />
+                  <span class="h-price"
+                    >{{ h.price | number: '1.2-2' }} &euro; <small *ngIf="h.format">({{ h.format }})</small></span
+                  >
+                  &bull; <small class="h-date">{{ h.created_at | date: 'dd/MM/yyyy' }}</small>
+                </div>
+                <button class="delete-btn-sm" (click)="deletePrice(h)">&times;</button>
+              </div>
+            </div>
+          </li>
+          <li *ngIf="groupedPrices.length === 0" class="muted">Nessun prezzo trovato</li>
+        </ul>
+      </section>
+
+      <!-- Form SECOND -->
+      <section class="card">
+        <h2>Registra Prezzo</h2>
+        <form (submit)="savePrice()" class="stacked-form">
+          <div class="form-group">
+            <label>Prodotto</label>
+            <div class="search-select">
+              <input
+                type="text"
+                [(ngModel)]="priceProductSearch"
+                (focus)="showPriceDropdown = true"
+                (blur)="hidePriceDropdown()"
+                placeholder="Cerca prodotto..."
+                name="priceProdSearch"
+                class="search-input"
+                [disabled]="isUploading"
+              />
+              <div class="dropdown-list" *ngIf="showPriceDropdown">
+                <div class="dropdown-item" *ngFor="let p of sortedProducts(priceProductSearch)" (click)="selectPriceProduct(p)">
+                  <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
+                </div>
+              </div>
+            </div>
+            <div class="selected-label" *ngIf="newPrice.product_id">
+              Selezionato: <strong>{{ getProductName(newPrice.product_id) }}</strong>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Supermercato</label>
+            <select [(ngModel)]="newPrice.supermarket_id" name="market" required [disabled]="isUploading">
+              <option [value]="0" disabled>Seleziona supermercato...</option>
+              <option *ngFor="let s of supermarkets" [value]="s.id">
+                {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+              </option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label>Prezzo (&euro;)</label>
+              <input
+                type="number"
+                step="0.01"
+                [(ngModel)]="newPrice.price"
+                name="price"
+                required
+                [disabled]="isUploading"
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label>Formato</label>
+              <input
+                type="text"
+                [(ngModel)]="newPrice.format"
+                name="format"
+                placeholder="Es. 500g"
+                [disabled]="isUploading"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Foto Prezzo/Etichetta (Opzionale)</label>
+            <div class="photo-upload-row">
+              <img *ngIf="pricePreviewUrl" [src]="pricePreviewUrl" class="thumb-large" />
+              <input
+                type="file"
+                (change)="onPriceFileSelected($event)"
+                accept="image/*"
+                capture="environment"
+                class="file-input"
+                [disabled]="isUploading"
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" [disabled]="!isPriceFormValid() || isUploading">
+            <span *ngIf="!isUploading">Salva Prezzo</span>
+            <span *ngIf="isUploading" class="spinner-inline">Salvataggio...</span>
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <!-- VIEW: PRODUCTS AND CATEGORIES REGISTRY -->
+    <div *ngSwitchCase="'products'" class="grid">
+      <!-- Products Registry Section -->
+      <section class="card full-width">
+        <div class="card-header">
+          <h2>Anagrafica Prodotti</h2>
+          <button class="btn-primary btn-sm" (click)="showProductForm = true" *ngIf="!showProductForm">+ Nuovo</button>
+        </div>
+
+        <!-- Product Form (Integrated) -->
+        <div class="inline-form" *ngIf="showProductForm">
+          <h3 class="form-title">{{ editingProduct ? 'Modifica' : 'Nuovo' }} Prodotto</h3>
+          <form (submit)="saveProduct()" class="stacked-form">
+            <div class="form-row">
+              <div class="form-group flex-2">
+                <label>Nome Prodotto</label>
+                <input
+                  type="text"
+                  [(ngModel)]="newProduct.name"
+                  name="prodName"
+                  required
+                  placeholder="Nome prodotto"
+                  [disabled]="isUploading"
+                />
+              </div>
+              <div class="form-group flex-1">
+                <label>Categoria</label>
+                <select [(ngModel)]="newProduct.category_id" name="prodCat" required [disabled]="isUploading">
+                  <option [value]="undefined" disabled>Scegli...</option>
+                  <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Foto Prodotto (Scatta o Scegli)</label>
+              <div class="photo-upload-row">
+                <img
+                  *ngIf="previewUrl || newProduct.image_url"
+                  [src]="previewUrl || newProduct.image_url"
+                  class="thumb-large"
+                />
+                <input
+                  type="file"
+                  (change)="onFileSelected($event)"
+                  accept="image/*"
+                  capture="environment"
+                  class="file-input"
+                  [disabled]="isUploading"
+                />
+              </div>
+            </div>
+            <div class="btn-group-row">
+              <button
+                type="submit"
+                class="btn-primary"
+                [disabled]="!newProduct.name || !newProduct.category_id || isUploading"
+              >
+                <span *ngIf="!isUploading">{{ editingProduct ? 'Aggiorna' : 'Salva' }}</span>
+                <span *ngIf="isUploading" class="spinner-inline">Attendere...</span>
+              </button>
+              <button type="button" class="btn-secondary" (click)="cancelEditProduct()" [disabled]="isUploading">
+                Annulla
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="search-box">
+          <input type="text" placeholder="Filtra prodotti..." [(ngModel)]="searchTerm" />
+        </div>
+
+        <ul class="item-list">
+          <li *ngFor="let p of filteredProducts">
+            <div class="item-info clickable" (click)="startEditProduct(p)">
+              <img *ngIf="p.image_url" [src]="p.image_url" class="thumb" />
+              <div class="text-info">
+                <span class="name">{{ p.name }}</span>
+                <span class="category">{{ p.category_name || 'Nessuna' }}</span>
+              </div>
+            </div>
+            <button class="delete-btn-sm" (click)="deleteProduct(p); $event.stopPropagation()">&times;</button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Categories Section -->
+      <section class="card full-width">
+        <h2>Categorie</h2>
+        <div class="add-item-box">
+          <input type="text" [(ngModel)]="newCategoryName" placeholder="Nuova categoria..." />
+          <button (click)="saveCategory()" [disabled]="!newCategoryName.trim()">+</button>
+        </div>
+        <ul class="item-list horizontal-list">
+          <li *ngFor="let c of categories" class="tag-item">
+            <span (click)="editCategory(c)" class="clickable">{{ c.name }}</span>
+            <button class="delete-btn-sm" (click)="deleteCategory(c)">&times;</button>
+          </li>
+        </ul>
+      </section>
+
+      <!-- Supermarkets Section -->
+      <section class="card full-width">
+        <h2>Supermercati</h2>
+        <div class="add-item-box stacked-form">
+          <div class="form-row">
+            <input type="text" [(ngModel)]="newSupermarket.name" placeholder="Nome supermercato..." class="flex-2" />
+            <input type="text" [(ngModel)]="newSupermarket.location" placeholder="Località (opzionale)" class="flex-1" />
+          </div>
+          <button class="btn-primary" (click)="saveSupermarket()" [disabled]="!newSupermarket.name.trim()">
+            {{ editingSupermarket ? 'Aggiorna' : 'Aggiungi' }} Supermercato
+          </button>
+          <button class="btn-secondary btn-sm" *ngIf="editingSupermarket" (click)="cancelEditSupermarket()">
+            Annulla
+          </button>
+        </div>
+        <ul class="item-list">
+          <li *ngFor="let s of supermarkets">
+            <div class="item-info clickable" (click)="startEditSupermarket(s)">
+              <div class="text-info">
+                <span class="name">{{ s.name }}</span>
+                <span class="category">{{ s.location || 'Nessuna località' }}</span>
+              </div>
+            </div>
+            <button class="delete-btn-sm" (click)="deleteSupermarket(s); $event.stopPropagation()">&times;</button>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>

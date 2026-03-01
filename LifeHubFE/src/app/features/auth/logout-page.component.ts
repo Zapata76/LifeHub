@@ -4,7 +4,8 @@ import { AuthService } from '../../core/auth.service';
 
 @Component({
   selector: 'app-logout-page',
-  template: `<div style="padding:20px;font-family:system-ui,sans-serif;background:#121212;color:#e4e4e4;min-height:100vh;">Logout...</div>`
+  templateUrl: './logout-page.component.html',
+  styleUrls: ['./logout-page.component.css']
 })
 export class LogoutPageComponent implements OnInit {
   constructor(private auth: AuthService, private router: Router) {}

@@ -3,7 +3,7 @@ import { RuntimeConfigService } from './core/runtime-config.service';
 
 @Component({
   selector: 'app-root',
-  template: `<router-outlet></router-outlet>`
+  templateUrl: './app.component.html'
 })
 export class AppComponent implements OnInit {
   constructor(private runtimeConfig: RuntimeConfigService) {}

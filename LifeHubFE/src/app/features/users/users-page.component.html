@@ -1,0 +1,110 @@
+<div class="wrap">
+  <header>
+    <div class="header-content">
+      <div class="header-row header-top">
+        <h1 class="page-title">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="9" cy="8" r="3" />
+              <path d="M3 19c0-3 2.5-5 6-5s6 2 6 5" />
+              <path d="M18 8h3" />
+              <path d="M19.5 6.5v3" />
+            </svg>
+          </span>
+          <span>Gestione Utenti</span>
+        </h1>
+      </div>
+      <div class="header-row header-bottom">
+        <div class="header-controls">
+          <a routerLink="/home" class="home-link">Home Hub</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2>Nuovo Utente</h2>
+    <p class="status" [class.err]="statusMode === 'err'" [class.ok]="statusMode === 'ok'">{{ status }}</p>
+    <form class="row" (submit)="create($event)" autocomplete="off">
+      <input [(ngModel)]="newUsername" name="newUsername" placeholder="Username" autocomplete="new-username" required />
+      <input
+        [(ngModel)]="newPassword"
+        name="newPassword"
+        placeholder="Password"
+        type="password"
+        autocomplete="new-password"
+        required
+      />
+      <select [(ngModel)]="newRole" name="newRole">
+        <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+      </select>
+      <button type="submit">Crea</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Utenti</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Ruolo</th>
+          <th>Calendari associati</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of users">
+          <td>{{ u.username }}</td>
+          <td>
+            <select [(ngModel)]="u.role" [ngModelOptions]="{ standalone: true }">
+              <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+            </select>
+          </td>
+          <td>
+            <div class="calendar-toggles">
+              <label *ngFor="let cal of allCalendars" class="toggle-item">
+                <input
+                  type="checkbox"
+                  [checked]="isCalendarAssociated(u.id, cal.id)"
+                  (change)="toggleAssociation(u.id, cal.id, $event)"
+                />
+                {{ cal.name }}
+              </label>
+            </div>
+          </td>
+          <td class="actions">
+            <button (click)="saveRole(u)">Salva ruolo</button>
+            <button (click)="resetPassword(u)">Reset password</button>
+            <button class="danger" (click)="remove(u)">Elimina</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Anagrafica Calendari Google</h2>
+    <div class="add-calendar-box">
+      <input [(ngModel)]="newCalName" placeholder="Nome (es. Famiglia)" />
+      <input [(ngModel)]="newCalGoogleId" placeholder="Google ID (email del calendario)" />
+      <button (click)="addCalendar()" [disabled]="!newCalName || !newCalGoogleId">Aggiungi</button>
+    </div>
+    <table class="cal-table" *ngIf="allCalendars.length > 0">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Google ID</th>
+          <th>Azione</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of allCalendars">
+          <td><input [(ngModel)]="c.name" (blur)="updateCalendar(c)" /></td>
+          <td><input [(ngModel)]="c.google_id" (blur)="updateCalendar(c)" /></td>
+          <td><button class="danger btn-sm" (click)="deleteCalendar(c.id)">&times;</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

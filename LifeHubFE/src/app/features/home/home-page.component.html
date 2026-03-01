@@ -1,0 +1,71 @@
+<div class="shell">
+  <header>
+    <div class="logo">{{ appTitle }}</div>
+    <div class="user-box" *ngIf="user">
+      <div class="user-meta">
+        <div class="u-name">{{ user.username }}</div>
+        <div class="u-role">{{ user.role }}</div>
+      </div>
+      <button (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <a routerLink="/meals" class="card">
+        <div class="card-emoji">🍽️</div>
+        <h3>Menu</h3>
+        <p>Pianificazione pasti e menu settimanale.</p>
+      </a>
+      <a routerLink="/recipes" class="card">
+        <div class="card-emoji">📖</div>
+        <h3>Ricette</h3>
+        <p>Archivio digitale delle ricette preferite.</p>
+      </a>
+      <a routerLink="/shopping" class="card">
+        <div class="card-emoji">🛒</div>
+        <h3>Spesa</h3>
+        <p>Lista della spesa in tempo reale.</p>
+      </a>
+      <a routerLink="/notes" class="card">
+        <div class="card-emoji">📝</div>
+        <h3>Note</h3>
+        <p>Appunti e riflessioni condivise.</p>
+      </a>
+      <a routerLink="/tasks" class="card">
+        <div class="card-emoji">✅</div>
+        <h3>Attivita</h3>
+        <p>Gestione dei task e delle cose da fare.</p>
+      </a>
+      <a routerLink="/calendar" class="card">
+        <div class="card-emoji">📅</div>
+        <h3>Calendario</h3>
+        <p>Google Calendar condiviso per appuntamenti e scadenze.</p>
+      </a>
+      <a routerLink="/inventory" class="card">
+        <div class="card-emoji">📦</div>
+        <h3>Inventario</h3>
+        <p>Organizzazione e ricerca oggetti in casa.</p>
+      </a>
+      <!-- <div class="card">
+        <div class="card-emoji">🎯</div>
+        <h3>Obiettivi</h3>
+        <p>Tracker progressi, abitudini e traguardi.</p>
+      </div> -->
+      <a routerLink="/documents" class="card" *ngIf="user?.role === 'admin' || user?.role === 'adult'">
+        <div class="card-emoji">📂</div>
+        <h3>Documenti</h3>
+        <p>Archivio digitale sicuro dei documenti di famiglia.</p>
+      </a>
+      <a *ngIf="user?.role === 'admin'" routerLink="/users" class="card">
+        <div class="card-emoji">⚙️</div>
+        <h3>Gestione Utenti</h3>
+        <p>Amministrazione ruoli e permessi del sistema.</p>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <a routerLink="/about" class="credits-link">Project Credits & Developer</a>
+  </footer>
+</div>

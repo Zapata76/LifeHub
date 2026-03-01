@@ -1,0 +1,7 @@
+.logout-container {
+  padding: 20px;
+  font-family: system-ui, sans-serif;
+  background: #121212;
+  color: #e4e4e4;
+  min-height: 100vh;
+}

@@ -1,0 +1,82 @@
+<div class="container dark-theme">
+  <header>
+    <div class="header-content">
+      <div class="header-row header-top">
+        <h1 class="page-title">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="13" r="4" />
+              <path d="M12 3v2" />
+              <path d="M5 6l1.5 1.5" />
+              <path d="M19 6l-1.5 1.5" />
+              <path d="M3 13h2" />
+              <path d="M19 13h2" />
+              <path d="M5 20h14" />
+            </svg>
+          </span>
+          <span>Pianificazione Pasti</span>
+        </h1>
+      </div>
+      <div class="header-row header-bottom">
+        <div class="header-controls">
+          <button class="btn-primary btn-sm" (click)="generateShoppingList()">Genera Spesa</button>
+          <a routerLink="/recipes" class="home-link">Ricette</a>
+          <a routerLink="/home" class="home-link">Home Hub</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="week-grid">
+      <div class="day-card card" *ngFor="let day of weekDays">
+        <div class="day-header">
+          <h3>{{ day | date: 'EEEE' }}</h3>
+          <small>{{ day | date: 'dd/MM' }}</small>
+        </div>
+
+        <div class="meal-slot" (click)="editMeal(day, 'lunch')">
+          <label>Pranzo</label>
+          <div class="meal-content" [class.empty]="!getMeal(day, 'lunch')">
+            {{ getMeal(day, 'lunch')?.recipe_name || 'Non pianificato' }}
+          </div>
+        </div>
+
+        <div class="meal-slot" (click)="editMeal(day, 'dinner')">
+          <label>Cena</label>
+          <div class="meal-content" [class.empty]="!getMeal(day, 'dinner')">
+            {{ getMeal(day, 'dinner')?.recipe_name || 'Non pianificato' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meal Editor (Modal) -->
+    <div class="modal" *ngIf="editingMeal" (click)="editingMeal = null">
+      <div class="modal-content card" (click)="$event.stopPropagation()">
+        <h2>Pianifica Pasto</h2>
+        <p>
+          {{ editingMeal.meal_date | date: 'dd/MM/yyyy' }} - {{ editingMeal.meal_type === 'lunch' ? 'Pranzo' : 'Cena' }}
+        </p>
+
+        <div class="form-group">
+          <label>Scegli Ricetta</label>
+          <select [(ngModel)]="editingMeal.recipe_id">
+            <option [value]="undefined">Libero / Nessuna ricetta</option>
+            <option *ngFor="let r of recipes" [value]="r.id">{{ r.name }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Note aggiuntive</label>
+          <textarea [(ngModel)]="editingMeal.notes" placeholder="Esempio: ospite a cena..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" (click)="editingMeal = null">Annulla</button>
+          <button class="btn-primary" (click)="saveMeal()">Salva</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
