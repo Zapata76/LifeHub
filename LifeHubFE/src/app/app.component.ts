@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { RuntimeConfigService } from './runtime-config.service';
+import { RuntimeConfigService } from './core/runtime-config.service';
 
 @Component({
   selector: 'app-root',

@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService } from './auth.service';
-import { RuntimeConfigService } from './runtime-config.service';
+import { AuthService } from '../../core/auth.service';
+import { RuntimeConfigService } from '../../core/runtime-config.service';
 
 @Component({
   selector: 'app-login-page',

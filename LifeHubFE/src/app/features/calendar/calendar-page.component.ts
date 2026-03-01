@@ -1,8 +1,8 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable } from 'rxjs';
-import { AuthService, HubUser } from './auth.service';
-import { RuntimeConfigService } from './runtime-config.service';
+import { AuthService, HubUser } from '../../core/auth.service';
+import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { CalendarsService, HubCalendar } from './calendars.service';
 
 @Component({

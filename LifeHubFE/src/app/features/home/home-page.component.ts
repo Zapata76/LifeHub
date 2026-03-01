@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { AuthService, HubUser } from './auth.service';
-import { RuntimeConfigService } from './runtime-config.service';
+import { AuthService, HubUser } from '../../core/auth.service';
+import { RuntimeConfigService } from '../../core/runtime-config.service';
 
 @Component({
   selector: 'app-home-page',

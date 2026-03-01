@@ -13,7 +13,6 @@ node_modules
 # profiling files
 chrome-profiler-events*.json
 speed-measure-plugin*.json
-*.sql
 init_passwords.php
 Life_Hub_Specifica_Funzionale.md
 test_db.php
@@ -56,5 +55,4 @@ LifeHubFE/src/assets/runtime-config.json
 LifeHubFE/config/deploy.local.json
 
 #user specific files
-notes
-products
+uploads/

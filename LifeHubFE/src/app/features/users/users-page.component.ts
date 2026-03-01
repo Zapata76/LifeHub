@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { HubManagedUser, UsersService } from './users.service';
-import { CalendarsService, HubCalendar } from './calendars.service';
+import { CalendarsService, HubCalendar } from '../calendar/calendars.service';
 
 @Component({
   selector: 'app-users-page',
