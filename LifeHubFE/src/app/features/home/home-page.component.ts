@@ -40,21 +40,21 @@ import { RuntimeConfigService } from '../../core/runtime-config.service';
             <h3>Attivita</h3>
             <p>Gestione dei task e delle cose da fare.</p>
           </a>
-          <div class="card">
+          <a routerLink="/inventory" class="card">
             <div class="card-emoji">📦</div>
             <h3>Inventario</h3>
             <p>Organizzazione e ricerca oggetti in casa.</p>
-          </div>
+          </a>
           <div class="card">
             <div class="card-emoji">🎯</div>
             <h3>Obiettivi</h3>
             <p>Tracker progressi, abitudini e traguardi.</p>
           </div>
-          <div class="card" *ngIf="user?.role === 'admin' || user?.role === 'adult'">
+          <a routerLink="/documents" class="card" *ngIf="user?.role === 'admin' || user?.role === 'adult'">
             <div class="card-emoji">📂</div>
             <h3>Documenti</h3>
             <p>Archivio digitale sicuro dei documenti di famiglia.</p>
-          </div>
+          </a>
           <a routerLink="/meals" class="card">
             <div class="card-emoji">🍽️</div>
             <h3>Menu</h3>

@@ -13,6 +13,8 @@ import { RecipesPageComponent } from './features/recipes/recipes-page.component'
 import { ShoppingPageComponent } from './features/shopping/shopping-page.component';
 import { TasksPageComponent } from './features/tasks/tasks-page.component';
 import { UsersPageComponent } from './features/users/users-page.component';
+import { InventoryPageComponent } from './features/inventory/inventory-page.component';
+import { DocumentsPageComponent } from './features/documents/documents-page.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -28,6 +30,15 @@ const routes: Routes = [
   { path: 'menu', redirectTo: 'meals', pathMatch: 'full' },
   { path: 'notes', component: NotesPageComponent, canActivate: [AuthGuard] },
   { path: 'tasks', component: TasksPageComponent, canActivate: [AuthGuard] },
+  { path: 'inventory', component: InventoryPageComponent, canActivate: [AuthGuard] },
+  { path: 'inventario', redirectTo: 'inventory', pathMatch: 'full' },
+  {
+    path: 'documents',
+    component: DocumentsPageComponent,
+    canActivate: [AuthGuard, RoleGuard],
+    data: { roles: ['admin', 'adult'] }
+  },
+  { path: 'documenti', redirectTo: 'documents', pathMatch: 'full' },
   {
     path: 'users',
     component: UsersPageComponent,

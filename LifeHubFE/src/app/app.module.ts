@@ -17,6 +17,8 @@ import { UsersPageComponent } from './features/users/users-page.component';
 import { CalendarPageComponent } from './features/calendar/calendar-page.component';
 import { LogoutPageComponent } from './features/auth/logout-page.component';
 import { AboutPageComponent } from './features/home/about-page.component';
+import { InventoryPageComponent } from './features/inventory/inventory-page.component';
+import { DocumentsPageComponent } from './features/documents/documents-page.component';
 import { RuntimeConfigService } from './core/runtime-config.service';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { environment } from '../environments/environment';
@@ -38,7 +40,9 @@ export function initRuntimeConfig(runtimeConfig: RuntimeConfigService): () => Pr
     UsersPageComponent,
     CalendarPageComponent,
     LogoutPageComponent,
-    AboutPageComponent
+    AboutPageComponent,
+    InventoryPageComponent,
+    DocumentsPageComponent
   ],
   imports: [
     BrowserModule,
