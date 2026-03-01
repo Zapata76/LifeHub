@@ -63,6 +63,8 @@ import { NotesService, Note } from './notes.service';
                   </div>
               </div>
               <div class="footer-actions">
+                <button class="btn-danger btn-sm" *ngIf="editingNote.id" (click)="deleteNote(editingNote)" [disabled]="isSaving">Elimina</button>
+                <div class="spacer"></div>
                 <button class="btn-secondary" (click)="cancelEdit()" [disabled]="isSaving">Annulla</button>
                 <button class="btn-primary" (click)="saveNote()" [disabled]="isSaving || (!editingNote.title && !editingNote.content)">
                     <span *ngIf="!isSaving">Salva</span>
@@ -127,7 +129,8 @@ import { NotesService, Note } from './notes.service';
     .pin-btn.active { opacity: 1; }
     .note-preview { font-size: 0.9rem; color: #9aa0a6; white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; margin-bottom: 10px; }
     .note-footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a2a; padding-top: 10px; font-size: 0.75rem; }
-    .delete-btn { background: transparent; border: none; cursor: pointer; opacity: 0.5; }
+    .delete-btn { background: transparent; border: none; cursor: pointer; color: #ff5c5c; font-weight: bold; opacity: 0.8; transition: 0.2s; }
+    .delete-btn:hover { opacity: 1; }
 
     /* Modal / Editor Corrected */
     .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 10px; }
@@ -148,12 +151,15 @@ import { NotesService, Note } from './notes.service';
     .color-picker div { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.1); }
     .color-picker div.selected { border-color: #4f8cff; transform: scale(1.1); }
     
-    .footer-actions { display: flex; gap: 10px; }
+    .footer-actions { display: flex; gap: 10px; align-items: center; }
     .footer-actions button { flex: 1; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; border: none; }
     .btn-primary { background: #4f8cff; color: white; }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-secondary { background: #2a2a2a; color: #e4e4e4; }
+    .btn-danger { background: #8c2d2d; color: white; }
+    .btn-danger:disabled { opacity: 0.4; }
     .btn-sm { padding: 6px 15px; font-size: 0.85rem; width: auto; }
+    .spacer { flex-grow: 1; }
 
     .spinner-inline::after { content: ""; width: 12px; height: 12px; border: 2px solid white; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; margin-left: 5px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -250,7 +256,10 @@ export class NotesPageComponent implements OnInit {
 
   deleteNote(note: Note) {
     if (confirm("Eliminare questa nota?")) {
-      this.notesService.deleteNote(note.id!).subscribe(() => this.loadNotes());
+      this.notesService.deleteNote(note.id!).subscribe(() => {
+        this.editingNote = null;
+        this.loadNotes();
+      });
     }
   }
 

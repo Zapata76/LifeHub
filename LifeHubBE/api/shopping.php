@@ -133,17 +133,90 @@ switch ($action) {
         echo json_encode($data);
         break;
 
+    case 'add_supermarket':
+        $data = get_json_input();
+        $name = isset($data['name']) ? trim($data['name']) : '';
+        $location = isset($data['location']) ? trim($data['location']) : '';
+        if (!$name) exit_with_error("Nome supermercato obbligatorio");
+        $stmt = $conn->prepare("INSERT INTO supermarkets (name, location) VALUES (?, ?)");
+        $stmt->bind_param("ss", $name, $location);
+        if ($stmt->execute()) echo json_encode(array('id' => $stmt->insert_id, 'message' => 'Supermercato aggiunto'));
+        else exit_with_error("Errore salvataggio supermercato");
+        break;
+
+    case 'update_supermarket':
+        $data = get_json_input();
+        $id = isset($data['id']) ? (int)$data['id'] : 0;
+        $name = isset($data['name']) ? trim($data['name']) : '';
+        $location = isset($data['location']) ? trim($data['location']) : '';
+        if (!$id || !$name) exit_with_error("Dati incompleti");
+        $stmt = $conn->prepare("UPDATE supermarkets SET name = ?, location = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $name, $location, $id);
+        if ($stmt->execute()) echo json_encode(array('message' => 'Supermercato aggiornato'));
+        else exit_with_error("Errore aggiornamento supermercato");
+        break;
+
+    case 'delete_supermarket':
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        if (!$id) exit_with_error("ID obbligatorio");
+        $check = $conn->query("SELECT id FROM shopping_list WHERE supermarket_id = $id LIMIT 1");
+        if ($check->num_rows > 0) exit_with_error("Impossibile eliminare: il supermercato è in uso nella lista spesa");
+        $check2 = $conn->query("SELECT id FROM prices WHERE supermarket_id = $id LIMIT 1");
+        if ($check2->num_rows > 0) exit_with_error("Impossibile eliminare: ci sono prezzi registrati per questo supermercato");
+        $stmt = $conn->prepare("DELETE FROM supermarkets WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) echo json_encode(array('message' => 'Supermercato eliminato'));
+        else exit_with_error("Errore eliminazione supermercato");
+        break;
+
     // --- PREZZI ---
+    case 'get_prices':
+        $product_id = isset($_GET['product_id']) ? (int)$_GET['product_id'] : 0;
+        $sql = "SELECT pr.*, p.name as product_name, COALESCE(c.name, p.category) as category_name, s.name as supermarket_name, s.location as supermarket_location, u.username
+                FROM prices pr
+                JOIN products p ON pr.product_id = p.id
+                LEFT JOIN categories c ON p.category_id = c.id
+                JOIN supermarkets s ON pr.supermarket_id = s.id
+                LEFT JOIN users u ON pr.user_id = u.id";
+        if ($product_id) {
+            $sql .= " WHERE pr.product_id = $product_id";
+        }
+        $sql .= " ORDER BY pr.created_at DESC";
+        $result = $conn->query($sql);
+        $data = array();
+        while ($row = $result->fetch_assoc()) $data[] = $row;
+        echo json_encode($data);
+        break;
+
     case 'add_price':
         $product_id = isset($_POST['product_id']) ? (int)$_POST['product_id'] : 0;
         $supermarket_id = isset($_POST['supermarket_id']) ? (int)$_POST['supermarket_id'] : 0;
         $price = isset($_POST['price']) ? (float)$_POST['price'] : 0;
         $format = isset($_POST['format']) ? $_POST['format'] : '';
         if (!$product_id || !$supermarket_id || !$price) exit_with_error("Dati incompleti");
-        $stmt = $conn->prepare("INSERT INTO prices (product_id, supermarket_id, format, price, user_id) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("iisdi", $product_id, $supermarket_id, $format, $price, $user['id']);
-        if ($stmt->execute()) echo json_encode(array('message' => 'Prezzo registrato'));
+        
+        $photo_path = null;
+        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $filename = uniqid('price_') . '.' . $ext;
+            $photo_path = 'uploads/prices/' . $filename;
+            if (!is_dir('../uploads/prices')) mkdir('../uploads/prices', 0777, true);
+            move_uploaded_file($_FILES['photo']['tmp_name'], '../' . $photo_path);
+        }
+
+        $stmt = $conn->prepare("INSERT INTO prices (product_id, supermarket_id, format, price, photo_path, user_id) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("iisdsi", $product_id, $supermarket_id, $format, $price, $photo_path, $user['id']);
+        if ($stmt->execute()) echo json_encode(array('message' => 'Prezzo registrato', 'id' => $stmt->insert_id));
         else exit_with_error("Errore salvataggio prezzo");
+        break;
+
+    case 'delete_price':
+        $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        if (!$id) exit_with_error("ID obbligatorio");
+        $stmt = $conn->prepare("DELETE FROM prices WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        if ($stmt->execute()) echo json_encode(array('message' => 'Prezzo eliminato'));
+        else exit_with_error("Errore eliminazione prezzo");
         break;
 
     // --- LISTA SPESA ---

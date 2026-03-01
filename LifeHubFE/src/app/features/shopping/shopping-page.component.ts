@@ -47,6 +47,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
                 <input type="text" 
                        [(ngModel)]="productSearchTerm" 
                        (focus)="showProductDropdown = true"
+                       (blur)="hideProductDropdown()"
                        placeholder="Cerca prodotto..."
                        class="search-input">
                 
@@ -54,7 +55,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
                   <div class="dropdown-item" 
                        *ngFor="let p of sortedAndFilteredProducts"
                        (click)="selectProduct(p)">
-                    <span class="cat-prefix">{{ p.category_name }}</span> - {{ p.name }}
+                    <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
                   </div>
                 </div>
               </div>
@@ -109,21 +110,71 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
 
         <!-- VIEW: RECORD PRICES -->
         <div *ngSwitchCase="'prices'" class="grid">
+          <!-- List FIRST -->
+          <section class="card full-width">
+            <h2>Prezzi Registrati</h2>
+            <div class="search-box">
+              <input type="text" placeholder="Filtra per prodotto, categoria o supermercato..." [(ngModel)]="priceListSearch">
+            </div>
+            <ul class="item-list price-history-list">
+              <li *ngFor="let group of groupedPrices" class="price-group-item">
+                <div class="price-main-row">
+                  <div class="item-info">
+                    <img *ngIf="group.latest.photo_path" [src]="group.latest.photo_path" class="thumb clickable" (click)="openImage(group.latest.photo_path)">
+                    <div class="text-info">
+                      <span class="name">
+                        <span class="cat-prefix" *ngIf="group.category_name">{{ group.category_name }}</span>
+                        {{ group.product_name }}
+                      </span>
+                      <span class="market-info">{{ group.supermarket_name }}{{ group.supermarket_location ? ' (' + group.supermarket_location + ')' : '' }}</span>
+                      <span class="price-meta">
+                        <strong>{{ group.latest.price | number:'1.2-2' }} &euro;</strong> 
+                        <span *ngIf="group.latest.format">/ {{ group.latest.format }}</span>
+                        &bull; <small>{{ group.latest.created_at | date:'dd/MM/yyyy' }}</small>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="group-actions">
+                    <button *ngIf="group.history.length > 1" (click)="toggleGroup(group.key)" class="expand-btn" [class.rotated]="expandedGroups.has(group.key)">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                    </button>
+                    <button class="delete-btn-sm" (click)="deletePrice(group.latest)">&times;</button>
+                  </div>
+                </div>
+                
+                <div class="price-history-details" *ngIf="expandedGroups.has(group.key)">
+                  <div class="history-item" *ngFor="let h of group.history.slice(1)">
+                    <div class="h-info">
+                      <img *ngIf="h.photo_path" [src]="h.photo_path" class="thumb-sm clickable" (click)="openImage(h.photo_path)">
+                      <span class="h-price">{{ h.price | number:'1.2-2' }} &euro; <small *ngIf="h.format">({{ h.format }})</small></span>
+                      &bull; <small class="h-date">{{ h.created_at | date:'dd/MM/yyyy' }}</small>
+                    </div>
+                    <button class="delete-btn-sm" (click)="deletePrice(h)">&times;</button>
+                  </div>
+                </div>
+              </li>
+              <li *ngIf="groupedPrices.length === 0" class="muted">Nessun prezzo trovato</li>
+            </ul>
+          </section>
+
+          <!-- Form SECOND -->
           <section class="card">
             <h2>Registra Prezzo</h2>
-            <form (submit)="savePrice()">
+            <form (submit)="savePrice()" class="stacked-form">
               <div class="form-group">
                 <label>Prodotto</label>
                 <div class="search-select">
                   <input type="text" 
                          [(ngModel)]="priceProductSearch" 
                          (focus)="showPriceDropdown = true"
+                         (blur)="hidePriceDropdown()"
                          placeholder="Cerca prodotto..."
                          name="priceProdSearch"
-                         class="search-input">
+                         class="search-input"
+                         [disabled]="isUploading">
                   <div class="dropdown-list" *ngIf="showPriceDropdown">
                     <div class="dropdown-item" *ngFor="let p of sortedProducts(priceProductSearch)" (click)="selectPriceProduct(p)">
-                      <span class="cat-prefix">{{ p.category_name }}</span> - {{ p.name }}
+                      <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
                     </div>
                   </div>
                 </div>
@@ -134,20 +185,39 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
 
               <div class="form-group">
                 <label>Supermercato</label>
-                <select [(ngModel)]="newPrice.supermarket_id" name="market" required>
+                <select [(ngModel)]="newPrice.supermarket_id" name="market" required [disabled]="isUploading">
                   <option [value]="0" disabled>Seleziona supermercato...</option>
                   <option *ngFor="let s of supermarkets" [value]="s.id">{{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}</option>
                 </select>
               </div>
-              <div class="form-group">
-                <label>Prezzo (&euro;)</label>
-                <input type="number" step="0.01" [(ngModel)]="newPrice.price" name="price" required>
+              <div class="form-row">
+                <div class="form-group flex-2">
+                  <label>Prezzo (&euro;)</label>
+                  <input type="number" step="0.01" [(ngModel)]="newPrice.price" name="price" required [disabled]="isUploading">
+                </div>
+                <div class="form-group flex-1">
+                  <label>Formato</label>
+                  <input type="text" [(ngModel)]="newPrice.format" name="format" placeholder="Es. 500g" [disabled]="isUploading">
+                </div>
               </div>
+              
               <div class="form-group">
-                <label>Formato</label>
-                <input type="text" [(ngModel)]="newPrice.format" name="format" placeholder="Es. 500g">
+                <label>Foto Prezzo/Etichetta (Opzionale)</label>
+                <div class="photo-upload-row">
+                    <img *ngIf="pricePreviewUrl" [src]="pricePreviewUrl" class="thumb-large">
+                    <input type="file"
+                           (change)="onPriceFileSelected($event)" 
+                           accept="image/*" 
+                           capture="environment" 
+                           class="file-input"
+                           [disabled]="isUploading">
+                </div>
               </div>
-              <button type="submit" class="btn-primary" [disabled]="!newPrice.product_id || !newPrice.supermarket_id">Salva Prezzo</button>
+
+              <button type="submit" class="btn-primary" [disabled]="!isPriceFormValid() || isUploading">
+                  <span *ngIf="!isUploading">Salva Prezzo</span>
+                  <span *ngIf="isUploading" class="spinner-inline">Salvataggio...</span>
+              </button>
             </form>
           </section>
         </div>
@@ -233,6 +303,30 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
               </li>
             </ul>
           </section>
+
+          <!-- Supermarkets Section -->
+          <section class="card full-width">
+            <h2>Supermercati</h2>
+            <div class="add-item-box stacked-form">
+              <div class="form-row">
+                <input type="text" [(ngModel)]="newSupermarket.name" placeholder="Nome supermercato..." class="flex-2">
+                <input type="text" [(ngModel)]="newSupermarket.location" placeholder="Località (opzionale)" class="flex-1">
+              </div>
+              <button class="btn-primary" (click)="saveSupermarket()" [disabled]="!newSupermarket.name.trim()">{{ editingSupermarket ? 'Aggiorna' : 'Aggiungi' }} Supermercato</button>
+              <button class="btn-secondary btn-sm" *ngIf="editingSupermarket" (click)="cancelEditSupermarket()">Annulla</button>
+            </div>
+            <ul class="item-list">
+              <li *ngFor="let s of supermarkets">
+                <div class="item-info clickable" (click)="startEditSupermarket(s)">
+                  <div class="text-info">
+                    <span class="name">{{ s.name }}</span>
+                    <span class="category">{{ s.location || 'Nessuna località' }}</span>
+                  </div>
+                </div>
+                <button class="delete-btn-sm" (click)="deleteSupermarket(s); $event.stopPropagation()">&times;</button>
+              </li>
+            </ul>
+          </section>
         </div>
       </main>
     </div>
@@ -277,7 +371,21 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
     .search-input { width: 100%; padding: 12px; background: #121212; border: 1px solid #444; color: white; border-radius: 8px; font-size: 1rem; }
     .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: #1e1e1e; border: 2px solid #4f8cff; border-radius: 8px; z-index: 1000; max-height: 250px; overflow-y: auto; }
     .dropdown-item { padding: 14px; cursor: pointer; border-bottom: 1px solid #2a2a2a; }
-    .cat-prefix { color: #4f8cff; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; margin-right: 5px; }
+    
+    .cat-prefix { 
+      background: #2a2a2a; 
+      color: #4f8cff; 
+      font-weight: bold; 
+      font-size: 0.65rem; 
+      text-transform: uppercase; 
+      padding: 2px 6px; 
+      border-radius: 4px;
+      margin-right: 8px;
+      display: inline-block;
+      vertical-align: middle;
+      border: 1px solid #4f8cff44;
+    }
+
     .add-controls { display: flex; gap: 8px; align-items: stretch; }
     .add-controls > * { min-height: 46px; }
     .market-select { min-width: 140px; flex: 1 1 auto; }
@@ -299,13 +407,32 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
     .item-actions { display: flex; align-items: center; gap: 8px; }
     
     .thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #333; flex-shrink: 0; }
+    .thumb-sm { width: 24px; height: 24px; object-fit: cover; border-radius: 2px; border: 1px solid #333; flex-shrink: 0; }
     .item-info { display: flex; align-items: center; gap: 12px; flex-grow: 1; }
-    .text-info { display: flex; flex-direction: column; }
+    .text-info { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
 
     .item-list li { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #2a2a2a; }
     .horizontal-list { display: flex; flex-wrap: wrap; gap: 10px; border: none; }
     .tag-item { background: #2a2a2a; border-radius: 20px; padding: 5px 15px !important; border: 1px solid #333 !important; }
-    
+
+    .add-item-box { margin-bottom: 20px; }
+    .price-history-list .price-meta { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; margin-top: 2px; }
+    .price-history-list .market-info { font-size: 0.8rem; color: #4f8cff; margin-top: 1px; }
+    .search-box { margin-bottom: 15px; }
+
+    /* Price Grouping Styles */
+    .price-group-item { display: flex; flex-direction: column !important; align-items: stretch !important; padding: 0 !important; }
+    .price-main-row { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #2a2a2a; }
+    .group-actions { display: flex; align-items: center; gap: 8px; }
+    .expand-btn { background: transparent; border: none; color: #9aa0a6; cursor: pointer; padding: 4px; display: flex; align-items: center; transition: transform 0.2s; }
+    .expand-btn.rotated { transform: rotate(180deg); }
+    .price-history-details { background: #181818; padding: 4px 12px 12px 52px; border-bottom: 1px solid #2a2a2a; }
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #222; }
+    .history-item:last-child { border-bottom: none; }
+    .h-info { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: #ccc; }
+    .h-price { font-weight: bold; }
+    .h-date { color: #888; }
+
     .form-group { margin-bottom: 12px; }
     .form-group:last-child { margin-bottom: 0; }
     .stacked-form { display: flex; flex-direction: column; gap: 12px; }
@@ -317,6 +444,7 @@ import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } f
     label { display: block; color: #9aa0a6; margin-bottom: 6px; font-size: 0.85rem; }
     input, select { padding: 10px; background: #121212; border: 1px solid #333; color: #e4e4e4; border-radius: 8px; font-size: 1rem; width: 100%; box-sizing: border-box; }
     .btn-primary { background: #4f8cff; color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; cursor: pointer; font-weight: bold; font-size: 1rem; }
+    .btn-primary:disabled { background: #2a3a5a; color: #555; cursor: not-allowed; }
     .btn-secondary { background: #333; color: #e4e4e4; border: none; padding: 12px; border-radius: 8px; width: 100%; cursor: pointer; }
     .btn-danger { background: rgba(255, 92, 92, 0.12); border: 1px solid rgba(255, 92, 92, 0.35); color: #ff8888; border-radius: 8px; cursor: pointer; }
     .btn-danger:hover { background: rgba(255, 92, 92, 0.2); color: #ffb3b3; }
@@ -349,7 +477,11 @@ export class ShoppingPageComponent implements OnInit {
   products: Product[] = [];
   supermarkets: Supermarket[] = [];
   categories: Category[] = [];
+  prices: any[] = [];
+  
   searchTerm: string = '';
+  priceListSearch: string = '';
+  expandedGroups: Set<string> = new Set();
   
   isUploading: boolean = false;
   showProductForm: boolean = false;
@@ -365,11 +497,18 @@ export class ShoppingPageComponent implements OnInit {
   showPriceDropdown: boolean = false;
 
   newPrice = { product_id: 0, supermarket_id: 0, price: 0, format: '' };
+  pricePreviewUrl: string | null = null;
+  selectedPriceFile: File | null = null;
+
   newProduct: Product = { name: '', category_id: undefined };
   editingProduct: Product | null = null;
   selectedFile: File | null = null;
   previewUrl: string | null = null;
+  
   newCategoryName: string = '';
+  
+  newSupermarket: Supermarket = { name: '', location: '' };
+  editingSupermarket: Supermarket | null = null;
 
   constructor(private shoppingService: ShoppingService) {}
 
@@ -430,6 +569,46 @@ export class ShoppingPageComponent implements OnInit {
     this.shoppingService.getProducts().subscribe(prods => this.products = prods);
     this.shoppingService.getSupermarkets().subscribe(markets => this.supermarkets = markets);
     this.shoppingService.getCategories().subscribe(cats => this.categories = cats);
+    this.shoppingService.getPrices().subscribe(prices => this.prices = prices);
+  }
+
+  get groupedPrices() {
+    const term = this.priceListSearch.toLowerCase();
+    const filtered = this.prices.filter(p => 
+      p.product_name.toLowerCase().includes(term) || 
+      p.supermarket_name.toLowerCase().includes(term) ||
+      (p.supermarket_location && p.supermarket_location.toLowerCase().includes(term)) ||
+      (p.category_name && p.category_name.toLowerCase().includes(term))
+    );
+
+    const groupsMap: Map<string, any> = new Map();
+    filtered.forEach(p => {
+      const key = `${p.product_id}-${p.supermarket_id}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          key,
+          product_name: p.product_name,
+          category_name: p.category_name,
+          supermarket_name: p.supermarket_name,
+          supermarket_location: p.supermarket_location,
+          latest: p,
+          history: []
+        });
+      }
+      groupsMap.get(key).history.push(p);
+    });
+
+    return Array.from(groupsMap.values()).sort((a, b) => 
+      new Date(b.latest.created_at).getTime() - new Date(a.latest.created_at).getTime()
+    );
+  }
+
+  toggleGroup(key: string) {
+    if (this.expandedGroups.has(key)) {
+      this.expandedGroups.delete(key);
+    } else {
+      this.expandedGroups.add(key);
+    }
   }
 
   get filteredShoppingList() {
@@ -444,7 +623,7 @@ export class ShoppingPageComponent implements OnInit {
 
   selectProduct(p: Product) {
     this.selectedProductId = p.id!;
-    this.selectedProductName = `${p.category_name} - ${p.name}`;
+    this.selectedProductName = `${p.category_name ? p.category_name + ' - ' : ''}${p.name}`;
     this.productSearchTerm = '';
     this.showProductDropdown = false;
   }
@@ -460,9 +639,17 @@ export class ShoppingPageComponent implements OnInit {
     this.showPriceDropdown = false;
   }
 
+  hideProductDropdown() {
+    setTimeout(() => this.showProductDropdown = false, 200);
+  }
+
+  hidePriceDropdown() {
+    setTimeout(() => this.showPriceDropdown = false, 200);
+  }
+
   getProductName(id: number) {
     const p = this.products.find(x => x.id === id);
-    return p ? `${p.category_name} - ${p.name}` : '';
+    return p ? `${p.category_name ? p.category_name + ' - ' : ''}${p.name}` : '';
   }
 
   saveCategory() {
@@ -598,18 +785,84 @@ export class ShoppingPageComponent implements OnInit {
     }
   }
 
+  onPriceFileSelected(event: any) {
+    this.selectedPriceFile = event.target.files[0];
+    if (this.selectedPriceFile) {
+      const reader = new FileReader();
+      reader.onload = (e: any) => this.pricePreviewUrl = e.target.result;
+      reader.readAsDataURL(this.selectedPriceFile);
+    }
+  }
+
+  isPriceFormValid(): boolean {
+    return this.newPrice.product_id > 0 && 
+           this.newPrice.supermarket_id > 0 && 
+           this.newPrice.price > 0;
+  }
+
   savePrice() {
-    if (this.newPrice.product_id === 0 || this.newPrice.supermarket_id === 0) return;
+    if (!this.isPriceFormValid()) return;
+    this.isUploading = true;
     const formData = new FormData();
     formData.append('product_id', this.newPrice.product_id.toString());
     formData.append('supermarket_id', this.newPrice.supermarket_id.toString());
     formData.append('price', this.newPrice.price.toString());
     formData.append('format', this.newPrice.format);
+    if (this.selectedPriceFile) {
+      formData.append('photo', this.selectedPriceFile);
+    }
 
     this.shoppingService.addPrice(formData).subscribe(() => {
-      alert('Prezzo salvato!');
+      this.isUploading = false;
       this.newPrice = { product_id: 0, supermarket_id: 0, price: 0, format: '' };
       this.priceProductSearch = '';
-    });
+      this.pricePreviewUrl = null;
+      this.selectedPriceFile = null;
+      this.loadData();
+    }, () => this.isUploading = false);
+  }
+
+  deletePrice(p: any) {
+    if (confirm("Eliminare questo prezzo registrato?")) {
+      this.shoppingService.deletePrice(p.id).subscribe(() => this.loadData());
+    }
+  }
+
+  saveSupermarket() {
+    if (!this.newSupermarket.name) return;
+    if (this.editingSupermarket) {
+      this.shoppingService.updateSupermarket({ ...this.newSupermarket, id: this.editingSupermarket.id }).subscribe(() => {
+        this.cancelEditSupermarket();
+        this.loadData();
+      });
+    } else {
+      this.shoppingService.addSupermarket(this.newSupermarket).subscribe(() => {
+        this.newSupermarket = { name: '', location: '' };
+        this.loadData();
+      });
+    }
+  }
+
+  startEditSupermarket(s: Supermarket) {
+    this.editingSupermarket = s;
+    this.newSupermarket = { ...s };
+  }
+
+  cancelEditSupermarket() {
+    this.editingSupermarket = null;
+    this.newSupermarket = { name: '', location: '' };
+  }
+
+  deleteSupermarket(s: Supermarket) {
+    if (confirm("Eliminare il supermercato '" + s.name + "'?")) {
+      this.shoppingService.deleteSupermarket(s.id!).subscribe(
+        () => this.loadData(),
+        err => alert(err.error.error)
+      );
+    }
+  }
+
+  openImage(url: string) {
+    window.open(url, '_blank');
   }
 }

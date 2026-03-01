@@ -87,12 +87,33 @@ export class ShoppingService {
     return this.http.get<Supermarket[]>(`${this.apiUrl}?action=get_supermarkets`, { withCredentials: true });
   }
 
+  addSupermarket(supermarket: Supermarket): Observable<any> {
+    return this.http.post(`${this.apiUrl}?action=add_supermarket`, supermarket, { withCredentials: true });
+  }
+
+  updateSupermarket(supermarket: Supermarket): Observable<any> {
+    return this.http.post(`${this.apiUrl}?action=update_supermarket`, supermarket, { withCredentials: true });
+  }
+
+  deleteSupermarket(id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}?action=delete_supermarket&id=${id}`, { withCredentials: true });
+  }
+
   getShoppingList(): Observable<ShoppingItem[]> {
     return this.http.get<ShoppingItem[]>(`${this.apiUrl}?action=get_shopping_list`, { withCredentials: true });
   }
 
+  getPrices(productId?: number): Observable<any[]> {
+    const url = productId ? `${this.apiUrl}?action=get_prices&product_id=${productId}` : `${this.apiUrl}?action=get_prices`;
+    return this.http.get<any[]>(url, { withCredentials: true });
+  }
+
   addPrice(formData: FormData): Observable<any> {
     return this.http.post(`${this.apiUrl}?action=add_price`, formData, { withCredentials: true });
+  }
+
+  deletePrice(id: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}?action=delete_price&id=${id}`, { withCredentials: true });
   }
 
   addToList(item: {product_id: number, quantity: string, supermarket_id?: number | null}): Observable<any> {
