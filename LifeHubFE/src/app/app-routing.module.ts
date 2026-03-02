@@ -15,6 +15,7 @@ import { TasksPageComponent } from './features/tasks/tasks-page.component';
 import { UsersPageComponent } from './features/users/users-page.component';
 import { InventoryPageComponent } from './features/inventory/inventory-page.component';
 import { DocumentsPageComponent } from './features/documents/documents-page.component';
+import { GoalsPageComponent } from './features/goals/goals-page.component';
 
 const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -30,6 +31,8 @@ const routes: Routes = [
   { path: 'menu', redirectTo: 'meals', pathMatch: 'full' },
   { path: 'notes', component: NotesPageComponent, canActivate: [AuthGuard] },
   { path: 'tasks', component: TasksPageComponent, canActivate: [AuthGuard] },
+  { path: 'goals', component: GoalsPageComponent, canActivate: [AuthGuard] },
+  { path: 'obiettivi', redirectTo: 'goals', pathMatch: 'full' },
   { path: 'inventory', component: InventoryPageComponent, canActivate: [AuthGuard] },
   { path: 'inventario', redirectTo: 'inventory', pathMatch: 'full' },
   {

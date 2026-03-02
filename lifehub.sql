@@ -344,6 +344,56 @@ CREATE TABLE IF NOT EXISTS `inventory` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
 
+-- --------------------------------------------------------
+
+--
+-- Struttura della tabella `goals`
+--
+
+CREATE TABLE IF NOT EXISTS `goals` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `owner_id` int(11) NOT NULL,
+  `status` enum('active','completed','suspended') DEFAULT 'active',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `owner_id` (`owner_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Struttura della tabella `trackers`
+--
+
+CREATE TABLE IF NOT EXISTS `trackers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `goal_id` int(11) NOT NULL,
+  `type` enum('numeric','boolean','percentage') NOT NULL,
+  `frequency` enum('daily','weekly') NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `goal_id` (`goal_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
+-- Struttura della tabella `goal_logs`
+--
+
+CREATE TABLE IF NOT EXISTS `goal_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tracker_id` int(11) NOT NULL,
+  `log_date` date NOT NULL,
+  `value` decimal(10,2) NOT NULL,
+  `notes` text,
+  PRIMARY KEY (`id`),
+  KEY `tracker_id` (`tracker_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

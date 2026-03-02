@@ -46,16 +46,16 @@
         <h3>Calendario</h3>
         <p>Google Calendar condiviso per appuntamenti e scadenze.</p>
       </a>
+      <a routerLink="/goals" class="card">
+        <div class="card-emoji">🎯</div>
+        <h3>Obiettivi</h3>
+        <p>Tracker progressi, abitudini e traguardi.</p>
+      </a>
       <a routerLink="/inventory" class="card">
         <div class="card-emoji">📦</div>
         <h3>Inventario</h3>
         <p>Organizzazione e ricerca oggetti in casa.</p>
       </a>
-      <!-- <div class="card">
-        <div class="card-emoji">🎯</div>
-        <h3>Obiettivi</h3>
-        <p>Tracker progressi, abitudini e traguardi.</p>
-      </div> -->
       <a routerLink="/documents" class="card" *ngIf="user?.role === 'admin' || user?.role === 'adult'">
         <div class="card-emoji">📂</div>
         <h3>Documenti</h3>

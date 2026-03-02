@@ -1,0 +1,198 @@
+<div class="container dark-theme">
+  <header>
+    <div class="header-content">
+      <div class="header-row header-top">
+        <h1 class="page-title">
+          <span class="title-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="6" />
+              <circle cx="12" cy="12" r="2" />
+            </svg>
+          </span>
+          <span>Obiettivi & Abitudini</span>
+        </h1>
+      </div>
+      <div class="header-row header-bottom">
+        <div class="header-controls">
+          <button *ngIf="currentUser?.role !== 'child'" class="btn-primary btn-sm" (click)="createNewGoal()">+ Nuovo</button>
+          <a routerLink="/home" class="home-link">Home Hub</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Empty State -->
+    <div *ngIf="goals.length === 0" class="muted-large">
+      <span *ngIf="currentUser?.role === 'child'">Nessun obiettivo ancora! Inizia ora 🌟</span>
+      <span *ngIf="currentUser?.role !== 'child'">Non ci sono ancora obiettivi. Creane uno nuovo per iniziare!</span>
+    </div>
+
+    <!-- CHILD MODE VIEW -->
+    <div *ngIf="currentUser?.role === 'child'" class="grid">
+      <div *ngFor="let goal of goals" class="card goal-card child-card">
+        <h3>{{ goal.title }}</h3>
+        <p class="muted">{{ goal.description }}</p>
+        
+        <div class="progress-container">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" [style.width.%]="getCompletionPercentage(goal)">
+              {{ getCompletionPercentage(goal) }}%
+            </div>
+          </div>
+        </div>
+
+        <div class="badges">
+          <span *ngFor="let badge of getBadges(goal)" class="badge-custom">
+            {{ badge }}
+          </span>
+        </div>
+
+        <div *ngFor="let tracker of goal.trackers" class="tracker-item">
+          <button class="btn-primary btn-large" (click)="toggleLogForm(tracker.id!)">
+            <span *ngIf="tracker.type === 'boolean'">✅ Fatto oggi!</span>
+            <span *ngIf="tracker.type !== 'boolean'">+ Aggiungi progresso</span>
+          </button>
+          
+          <div *ngIf="showLogForm === tracker.id" class="log-form card">
+            <div *ngIf="tracker.type !== 'boolean'" class="form-group">
+              <label>Quanto hai fatto?</label>
+              <input type="number" [(ngModel)]="logValue">
+            </div>
+            <button class="btn-primary" (click)="saveLog(tracker.id!)">Salva</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADULT / ADMIN VIEW -->
+    <div *ngIf="currentUser?.role !== 'child'" class="grid">
+      <div *ngFor="let goal of goals" class="card goal-card" [class.suspended]="goal.status === 'suspended'" [class.completed]="goal.status === 'completed'">
+        <div class="card-header">
+          <h2>{{ goal.title }}</h2>
+          <div class="card-actions">
+            <button class="btn-icon" (click)="editGoal(goal)">✏️</button>
+            <button class="btn-icon danger" (click)="deleteGoal(goal)">🗑️</button>
+          </div>
+        </div>
+        
+        <div class="card-content">
+          <p>{{ goal.description }}</p>
+          <div class="meta-item">
+            📅 {{ goal.start_date || 'N/A' }} - {{ goal.end_date || 'N/A' }}
+          </div>
+          <div class="meta-row">
+            <span class="badge" [attr.data-status]="goal.status">{{ goal.status }}</span>
+            <span class="meta-item ml-auto">👤 {{ goal.owner_name }}</span>
+          </div>
+
+          <div *ngFor="let tracker of goal.trackers" class="tracker-section">
+            <div class="tracker-header">
+              <strong>{{ tracker.type }} ({{ tracker.frequency }})</strong>
+              <button class="btn-sm btn-secondary" (click)="toggleLogForm(tracker.id!)">Log</button>
+            </div>
+            
+            <div *ngIf="showLogForm === tracker.id" class="log-overlay">
+              <div class="form-row">
+                <input type="number" class="flex-1" placeholder="Valore" [(ngModel)]="logValue">
+                <button class="btn-primary btn-sm" (click)="saveLog(tracker.id!)">OK</button>
+              </div>
+              <div class="log-history">
+                <div *ngFor="let log of tracker.logs" class="log-entry">
+                  <span>{{ log.log_date }}</span>
+                  <span class="log-val">{{ log.value }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card-footer">
+          <div class="progress-bar-bg small">
+            <div class="progress-bar-fill info" [style.width.%]="getCompletionPercentage(goal)"></div>
+          </div>
+          <div class="progress-text text-center">{{ getCompletionPercentage(goal) }}% completato</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Goal Editor (Modal) -->
+    <div class="modal" *ngIf="editingGoal" (click)="cancelEdit()">
+      <div class="modal-content card" (click)="$event.stopPropagation()" [formGroup]="goalForm">
+        <h2>{{ editingGoal.id ? 'Modifica' : 'Nuovo' }} Obiettivo</h2>
+
+        <div class="modal-body-scroll">
+          <div class="form-group">
+            <label>Titolo</label>
+            <input type="text" formControlName="title" placeholder="Cosa vuoi ottenere?" />
+          </div>
+
+          <div class="form-group">
+            <label>Descrizione</label>
+            <textarea formControlName="description" placeholder="Aggiungi dettagli..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Data Inizio</label>
+              <input type="date" formControlName="start_date">
+            </div>
+            <div class="form-group flex-1">
+              <label>Data Fine</label>
+              <input type="date" formControlName="end_date">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label>Proprietario</label>
+              <select formControlName="owner_id">
+                <option *ngFor="let m of members" [value]="m.id">{{ m.username }}</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label>Stato</label>
+              <select formControlName="status">
+                <option value="active">Attivo</option>
+                <option value="completed">Completato</option>
+                <option value="suspended">Sospeso</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="trackers-section-edit">
+            <label>Tracker Progressi</label>
+            <div class="tracker-badges-row">
+              <span *ngFor="let t of editingGoal.trackers; let i = index" class="badge">
+                {{ t.type }} ({{ t.frequency }})
+              </span>
+            </div>
+            
+            <div [formGroup]="trackerForm" class="form-row align-end">
+              <div class="form-group flex-1">
+                <select formControlName="type">
+                  <option value="boolean">Si/No</option>
+                  <option value="numeric">Numerico</option>
+                  <option value="percentage">Percentuale</option>
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <select formControlName="frequency">
+                  <option value="daily">Giornaliero</option>
+                  <option value="weekly">Settimanale</option>
+                </select>
+              </div>
+              <button class="btn-secondary btn-sm" (click)="addTracker()">+ Tracker</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-secondary" (click)="cancelEdit()">Annulla</button>
+          <button class="btn-primary" (click)="saveGoal()" [disabled]="goalForm.invalid">Salva</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
