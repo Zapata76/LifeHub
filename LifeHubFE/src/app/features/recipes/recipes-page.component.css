@@ -209,7 +209,42 @@
   flex-wrap: wrap;
 }
 
+.user-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: #4f8cff;
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn.inactive {
+  background: #2a2a2a;
+  color: #9aa0a6;
+  opacity: 0.6;
+}
+
+.filter-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 /* Recipe View Mode Styles */
+
 .recipe-detail-header {
   border-bottom: 1px solid #2a2a2a;
   padding-bottom: 15px;

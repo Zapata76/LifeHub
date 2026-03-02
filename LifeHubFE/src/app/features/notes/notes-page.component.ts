@@ -1,6 +1,7 @@
 ﻿import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { NotesService, Note } from './notes.service';
+import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
   selector: 'app-notes-page',
@@ -9,6 +10,8 @@ import { NotesService, Note } from './notes.service';
 })
 export class NotesPageComponent implements OnInit {
   notes: Note[] = [];
+  members: FamilyMember[] = [];
+  userFilters: { [key: string]: boolean } = {};
   editingNote: Note | null = null;
   noteForm: FormGroup;
   selectedFile: File | null = null;
@@ -19,6 +22,7 @@ export class NotesPageComponent implements OnInit {
 
   constructor(
     private notesService: NotesService,
+    private tasksService: TasksService,
     private fb: FormBuilder
   ) {
     this.noteForm = this.fb.group({
@@ -31,7 +35,30 @@ export class NotesPageComponent implements OnInit {
 
   ngOnInit() {
     this.loadNotes();
-    // In a real case I would use an auth service, here we simulate from the first note load
+    this.loadMembers();
+  }
+
+  loadMembers() {
+    this.tasksService.getFamilyMembers().subscribe(m => {
+      this.members = m || [];
+      this.members.forEach(member => {
+        if (this.userFilters[member.username] === undefined) {
+          this.userFilters[member.username] = true;
+        }
+      });
+    });
+  }
+
+  toggleUserFilter(username: string) {
+    this.userFilters[username] = !this.userFilters[username];
+  }
+
+  getFilteredNotes() {
+    return this.notes.filter(n => {
+      if (!n.author) return true;
+      const author = n.author.trim();
+      return this.userFilters[author] !== false;
+    });
   }
 
   loadNotes() {
@@ -40,10 +67,6 @@ export class NotesPageComponent implements OnInit {
         ...n,
         is_pinned: Number(n.is_pinned) === 1
       }));
-      if (this.notes.length > 0 && !this.userAuthor) {
-          // Small shortcut to show a username in the header without creating another service
-          // (This will be improved when we have a centralized user service)
-      }
     });
   }
 
@@ -140,4 +163,3 @@ export class NotesPageComponent implements OnInit {
     this.notesService.saveNote(formData).subscribe(() => this.loadNotes());
   }
 }
-

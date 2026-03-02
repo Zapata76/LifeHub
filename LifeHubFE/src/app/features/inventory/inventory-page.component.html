@@ -17,6 +17,16 @@
       </div>
       <div class="header-row header-bottom">
         <div class="header-controls">
+          <div class="user-filters">
+            <button
+              *ngFor="let m of members"
+              class="filter-btn"
+              [class.inactive]="userFilters[m.id] === false"
+              (click)="toggleUserFilter(m.id)"
+            >
+              {{ m.username }}
+            </button>
+          </div>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
@@ -35,7 +45,7 @@
 
       <ul class="item-list">
         <li
-          *ngFor="let item of items"
+          *ngFor="let item of getFilteredItems()"
           [class.active]="selectedItem && selectedItem.id === item.id"
           (click)="selectItem(item)"
         >
@@ -49,7 +59,7 @@
             </div>
           </div>
         </li>
-        <li *ngIf="items.length === 0" class="muted">Nessun oggetto trovato</li>
+        <li *ngIf="getFilteredItems().length === 0" class="muted">Nessun oggetto trovato</li>
       </ul>
     </section>
 

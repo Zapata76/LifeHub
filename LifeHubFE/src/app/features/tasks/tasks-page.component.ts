@@ -10,6 +10,7 @@ import { TasksService, Task, FamilyMember } from './tasks.service';
 export class TasksPageComponent implements OnInit {
   tasks: Task[] = [];
   members: FamilyMember[] = [];
+  userFilters: { [key: number]: boolean } = {};
   editingTask: Task | null = null;
   familyMember: string = '';
   taskForm: FormGroup;
@@ -30,15 +31,28 @@ export class TasksPageComponent implements OnInit {
 
   ngOnInit() {
     this.loadTasks();
-    this.tasksService.getFamilyMembers().subscribe((data: any) => this.members = data);
+    this.tasksService.getFamilyMembers().subscribe((data: any) => {
+      this.members = data;
+      this.members.forEach(m => {
+        this.userFilters[m.id] = true;
+      });
+    });
   }
 
   loadTasks() {
     this.tasksService.getTasks().subscribe((data: any) => this.tasks = data);
   }
 
+  toggleUserFilter(memberId: number) {
+    this.userFilters[memberId] = !this.userFilters[memberId];
+  }
+
   getTasksByStatus(status: string) {
-    return this.tasks.filter(t => t.status === status);
+    return this.tasks.filter(t => {
+      const isStatusMatch = t.status === status;
+      const isUserVisible = t.assigned_to ? this.userFilters[t.assigned_to] !== false : true;
+      return isStatusMatch && isUserVisible;
+    });
   }
 
   createNewTask() {
@@ -89,4 +103,3 @@ export class TasksPageComponent implements OnInit {
     this.editingTask = null;
   }
 }
-

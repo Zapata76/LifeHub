@@ -1,6 +1,7 @@
 import { Component, HostListener, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './recipes.service';
+import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
   selector: 'app-recipes-page',
@@ -11,6 +12,8 @@ export class RecipesPageComponent implements OnInit {
   recipes: Recipe[] = [];
   categories: string[] = [];
   productsCatalog: ProductCatalogItem[] = [];
+  members: FamilyMember[] = [];
+  userFilters: { [key: string]: boolean } = {};
 
   activeIngredientDropdown: number | null = null;
 
@@ -32,6 +35,7 @@ export class RecipesPageComponent implements OnInit {
 
   constructor(
     private recipesService: RecipesService,
+    private tasksService: TasksService,
     private fb: FormBuilder
   ) {
     this.searchForm = this.fb.group({
@@ -58,6 +62,31 @@ export class RecipesPageComponent implements OnInit {
     this.loadStaticData();
     this.loadRecipes();
     this.checkCameraSupport();
+    this.loadMembers();
+  }
+
+  loadMembers() {
+    this.tasksService.getFamilyMembers().subscribe(m => {
+      this.members = m || [];
+      this.members.forEach(member => {
+        if (this.userFilters[member.username] === undefined) {
+          this.userFilters[member.username] = true;
+        }
+      });
+    });
+  }
+
+  toggleUserFilter(username: string) {
+    this.userFilters[username] = !this.userFilters[username];
+  }
+
+  getFilteredRecipes() {
+    return this.recipes.filter(r => {
+      if (!r.author_name) return true;
+      // Handle potential case mismatches or whitespace
+      const author = r.author_name.trim();
+      return this.userFilters[author] !== false;
+    });
   }
 
   async checkCameraSupport() {
@@ -109,7 +138,6 @@ export class RecipesPageComponent implements OnInit {
       ctx.drawImage(video, 0, 0);
       this.previewUrl = canvas.toDataURL('image/jpeg');
       
-      // Convert dataUrl to File object for saving
       fetch(this.previewUrl)
         .then(res => res.blob())
         .then(blob => {

@@ -18,7 +18,16 @@
       <div class="header-row header-bottom">
         <div class="header-controls">
           <button class="btn-primary btn-sm" (click)="createNewNote()">+ Nuova</button>
-          <span class="user-badge" *ngIf="userAuthor">{{ userAuthor }}</span>
+          <div class="user-filters">
+            <button
+              *ngFor="let m of members"
+              class="filter-btn"
+              [class.inactive]="userFilters[m.username] === false"
+              (click)="toggleUserFilter(m.username)"
+            >
+              {{ m.username }}
+            </button>
+          </div>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
@@ -110,7 +119,7 @@
     <div class="notes-grid">
       <div
         class="note-card card"
-        *ngFor="let n of notes"
+        *ngFor="let n of getFilteredNotes()"
         [style.border-top-color]="n.color"
         (click)="editNote(n)"
       >
@@ -132,6 +141,6 @@
         </div>
       </div>
     </div>
-    <div *ngIf="notes.length === 0" class="muted-large">Nessuna nota presente</div>
+    <div *ngIf="getFilteredNotes().length === 0" class="muted-large">Nessuna nota presente</div>
   </main>
 </div>

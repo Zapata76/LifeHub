@@ -16,6 +16,16 @@
       <div class="header-row header-bottom">
         <div class="header-controls">
           <button *ngIf="currentUser?.role !== 'child'" class="btn-primary btn-sm" (click)="createNewGoal()">+ Nuovo</button>
+          <div class="user-filters">
+            <button
+              *ngFor="let m of members"
+              class="filter-btn"
+              [class.inactive]="userFilters[m.id] === false"
+              (click)="toggleUserFilter(m.id)"
+            >
+              {{ m.username }}
+            </button>
+          </div>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
@@ -31,7 +41,7 @@
 
     <!-- CHILD MODE VIEW -->
     <div *ngIf="currentUser?.role === 'child'" class="grid">
-      <div *ngFor="let goal of goals" class="card goal-card child-card">
+      <div *ngFor="let goal of getFilteredGoals()" class="card goal-card child-card">
         <h3>{{ goal.title }}</h3>
         <p class="muted">{{ goal.description }}</p>
         
@@ -68,7 +78,7 @@
 
     <!-- ADULT / ADMIN VIEW -->
     <div *ngIf="currentUser?.role !== 'child'" class="grid">
-      <div *ngFor="let goal of goals" class="card goal-card" [class.suspended]="goal.status === 'suspended'" [class.completed]="goal.status === 'completed'">
+      <div *ngFor="let goal of getFilteredGoals()" class="card goal-card" [class.suspended]="goal.status === 'suspended'" [class.completed]="goal.status === 'completed'">
         <div class="card-header">
           <h2>{{ goal.title }}</h2>
           <div class="card-actions">

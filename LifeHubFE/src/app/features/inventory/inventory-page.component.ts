@@ -13,6 +13,7 @@ export class InventoryPageComponent implements OnInit {
   items: InventoryItem[] = [];
   documents: HubDocument[] = [];
   members: FamilyMember[] = [];
+  userFilters: { [key: number]: boolean } = {};
   searchControl = new FormControl('');
   itemForm: FormGroup;
   isSaving: boolean = false;
@@ -57,7 +58,25 @@ export class InventoryPageComponent implements OnInit {
   }
 
   loadMembers() {
-    this.tasksService.getFamilyMembers().subscribe(m => this.members = m || []);
+    this.tasksService.getFamilyMembers().subscribe(m => {
+      this.members = m || [];
+      this.members.forEach(member => {
+        if (this.userFilters[member.id] === undefined) {
+          this.userFilters[member.id] = true;
+        }
+      });
+    });
+  }
+
+  toggleUserFilter(memberId: number) {
+    this.userFilters[memberId] = !this.userFilters[memberId];
+  }
+
+  getFilteredItems() {
+    return this.items.filter(item => {
+      if (!item.owner_id) return true;
+      return this.userFilters[item.owner_id] !== false;
+    });
   }
 
   emptyItem(): InventoryItem {
@@ -116,12 +135,14 @@ export class InventoryPageComponent implements OnInit {
     this.invService.saveItem(itemData).subscribe(res => {
       this.isSaving = false;
       this.isEditingMode = false;
-      this.loadItems();
       if (res && res.id) {
-        // Find the saved item in the list or reload details
-        this.selectedItem.id = res.id;
-        this.loadItems();
+        this.selectedItem = { ...itemData, id: res.id };
+        if (itemData.owner_id) {
+          const owner = this.members.find(m => m.id === itemData.owner_id);
+          if (owner) this.selectedItem.owner_name = owner.username;
+        }
       }
+      this.loadItems();
     }, err => {
       this.isSaving = false;
       alert('Errore: ' + (err.error?.error || err.message));

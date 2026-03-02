@@ -12,6 +12,7 @@ import { TasksService, FamilyMember } from '../tasks/tasks.service';
 export class GoalsPageComponent implements OnInit {
   goals: Goal[] = [];
   members: FamilyMember[] = [];
+  userFilters: { [key: number]: boolean } = {};
   currentUser: HubUser | null = null;
   editingGoal: Goal | null = null;
   goalForm: FormGroup;
@@ -46,13 +47,30 @@ export class GoalsPageComponent implements OnInit {
       this.currentUser = user;
       if (user) {
         this.loadGoals();
-        this.tasksService.getFamilyMembers().subscribe(data => this.members = data);
+        this.tasksService.getFamilyMembers().subscribe(data => {
+          this.members = data;
+          this.members.forEach(m => {
+            if (this.userFilters[m.id] === undefined) {
+              this.userFilters[m.id] = true;
+            }
+          });
+        });
       }
     });
   }
 
   loadGoals() {
     this.goalsService.getGoals().subscribe(data => this.goals = data);
+  }
+
+  toggleUserFilter(memberId: number) {
+    this.userFilters[memberId] = !this.userFilters[memberId];
+  }
+
+  getFilteredGoals() {
+    return this.goals.filter(g => {
+      return this.userFilters[g.owner_id] !== false;
+    });
   }
 
   createNewGoal() {
@@ -130,8 +148,6 @@ export class GoalsPageComponent implements OnInit {
   }
 
   getCompletionPercentage(goal: Goal): number {
-    // Basic implementation of completion percentage
-    // For now, let's say it's based on trackers
     if (!goal.trackers || goal.trackers.length === 0) return 0;
     let total = 0;
     goal.trackers.forEach(t => {
@@ -142,7 +158,6 @@ export class GoalsPageComponent implements OnInit {
         const lastLog = t.logs && t.logs.length > 0 ? t.logs[0] : null;
         if (lastLog) total += lastLog.value;
       } else {
-        // For numeric, we don't have a target value yet, so just assume 50% if there is any log
         if (t.logs && t.logs.length > 0) total += 50;
       }
     });
