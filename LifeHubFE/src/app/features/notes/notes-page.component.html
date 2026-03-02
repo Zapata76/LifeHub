@@ -31,19 +31,20 @@
       <div
         class="modal-content card"
         (click)="$event.stopPropagation()"
-        [style.border-top-color]="editingNote.color"
+        [style.border-top-color]="noteForm.get('color')?.value"
+        [formGroup]="noteForm"
       >
         <div class="modal-body-scroll">
           <input
             type="text"
-            [(ngModel)]="editingNote.title"
+            formControlName="title"
             placeholder="Titolo"
             class="note-title-input"
             [disabled]="isSaving"
           />
 
           <textarea
-            [(ngModel)]="editingNote.content"
+            formControlName="content"
             placeholder="Inizia a scrivere..."
             class="note-textarea"
             [disabled]="isSaving"
@@ -76,8 +77,8 @@
               <div
                 *ngFor="let c of colors"
                 [style.background]="c"
-                (click)="editingNote.color = c"
-                [class.selected]="editingNote.color === c"
+                (click)="noteForm.patchValue({ color: c })"
+                [class.selected]="noteForm.get('color')?.value === c"
               ></div>
             </div>
           </div>
@@ -95,7 +96,7 @@
             <button
               class="btn-primary"
               (click)="saveNote()"
-              [disabled]="isSaving || (!editingNote.title && !editingNote.content)"
+              [disabled]="isSaving || (!noteForm.get('title')?.value && !noteForm.get('content')?.value)"
             >
               <span *ngIf="!isSaving">Salva</span>
               <span *ngIf="isSaving" class="spinner-inline">...</span>

@@ -1,4 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } from './shopping.service';
 
 @Component({
@@ -15,38 +16,70 @@ export class ShoppingPageComponent implements OnInit {
   categories: Category[] = [];
   prices: any[] = [];
   
-  searchTerm: string = '';
-  priceListSearch: string = '';
   expandedGroups: Set<string> = new Set();
   
   isUploading: boolean = false;
   showProductForm: boolean = false;
-  productSearchTerm: string = '';
   showProductDropdown: boolean = false;
   selectedProductId: number = 0;
   selectedProductName: string = '';
-  selectedSupermarketId: number = 0;
-  listFilterSupermarketId: number = 0;
-  itemQuantity: string = '1';
-
-  priceProductSearch: string = '';
   showPriceDropdown: boolean = false;
 
-  newPrice = { product_id: 0, supermarket_id: 0, price: 0, format: '' };
+  addItemForm: FormGroup;
+  priceForm: FormGroup;
+  productForm: FormGroup;
+  categoryForm: FormGroup;
+  supermarketForm: FormGroup;
+  
+  filterForm: FormGroup;
+
   pricePreviewUrl: string | null = null;
   selectedPriceFile: File | null = null;
 
-  newProduct: Product = { name: '', category_id: undefined };
   editingProduct: Product | null = null;
   selectedFile: File | null = null;
   previewUrl: string | null = null;
   
-  newCategoryName: string = '';
-  
-  newSupermarket: Supermarket = { name: '', location: '' };
   editingSupermarket: Supermarket | null = null;
 
-  constructor(private shoppingService: ShoppingService) {}
+  constructor(
+    private shoppingService: ShoppingService,
+    private fb: FormBuilder
+  ) {
+    this.addItemForm = this.fb.group({
+      productSearchTerm: [''],
+      supermarket_id: [0],
+      quantity: ['1', Validators.required]
+    });
+
+    this.priceForm = this.fb.group({
+      productSearchTerm: [''],
+      product_id: [0, Validators.min(1)],
+      supermarket_id: [0, Validators.min(1)],
+      price: [0, [Validators.required, Validators.min(0.01)]],
+      format: ['']
+    });
+
+    this.productForm = this.fb.group({
+      name: ['', Validators.required],
+      category_id: [null, Validators.required]
+    });
+
+    this.categoryForm = this.fb.group({
+      name: ['', Validators.required]
+    });
+
+    this.supermarketForm = this.fb.group({
+      name: ['', Validators.required],
+      location: ['']
+    });
+
+    this.filterForm = this.fb.group({
+      listFilterSupermarketId: [0],
+      priceListSearch: [''],
+      productSearchTerm: ['']
+    });
+  }
 
   ngOnInit() {
     this.loadData();
@@ -58,7 +91,7 @@ export class ShoppingPageComponent implements OnInit {
   get sortedAndFilteredProducts() {
     return this.products
       .filter(p => {
-        const term = this.productSearchTerm.toLowerCase();
+        const term = (this.addItemForm.get('productSearchTerm')?.value || '').toLowerCase();
         return p.name.toLowerCase().includes(term) || (p.category_name || '').toLowerCase().includes(term);
       })
       .sort((a, b) => {
@@ -83,7 +116,7 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   get filteredProducts() {
-    const term = this.searchTerm.toLowerCase();
+    const term = (this.filterForm.get('productSearchTerm')?.value || '').toLowerCase();
     return this.products.filter(p => 
       p.name.toLowerCase().includes(term) || 
       (p.category_name && p.category_name.toLowerCase().includes(term))
@@ -109,7 +142,7 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   get groupedPrices() {
-    const term = this.priceListSearch.toLowerCase();
+    const term = (this.filterForm.get('priceListSearch')?.value || '').toLowerCase();
     const filtered = this.prices.filter(p => 
       p.product_name.toLowerCase().includes(term) || 
       p.supermarket_name.toLowerCase().includes(term) ||
@@ -148,19 +181,20 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   get filteredShoppingList() {
-    if (!this.listFilterSupermarketId) {
+    const marketId = this.filterForm.get('listFilterSupermarketId')?.value;
+    if (!marketId) {
       return this.shoppingList;
     }
 
     return this.shoppingList.filter(item =>
-      item.supermarket_id == null || Number(item.supermarket_id) === Number(this.listFilterSupermarketId)
+      item.supermarket_id == null || Number(item.supermarket_id) === Number(marketId)
     );
   }
 
   selectProduct(p: Product) {
     this.selectedProductId = p.id!;
     this.selectedProductName = `${p.category_name ? p.category_name + ' - ' : ''}${p.name}`;
-    this.productSearchTerm = '';
+    this.addItemForm.patchValue({ productSearchTerm: '' });
     this.showProductDropdown = false;
   }
 
@@ -170,8 +204,7 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   selectPriceProduct(p: Product) {
-    this.newPrice.product_id = p.id!;
-    this.priceProductSearch = '';
+    this.priceForm.patchValue({ product_id: p.id!, productSearchTerm: '' });
     this.showPriceDropdown = false;
   }
 
@@ -189,10 +222,10 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   saveCategory() {
-    const name = this.newCategoryName.trim();
-    if (!name) return;
-    this.shoppingService.addCategory({ name }).subscribe(() => {
-      this.newCategoryName = '';
+    if (this.categoryForm.invalid) return;
+    const { name } = this.categoryForm.value;
+    this.shoppingService.addCategory({ name: name.trim() }).subscribe(() => {
+      this.categoryForm.reset();
       this.loadData();
     });
   }
@@ -215,7 +248,10 @@ export class ShoppingPageComponent implements OnInit {
 
   startEditProduct(p: Product) {
     this.editingProduct = p;
-    this.newProduct = { ...p };
+    this.productForm.patchValue({
+      name: p.name,
+      category_id: p.category_id
+    });
     this.previewUrl = null;
     this.showProductForm = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -223,7 +259,7 @@ export class ShoppingPageComponent implements OnInit {
 
   cancelEditProduct() {
     this.editingProduct = null;
-    this.newProduct = { name: '', category_id: undefined };
+    this.productForm.reset();
     this.previewUrl = null;
     this.selectedFile = null;
     this.showProductForm = false;
@@ -231,17 +267,18 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   saveProduct() {
-    if (!this.newProduct.name || !this.newProduct.category_id) return;
+    if (this.productForm.invalid) return;
     
     this.isUploading = true;
+    const { name, category_id } = this.productForm.value;
     const formData = new FormData();
-    if (this.editingProduct) formData.append('id', this.newProduct.id!.toString());
-    formData.append('name', this.newProduct.name);
-    formData.append('category_id', this.newProduct.category_id.toString());
+    if (this.editingProduct) formData.append('id', this.editingProduct.id!.toString());
+    formData.append('name', name);
+    formData.append('category_id', category_id.toString());
     if (this.selectedFile) {
         formData.append('photo', this.selectedFile);
-    } else if (this.newProduct.image_url) {
-        formData.append('existing_image', this.newProduct.image_url);
+    } else if (this.editingProduct && this.editingProduct.image_url) {
+        formData.append('existing_image', this.editingProduct.image_url);
     }
 
     if (this.editingProduct) {
@@ -267,17 +304,17 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   addToList() {
-    if (this.selectedProductId === 0) return;
+    if (this.selectedProductId === 0 || this.addItemForm.invalid) return;
+    const { supermarket_id, quantity } = this.addItemForm.value;
     this.shoppingService.addToList({
       product_id: this.selectedProductId,
-      quantity: this.itemQuantity,
-      supermarket_id: this.selectedSupermarketId > 0 ? this.selectedSupermarketId : null
+      quantity: quantity,
+      supermarket_id: supermarket_id > 0 ? supermarket_id : null
     })
       .subscribe(() => {
         this.selectedProductId = 0;
         this.selectedProductName = '';
-        this.selectedSupermarketId = 0;
-        this.itemQuantity = '1';
+        this.addItemForm.reset({ productSearchTerm: '', supermarket_id: 0, quantity: '1' });
         this.loadData();
       });
   }
@@ -331,27 +368,25 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   isPriceFormValid(): boolean {
-    return this.newPrice.product_id > 0 && 
-           this.newPrice.supermarket_id > 0 && 
-           this.newPrice.price > 0;
+    return this.priceForm.valid;
   }
 
   savePrice() {
-    if (!this.isPriceFormValid()) return;
+    if (this.priceForm.invalid) return;
     this.isUploading = true;
+    const { product_id, supermarket_id, price, format } = this.priceForm.value;
     const formData = new FormData();
-    formData.append('product_id', this.newPrice.product_id.toString());
-    formData.append('supermarket_id', this.newPrice.supermarket_id.toString());
-    formData.append('price', this.newPrice.price.toString());
-    formData.append('format', this.newPrice.format);
+    formData.append('product_id', product_id.toString());
+    formData.append('supermarket_id', supermarket_id.toString());
+    formData.append('price', price.toString());
+    formData.append('format', format);
     if (this.selectedPriceFile) {
       formData.append('photo', this.selectedPriceFile);
     }
 
     this.shoppingService.addPrice(formData).subscribe(() => {
       this.isUploading = false;
-      this.newPrice = { product_id: 0, supermarket_id: 0, price: 0, format: '' };
-      this.priceProductSearch = '';
+      this.priceForm.reset({ productSearchTerm: '', product_id: 0, supermarket_id: 0, price: 0, format: '' });
       this.pricePreviewUrl = null;
       this.selectedPriceFile = null;
       this.loadData();
@@ -365,15 +400,16 @@ export class ShoppingPageComponent implements OnInit {
   }
 
   saveSupermarket() {
-    if (!this.newSupermarket.name) return;
+    if (this.supermarketForm.invalid) return;
+    const { name, location } = this.supermarketForm.value;
     if (this.editingSupermarket) {
-      this.shoppingService.updateSupermarket({ ...this.newSupermarket, id: this.editingSupermarket.id }).subscribe(() => {
+      this.shoppingService.updateSupermarket({ name, location, id: this.editingSupermarket.id }).subscribe(() => {
         this.cancelEditSupermarket();
         this.loadData();
       });
     } else {
-      this.shoppingService.addSupermarket(this.newSupermarket).subscribe(() => {
-        this.newSupermarket = { name: '', location: '' };
+      this.shoppingService.addSupermarket({ name, location }).subscribe(() => {
+        this.supermarketForm.reset();
         this.loadData();
       });
     }
@@ -381,12 +417,15 @@ export class ShoppingPageComponent implements OnInit {
 
   startEditSupermarket(s: Supermarket) {
     this.editingSupermarket = s;
-    this.newSupermarket = { ...s };
+    this.supermarketForm.patchValue({
+      name: s.name,
+      location: s.location
+    });
   }
 
   cancelEditSupermarket() {
     this.editingSupermarket = null;
-    this.newSupermarket = { name: '', location: '' };
+    this.supermarketForm.reset();
   }
 
   deleteSupermarket(s: Supermarket) {

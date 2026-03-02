@@ -1,4 +1,4 @@
-<div class="wrap">
+<div class="container dark-theme">
   <header>
     <div class="header-content">
       <div class="header-row header-top">
@@ -22,29 +22,29 @@
     </div>
   </header>
 
-  <section class="card">
+  <main>
+    <section class="card">
     <h2>Nuovo Utente</h2>
     <p class="status" [class.err]="statusMode === 'err'" [class.ok]="statusMode === 'ok'">{{ status }}</p>
-    <form class="row" (submit)="create($event)" autocomplete="off">
-      <input [(ngModel)]="newUsername" name="newUsername" placeholder="Username" autocomplete="new-username" required />
+    <form class="row" [formGroup]="userForm" (submit)="create()" autocomplete="off">
+      <input formControlName="username" placeholder="Username" autocomplete="new-username" />
       <input
-        [(ngModel)]="newPassword"
-        name="newPassword"
+        formControlName="password"
         placeholder="Password"
         type="password"
         autocomplete="new-password"
-        required
       />
-      <select [(ngModel)]="newRole" name="newRole">
+      <select formControlName="role">
         <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
       </select>
-      <button type="submit">Crea</button>
+      <button type="submit" [disabled]="userForm.invalid">Crea</button>
     </form>
   </section>
 
   <section class="card">
     <h2>Utenti</h2>
-    <table>
+    <div class="table-container">
+      <table class="users-table">
       <thead>
         <tr>
           <th>Username</th>
@@ -57,7 +57,7 @@
         <tr *ngFor="let u of users">
           <td>{{ u.username }}</td>
           <td>
-            <select [(ngModel)]="u.role" [ngModelOptions]="{ standalone: true }">
+            <select [(ngModel)]="u.role" [ngModelOptions]="{standalone: true}">
               <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
             </select>
           </td>
@@ -80,17 +80,19 @@
           </td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </div>
   </section>
 
   <section class="card">
     <h2>Anagrafica Calendari Google</h2>
-    <div class="add-calendar-box">
-      <input [(ngModel)]="newCalName" placeholder="Nome (es. Famiglia)" />
-      <input [(ngModel)]="newCalGoogleId" placeholder="Google ID (email del calendario)" />
-      <button (click)="addCalendar()" [disabled]="!newCalName || !newCalGoogleId">Aggiungi</button>
-    </div>
-    <table class="cal-table" *ngIf="allCalendars.length > 0">
+    <form class="add-calendar-box" [formGroup]="calendarForm" (submit)="addCalendar()">
+      <input formControlName="name" placeholder="Nome (es. Famiglia)" />
+      <input formControlName="googleId" placeholder="Google ID (email del calendario)" />
+      <button type="submit" [disabled]="calendarForm.invalid">Aggiungi</button>
+    </form>
+    <div class="table-container">
+      <table class="cal-table" *ngIf="allCalendars.length > 0">
       <thead>
         <tr>
           <th>Nome</th>
@@ -100,11 +102,13 @@
       </thead>
       <tbody>
         <tr *ngFor="let c of allCalendars">
-          <td><input [(ngModel)]="c.name" (blur)="updateCalendar(c)" /></td>
-          <td><input [(ngModel)]="c.google_id" (blur)="updateCalendar(c)" /></td>
+          <td><input [value]="c.name" (input)="c.name = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
+          <td><input [value]="c.google_id" (input)="c.google_id = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
           <td><button class="danger btn-sm" (click)="deleteCalendar(c.id)">&times;</button></td>
         </tr>
       </tbody>
-    </table>
+      </table>
+    </div>
   </section>
+  </main>
 </div>

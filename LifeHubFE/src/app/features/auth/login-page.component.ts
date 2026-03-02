@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
@@ -10,16 +11,21 @@ import { RuntimeConfigService } from '../../core/runtime-config.service';
 })
 export class LoginPageComponent implements OnInit {
   appTitle = 'Life Hub';
-  username = '';
-  password = '';
+  loginForm: FormGroup;
   loading = false;
   error = '';
 
   constructor(
     private auth: AuthService,
     private router: Router,
-    private runtimeConfig: RuntimeConfigService
-  ) {}
+    private runtimeConfig: RuntimeConfigService,
+    private fb: FormBuilder
+  ) {
+    this.loginForm = this.fb.group({
+      username: ['', Validators.required],
+      password: ['', Validators.required]
+    });
+  }
 
   ngOnInit() {
     this.appTitle = this.runtimeConfig.appTitle;
@@ -31,9 +37,13 @@ export class LoginPageComponent implements OnInit {
 
   doLogin(evt: Event) {
     evt.preventDefault();
+    if (this.loginForm.invalid) {
+      return;
+    }
     this.error = '';
     this.loading = true;
-    this.auth.login(this.username, this.password).subscribe(
+    const { username, password } = this.loginForm.value;
+    this.auth.login(username, password).subscribe(
       () => {
         this.loading = false;
         this.router.navigateByUrl('/home');

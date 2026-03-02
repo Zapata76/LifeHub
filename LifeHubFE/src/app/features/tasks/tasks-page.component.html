@@ -25,19 +25,19 @@
   <main>
     <!-- Task Editor (Modal) -->
     <div class="modal" *ngIf="editingTask" (click)="cancelEdit()">
-      <div class="modal-content card" (click)="$event.stopPropagation()">
+      <div class="modal-content card" (click)="$event.stopPropagation()" [formGroup]="taskForm">
         <h2>{{ editingTask.id ? 'Modifica' : 'Nuova' }} Attivita</h2>
 
         <div class="modal-body-scroll">
           <div class="form-group">
             <label>Titolo</label>
-            <input type="text" [(ngModel)]="editingTask.title" placeholder="Cosa c'e da fare?" class="title-input" />
+            <input type="text" formControlName="title" placeholder="Cosa c'e da fare?" class="title-input" />
           </div>
 
           <div class="form-group">
             <label>Descrizione</label>
             <textarea
-              [(ngModel)]="editingTask.description"
+              formControlName="description"
               placeholder="Aggiungi dettagli..."
               class="desc-textarea"
             ></textarea>
@@ -46,14 +46,14 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label>Assegnata a</label>
-              <select [(ngModel)]="editingTask.assigned_to">
+              <select formControlName="assigned_to">
                 <option [ngValue]="null">Chiunque</option>
                 <option *ngFor="let m of members" [ngValue]="m.id">{{ m.username }}</option>
               </select>
             </div>
             <div class="form-group flex-1">
               <label>Priorita</label>
-              <select [(ngModel)]="editingTask.priority">
+              <select formControlName="priority">
                 <option value="low">Bassa</option>
                 <option value="medium">Media</option>
                 <option value="high">Alta</option>
@@ -64,11 +64,11 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label>Scadenza</label>
-              <input type="date" [(ngModel)]="editingTask.due_date" />
+              <input type="date" formControlName="due_date" />
             </div>
             <div class="form-group flex-1">
               <label>Stato</label>
-              <select [(ngModel)]="editingTask.status">
+              <select formControlName="status">
                 <option value="todo">Da fare</option>
                 <option value="doing">In corso</option>
                 <option value="done">Fatto</option>
@@ -79,7 +79,7 @@
 
         <div class="modal-footer">
           <button class="btn-secondary" (click)="cancelEdit()">Annulla</button>
-          <button class="btn-primary" (click)="saveTask()" [disabled]="!editingTask.title">Salva</button>
+          <button class="btn-primary" (click)="saveTask()" [disabled]="taskForm.invalid">Salva</button>
         </div>
       </div>
     </div>

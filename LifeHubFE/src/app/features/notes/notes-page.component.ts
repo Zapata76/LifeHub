@@ -1,4 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { NotesService, Note } from './notes.service';
 
 @Component({
@@ -9,13 +10,24 @@ import { NotesService, Note } from './notes.service';
 export class NotesPageComponent implements OnInit {
   notes: Note[] = [];
   editingNote: Note | null = null;
+  noteForm: FormGroup;
   selectedFile: File | null = null;
   previewUrl: string | null = null;
   isSaving = false;
   userAuthor: string = '';
   colors = ['#1e1e1e', '#2c3e50', '#8e44ad', '#2980b9', '#27ae60', '#d35400', '#c0392b'];
 
-  constructor(private notesService: NotesService) {}
+  constructor(
+    private notesService: NotesService,
+    private fb: FormBuilder
+  ) {
+    this.noteForm = this.fb.group({
+      title: [''],
+      content: [''],
+      color: ['#1e1e1e'],
+      is_pinned: [false]
+    });
+  }
 
   ngOnInit() {
     this.loadNotes();
@@ -37,12 +49,24 @@ export class NotesPageComponent implements OnInit {
 
   createNewNote() {
     this.editingNote = { title: '', content: '', color: '#1e1e1e', is_pinned: 0 };
+    this.noteForm.reset({
+      title: '',
+      content: '',
+      color: '#1e1e1e',
+      is_pinned: false
+    });
     this.previewUrl = null;
     this.selectedFile = null;
   }
 
   editNote(note: Note) {
     this.editingNote = { ...note };
+    this.noteForm.patchValue({
+      title: note.title,
+      content: note.content,
+      color: note.color || '#1e1e1e',
+      is_pinned: !!note.is_pinned
+    });
     this.previewUrl = null;
     this.selectedFile = null;
   }
@@ -71,15 +95,16 @@ export class NotesPageComponent implements OnInit {
   }
 
   saveNote() {
-    if (!this.editingNote) return;
+    if (!this.editingNote || (this.noteForm.get('title')?.value === '' && this.noteForm.get('content')?.value === '')) return;
     this.isSaving = true;
 
+    const formValues = this.noteForm.value;
     const formData = new FormData();
     if (this.editingNote.id) formData.append('id', this.editingNote.id.toString());
-    formData.append('title', this.editingNote.title || '');
-    formData.append('content', this.editingNote.content || '');
-    formData.append('color', this.editingNote.color || '#1e1e1e');
-    formData.append('is_pinned', (this.editingNote.is_pinned ? 1 : 0).toString());
+    formData.append('title', formValues.title || '');
+    formData.append('content', formValues.content || '');
+    formData.append('color', formValues.color || '#1e1e1e');
+    formData.append('is_pinned', (formValues.is_pinned ? 1 : 0).toString());
     
     if (this.selectedFile) {
         formData.append('photo', this.selectedFile);

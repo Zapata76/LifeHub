@@ -1,4 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
 import { MealsService, MealPlan, Recipe } from './meals.service';
 
 @Component({
@@ -11,8 +12,17 @@ export class MealsPageComponent implements OnInit {
   mealPlan: MealPlan[] = [];
   recipes: Recipe[] = [];
   editingMeal: MealPlan | null = null;
+  mealForm: FormGroup;
 
-  constructor(private mealsService: MealsService) {}
+  constructor(
+    private mealsService: MealsService,
+    private fb: FormBuilder
+  ) {
+    this.mealForm = this.fb.group({
+      recipe_id: [undefined],
+      notes: ['']
+    });
+  }
 
   ngOnInit() {
     this.generateWeek();
@@ -44,11 +54,16 @@ export class MealsPageComponent implements OnInit {
   editMeal(date: Date, type: 'lunch' | 'dinner') {
     const existing = this.getMeal(date, type);
     this.editingMeal = existing ? { ...existing } : { meal_date: this.formatDate(date), meal_type: type };
+    this.mealForm.reset({
+      recipe_id: this.editingMeal.recipe_id,
+      notes: this.editingMeal.notes || ''
+    });
   }
 
   saveMeal() {
     if (!this.editingMeal) return;
-    this.mealsService.saveMeal(this.editingMeal).subscribe(() => {
+    const mealData = { ...this.editingMeal, ...this.mealForm.value };
+    this.mealsService.saveMeal(mealData).subscribe(() => {
       this.editingMeal = null;
       this.loadData();
     });

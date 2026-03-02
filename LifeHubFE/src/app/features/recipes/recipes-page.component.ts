@@ -1,4 +1,5 @@
 import { Component, HostListener, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
 import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './recipes.service';
 
 @Component({
@@ -11,10 +12,10 @@ export class RecipesPageComponent implements OnInit {
   categories: string[] = [];
   productsCatalog: ProductCatalogItem[] = [];
 
-  searchTerm: string = '';
-  selectedCategory: string = '';
-  ingredientProductSearch: { [index: number]: string } = {};
   activeIngredientDropdown: number | null = null;
+
+  recipeForm: FormGroup;
+  searchForm: FormGroup;
 
   editingRecipe: Recipe = this.emptyRecipe();
   
@@ -29,7 +30,29 @@ export class RecipesPageComponent implements OnInit {
   @ViewChild('webcamVideo') webcamVideo!: ElementRef<HTMLVideoElement>;
   private stream: MediaStream | null = null;
 
-  constructor(private recipesService: RecipesService) {}
+  constructor(
+    private recipesService: RecipesService,
+    private fb: FormBuilder
+  ) {
+    this.searchForm = this.fb.group({
+      searchTerm: [''],
+      selectedCategory: ['']
+    });
+
+    this.recipeForm = this.fb.group({
+      name: ['', Validators.required],
+      category: [''],
+      prep_time_minutes: [null],
+      difficulty: ['media'],
+      author_name: [''],
+      instructions: [''],
+      ingredients: this.fb.array([])
+    });
+  }
+
+  get ingredients(): FormArray {
+    return this.recipeForm.get('ingredients') as FormArray;
+  }
 
   async ngOnInit() {
     this.loadStaticData();
@@ -125,7 +148,8 @@ export class RecipesPageComponent implements OnInit {
   }
 
   loadRecipes() {
-    this.recipesService.getRecipes(this.searchTerm, this.selectedCategory).subscribe(recipes => {
+    const { searchTerm, selectedCategory } = this.searchForm.value;
+    this.recipesService.getRecipes(searchTerm, selectedCategory).subscribe(recipes => {
       this.recipes = recipes || [];
     });
   }
@@ -135,31 +159,49 @@ export class RecipesPageComponent implements OnInit {
     this.previewUrl = null;
     this.isEditingMode = false;
     this.recipesService.getRecipeDetails(id).subscribe(recipe => {
-      this.editingRecipe = {
-        ...recipe,
+      this.editingRecipe = recipe;
+      
+      this.recipeForm.patchValue({
+        name: recipe.name,
         category: recipe.category || '',
-        instructions: recipe.instructions || '',
-        difficulty: (recipe.difficulty as 'bassa' | 'media' | 'alta') || 'media',
+        prep_time_minutes: recipe.prep_time_minutes,
+        difficulty: recipe.difficulty || 'media',
         author_name: recipe.author_name || '',
-        ingredients: (recipe.ingredients && recipe.ingredients.length > 0)
-          ? recipe.ingredients.map(i => ({
-            id: i.id,
-            recipe_id: i.recipe_id,
-            product_id: i.product_id ? Number(i.product_id) : null,
-            ingredient_name: i.ingredient_name || i.product_name || '',
-            quantity: i.quantity || ''
-          }))
-          : [this.emptyIngredient()]
-      };
-      this.ingredientProductSearch = {};
+        instructions: recipe.instructions || ''
+      });
+
+      this.ingredients.clear();
+      const ings = (recipe.ingredients && recipe.ingredients.length > 0)
+        ? recipe.ingredients
+        : [this.emptyIngredient()];
+
+      ings.forEach(i => {
+        this.ingredients.push(this.fb.group({
+          product_id: [i.product_id ? Number(i.product_id) : null],
+          ingredient_name: [i.ingredient_name || i.product_name || ''],
+          quantity: [i.quantity || ''],
+          productSearchValue: ['']
+        }));
+      });
+      
       this.activeIngredientDropdown = null;
     });
   }
 
   startNewRecipe() {
     this.editingRecipe = this.emptyRecipe();
+    this.recipeForm.reset({
+      name: '',
+      category: '',
+      prep_time_minutes: null,
+      difficulty: 'media',
+      author_name: '',
+      instructions: ''
+    });
+    this.ingredients.clear();
+    this.addIngredient();
+    
     this.isEditingMode = true;
-    this.ingredientProductSearch = {};
     this.activeIngredientDropdown = null;
     this.selectedFile = null;
     this.previewUrl = null;
@@ -190,64 +232,56 @@ export class RecipesPageComponent implements OnInit {
   }
 
   addIngredient() {
-    this.editingRecipe.ingredients.push(this.emptyIngredient());
+    this.ingredients.push(this.fb.group({
+      product_id: [null],
+      ingredient_name: [''],
+      quantity: [''],
+      productSearchValue: ['']
+    }));
   }
 
   removeIngredient(index: number) {
-    this.editingRecipe.ingredients.splice(index, 1);
-
-    const nextState: { [index: number]: string } = {};
-    Object.keys(this.ingredientProductSearch).forEach(key => {
-      const oldIndex = Number(key);
-      if (oldIndex < index) {
-        nextState[oldIndex] = this.ingredientProductSearch[oldIndex];
-      } else if (oldIndex > index) {
-        nextState[oldIndex - 1] = this.ingredientProductSearch[oldIndex];
-      }
-    });
-    this.ingredientProductSearch = nextState;
-
-    if (this.activeIngredientDropdown === index) {
-      this.activeIngredientDropdown = null;
-    } else if (this.activeIngredientDropdown !== null && this.activeIngredientDropdown > index) {
-      this.activeIngredientDropdown--;
+    this.ingredients.removeAt(index);
+    if (this.ingredients.length === 0) {
+      this.addIngredient();
     }
-
-    if (this.editingRecipe.ingredients.length === 0) {
-      this.editingRecipe.ingredients.push(this.emptyIngredient());
-    }
+    this.activeIngredientDropdown = null;
   }
 
-  syncIngredientName(ingredient: RecipeIngredient) {
-    const selectedId = ingredient.product_id ? Number(ingredient.product_id) : 0;
+  syncIngredientName(index: number) {
+    const group = this.ingredients.at(index);
+    const selectedId = group.get('product_id')?.value ? Number(group.get('product_id')?.value) : 0;
     if (!selectedId) return;
     const product = this.productsCatalog.find(p => Number(p.id) === selectedId);
     if (product) {
-      ingredient.ingredient_name = product.name;
+      group.patchValue({ ingredient_name: product.name });
     }
   }
 
-  getIngredientProductSearchValue(index: number, ingredient: RecipeIngredient): string {
-    if (this.ingredientProductSearch[index] !== undefined) {
-      return this.ingredientProductSearch[index];
-    }
-    return ingredient.product_id ? this.getProductDisplayLabel(ingredient.product_id) : '';
+  getIngredientProductSearchValue(index: number): string {
+    const group = this.ingredients.at(index);
+    const searchVal = group.get('productSearchValue')?.value;
+    if (searchVal !== '') return searchVal;
+    
+    const productId = group.get('product_id')?.value;
+    return productId ? this.getProductDisplayLabel(productId) : '';
   }
 
   onIngredientProductSearchChange(index: number, value: string) {
-    this.ingredientProductSearch[index] = value || '';
+    this.ingredients.at(index).patchValue({ productSearchValue: value || '' });
     this.activeIngredientDropdown = index;
   }
 
   openIngredientProductDropdown(index: number) {
     this.activeIngredientDropdown = index;
-    if (this.ingredientProductSearch[index] === undefined) {
-      this.ingredientProductSearch[index] = '';
+    const group = this.ingredients.at(index);
+    if (group.get('productSearchValue')?.value === undefined) {
+      group.patchValue({ productSearchValue: '' });
     }
   }
 
   filteredProductsCatalog(index: number): ProductCatalogItem[] {
-    const term = (this.ingredientProductSearch[index] || '').toLowerCase().trim();
+    const term = (this.ingredients.at(index).get('productSearchValue')?.value || '').toLowerCase().trim();
     return this.productsCatalog
       .filter(p =>
         p.name.toLowerCase().includes(term) ||
@@ -262,16 +296,22 @@ export class RecipesPageComponent implements OnInit {
       });
   }
 
-  selectIngredientProduct(index: number, ingredient: RecipeIngredient, product: ProductCatalogItem) {
-    ingredient.product_id = Number(product.id);
-    this.syncIngredientName(ingredient);
-    this.ingredientProductSearch[index] = '';
+  selectIngredientProduct(index: number, product: ProductCatalogItem) {
+    const group = this.ingredients.at(index);
+    group.patchValue({
+      product_id: Number(product.id),
+      productSearchValue: ''
+    });
+    this.syncIngredientName(index);
     this.activeIngredientDropdown = null;
   }
 
-  clearIngredientProduct(index: number, ingredient: RecipeIngredient) {
-    ingredient.product_id = null;
-    this.ingredientProductSearch[index] = '';
+  clearIngredientProduct(index: number) {
+    const group = this.ingredients.at(index);
+    group.patchValue({
+      product_id: null,
+      productSearchValue: ''
+    });
     this.activeIngredientDropdown = null;
   }
 
@@ -289,8 +329,7 @@ export class RecipesPageComponent implements OnInit {
   }
 
   alignIngredientNamesFromProducts() {
-    if (!this.editingRecipe || !this.editingRecipe.ingredients) return;
-    this.editingRecipe.ingredients.forEach(i => this.syncIngredientName(i));
+    this.ingredients.controls.forEach((_, index) => this.syncIngredientName(index));
   }
 
   getProductNameById(productId?: number | null): string {
@@ -301,10 +340,11 @@ export class RecipesPageComponent implements OnInit {
   }
 
   saveRecipe() {
-    if (!this.editingRecipe.name.trim()) return;
+    if (this.recipeForm.invalid) return;
     this.isSaving = true;
 
-    const ingredients = this.editingRecipe.ingredients
+    const formValues = this.recipeForm.value;
+    const ingredients = (formValues.ingredients as any[])
       .map(i => {
         const productId = i.product_id ? Number(i.product_id) : null;
         const fallbackName = this.getProductNameById(productId);
@@ -319,13 +359,12 @@ export class RecipesPageComponent implements OnInit {
 
     const formData = new FormData();
     if (this.editingRecipe.id) formData.append('id', this.editingRecipe.id.toString());
-    formData.append('name', this.editingRecipe.name);
-    formData.append('category', this.editingRecipe.category || '');
-    formData.append('description', this.editingRecipe.description || '');
-    formData.append('instructions', this.editingRecipe.instructions || '');
-    formData.append('prep_time_minutes', this.editingRecipe.prep_time_minutes ? this.editingRecipe.prep_time_minutes.toString() : '');
-    formData.append('difficulty', this.editingRecipe.difficulty || 'media');
-    formData.append('author_name', this.editingRecipe.author_name || '');
+    formData.append('name', formValues.name);
+    formData.append('category', formValues.category || '');
+    formData.append('instructions', formValues.instructions || '');
+    formData.append('prep_time_minutes', formValues.prep_time_minutes ? formValues.prep_time_minutes.toString() : '');
+    formData.append('difficulty', formValues.difficulty || 'media');
+    formData.append('author_name', formValues.author_name || '');
     formData.append('ingredients', JSON.stringify(ingredients));
     
     if (this.selectedFile) {

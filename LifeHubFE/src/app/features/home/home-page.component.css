@@ -1,20 +1,3 @@
-.shell {
-  min-height: 100vh;
-  background: #121212;
-  color: #e4e4e4;
-  font-family: system-ui, -apple-system, sans-serif;
-}
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background: #1e1e1e;
-  border-bottom: 1px solid #2a2a2a;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
 .logo {
   color: #4f8cff;
   font-size: 1.5rem;
@@ -27,6 +10,7 @@ header {
 }
 .user-meta {
   text-align: right;
+  line-height: 1.1;
 }
 .u-name {
   font-weight: 600;
@@ -37,17 +21,15 @@ header {
   font-size: 0.8rem;
   text-transform: uppercase;
 }
-button {
+header button {
   border: 1px solid #ff5c5c;
   color: #ff5c5c;
   background: transparent;
   border-radius: 4px;
   padding: 6px 12px;
-  cursor: pointer;
   font-size: 0.9rem;
-  transition: all 0.2s;
 }
-button:hover {
+header button:hover {
   background: #ff5c5c;
   color: #fff;
 }
@@ -69,11 +51,8 @@ main {
   text-align: center;
   text-decoration: none;
   color: inherit;
-  background: #1e1e1e;
   border: 1px solid transparent;
-  border-radius: 12px;
   padding: 30px;
-  transition: transform 0.2s, background-color 0.2s;
 }
 a.card:hover {
   border-color: #4f8cff;
@@ -97,11 +76,6 @@ a.card:hover {
   font-size: 0.95rem;
 }
 @media (max-width: 600px) {
-  header {
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
-  }
   .user-box {
     width: 100%;
     justify-content: center;

@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HubManagedUser, UsersService } from './users.service';
 import { CalendarsService, HubCalendar } from '../calendar/calendars.service';
 
@@ -10,21 +11,31 @@ import { CalendarsService, HubCalendar } from '../calendar/calendars.service';
 export class UsersPageComponent implements OnInit {
   users: HubManagedUser[] = [];
   roles: string[] = ['admin', 'adult', 'child'];
-  newUsername = '';
-  newPassword = '';
-  newRole = 'adult';
   status = '';
   statusMode: '' | 'ok' | 'err' = '';
 
+  userForm: FormGroup;
+  calendarForm: FormGroup;
+
   allCalendars: HubCalendar[] = [];
   userAssociations: { [userId: number]: number[] } = {};
-  newCalName = '';
-  newCalGoogleId = '';
 
   constructor(
     private usersService: UsersService,
-    private calendarsService: CalendarsService
-  ) {}
+    private calendarsService: CalendarsService,
+    private fb: FormBuilder
+  ) {
+    this.userForm = this.fb.group({
+      username: ['', Validators.required],
+      password: ['', Validators.required],
+      role: ['adult', Validators.required]
+    });
+
+    this.calendarForm = this.fb.group({
+      name: ['', Validators.required],
+      googleId: ['', Validators.required]
+    });
+  }
 
   ngOnInit() {
     this.load();
@@ -35,7 +46,10 @@ export class UsersPageComponent implements OnInit {
     this.usersService.getRoles().subscribe(
       roles => {
         this.roles = roles || this.roles;
-        if (this.roles.indexOf(this.newRole) === -1) this.newRole = this.roles[0] || 'adult';
+        const currentRole = this.userForm.get('role')?.value;
+        if (this.roles.indexOf(currentRole) === -1) {
+          this.userForm.patchValue({ role: this.roles[0] || 'adult' });
+        }
       },
       () => {}
     );
@@ -87,9 +101,10 @@ export class UsersPageComponent implements OnInit {
   }
 
   addCalendar() {
-    this.calendarsService.saveCalendar({ name: this.newCalName, google_id: this.newCalGoogleId }).subscribe(() => {
-      this.newCalName = '';
-      this.newCalGoogleId = '';
+    if (this.calendarForm.invalid) return;
+    const { name, googleId } = this.calendarForm.value;
+    this.calendarsService.saveCalendar({ name, google_id: googleId }).subscribe(() => {
+      this.calendarForm.reset({ name: '', googleId: '' });
       this.loadCalendars();
     });
   }
@@ -103,16 +118,17 @@ export class UsersPageComponent implements OnInit {
     this.calendarsService.deleteCalendar(id).subscribe(() => this.loadCalendars());
   }
 
-  create(evt: Event) {
-    evt.preventDefault();
+  create() {
+    if (this.userForm.invalid) return;
+    const { username, password, role } = this.userForm.value;
     this.usersService.createUser({
-      username: this.newUsername.trim(),
-      password: this.newPassword,
-      role: this.newRole
+      username: username.trim(),
+      password: password,
+      role: role
     }).subscribe(
       () => {
-        this.newUsername = '';
-        this.newPassword = '';
+        const currentRole = this.userForm.get('role')?.value;
+        this.userForm.reset({ username: '', password: '', role: currentRole });
         this.setStatus('Utente creato', 'ok');
         this.load();
       },

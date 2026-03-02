@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { InventoryService, InventoryItem } from './inventory.service';
 import { DocumentsService, HubDocument } from '../documents/documents.service';
 import { TasksService, FamilyMember } from '../tasks/tasks.service';
@@ -12,7 +13,8 @@ export class InventoryPageComponent implements OnInit {
   items: InventoryItem[] = [];
   documents: HubDocument[] = [];
   members: FamilyMember[] = [];
-  searchQuery: string = '';
+  searchControl = new FormControl('');
+  itemForm: FormGroup;
   isSaving: boolean = false;
   isEditingMode: boolean = false;
   selectedItem: InventoryItem = this.emptyItem();
@@ -20,17 +22,32 @@ export class InventoryPageComponent implements OnInit {
   constructor(
     private invService: InventoryService,
     private docsService: DocumentsService,
-    private tasksService: TasksService
-  ) {}
+    private tasksService: TasksService,
+    private fb: FormBuilder
+  ) {
+    this.itemForm = this.fb.group({
+      name: ['', Validators.required],
+      category: ['Altro'],
+      location: [''],
+      owner_id: [null],
+      document_id: [null],
+      purchase_date: [''],
+      warranty_expiry: [''],
+      notes: ['']
+    });
+  }
 
   ngOnInit() {
     this.loadItems();
+    this.searchControl.valueChanges.subscribe(() => {
+      this.loadItems();
+    });
     this.loadDocuments();
     this.loadMembers();
   }
 
   loadItems() {
-    this.invService.getItems(this.searchQuery).subscribe(items => {
+    this.invService.getItems(this.searchControl.value || '').subscribe(items => {
       this.items = items || [];
     });
   }
@@ -56,11 +73,31 @@ export class InventoryPageComponent implements OnInit {
 
   startNewItem() {
     this.selectedItem = this.emptyItem();
+    this.itemForm.reset({
+      name: '',
+      category: 'Altro',
+      location: '',
+      owner_id: null,
+      document_id: null,
+      purchase_date: '',
+      warranty_expiry: '',
+      notes: ''
+    });
     this.isEditingMode = true;
   }
 
   selectItem(item: InventoryItem) {
     this.selectedItem = { ...item };
+    this.itemForm.patchValue({
+      name: item.name,
+      category: item.category,
+      location: item.location,
+      owner_id: item.owner_id,
+      document_id: item.document_id,
+      purchase_date: item.purchase_date,
+      warranty_expiry: item.warranty_expiry,
+      notes: item.notes
+    });
     this.isEditingMode = false;
   }
 
@@ -73,9 +110,10 @@ export class InventoryPageComponent implements OnInit {
   }
 
   saveItem() {
-    if (!this.selectedItem.name.trim()) return;
+    if (this.itemForm.invalid) return;
     this.isSaving = true;
-    this.invService.saveItem(this.selectedItem).subscribe(res => {
+    const itemData = { ...this.selectedItem, ...this.itemForm.value };
+    this.invService.saveItem(itemData).subscribe(res => {
       this.isSaving = false;
       this.isEditingMode = false;
       this.loadItems();

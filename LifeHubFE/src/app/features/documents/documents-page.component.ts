@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms';
 import { DocumentsService, HubDocument } from './documents.service';
 
 @Component({
@@ -8,20 +9,34 @@ import { DocumentsService, HubDocument } from './documents.service';
 })
 export class DocumentsPageComponent implements OnInit {
   documents: HubDocument[] = [];
-  searchQuery: string = '';
+  searchControl = new FormControl('');
+  docForm: FormGroup;
   isSaving: boolean = false;
   isEditingMode: boolean = false;
   selectedDoc: HubDocument = this.emptyDoc();
   selectedFile: File | null = null;
 
-  constructor(private docsService: DocumentsService) {}
+  constructor(
+    private docsService: DocumentsService,
+    private fb: FormBuilder
+  ) {
+    this.docForm = this.fb.group({
+      title: ['', Validators.required],
+      category: ['Altro'],
+      tags: [''],
+      notes: ['']
+    });
+  }
 
   ngOnInit() {
     this.loadDocuments();
+    this.searchControl.valueChanges.subscribe(() => {
+      this.loadDocuments();
+    });
   }
 
   loadDocuments() {
-    this.docsService.getDocuments(this.searchQuery).subscribe(docs => {
+    this.docsService.getDocuments(this.searchControl.value || '').subscribe(docs => {
       this.documents = docs || [];
     });
   }
@@ -38,12 +53,24 @@ export class DocumentsPageComponent implements OnInit {
 
   startNewDoc() {
     this.selectedDoc = this.emptyDoc();
+    this.docForm.reset({
+      title: '',
+      category: 'Altro',
+      tags: '',
+      notes: ''
+    });
     this.isEditingMode = true;
     this.selectedFile = null;
   }
 
   selectDoc(doc: HubDocument) {
     this.selectedDoc = { ...doc };
+    this.docForm.patchValue({
+      title: doc.title,
+      category: doc.category,
+      tags: doc.tags,
+      notes: doc.notes
+    });
     this.isEditingMode = false;
     this.selectedFile = null;
   }
@@ -61,15 +88,16 @@ export class DocumentsPageComponent implements OnInit {
   }
 
   saveDocument() {
-    if (!this.selectedDoc.title.trim()) return;
+    if (this.docForm.invalid) return;
     this.isSaving = true;
 
+    const formValues = this.docForm.value;
     const formData = new FormData();
     if (this.selectedDoc.id) formData.append('id', this.selectedDoc.id.toString());
-    formData.append('title', this.selectedDoc.title);
-    formData.append('category', this.selectedDoc.category || '');
-    formData.append('tags', this.selectedDoc.tags || '');
-    formData.append('notes', this.selectedDoc.notes || '');
+    formData.append('title', formValues.title);
+    formData.append('category', formValues.category || '');
+    formData.append('tags', formValues.tags || '');
+    formData.append('notes', formValues.notes || '');
     
     if (this.selectedFile) {
       formData.append('file', this.selectedFile);

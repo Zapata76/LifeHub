@@ -30,7 +30,7 @@
         <button class="btn-primary btn-add-circle" (click)="startNewItem()" title="Nuovo oggetto">+</button>
       </div>
       <div class="filters">
-        <input type="text" [(ngModel)]="searchQuery" (input)="loadItems()" placeholder="Cerca per nome, posizione..." />
+        <input type="text" [formControl]="searchControl" placeholder="Cerca per nome, posizione..." />
       </div>
 
       <ul class="item-list">
@@ -102,16 +102,16 @@
       </div>
 
       <!-- EDIT MODE -->
-      <div *ngIf="isEditingMode || !selectedItem.id">
+      <div *ngIf="isEditingMode || !selectedItem.id" [formGroup]="itemForm">
         <h2>{{ selectedItem?.id ? 'Modifica Oggetto' : 'Nuovo Oggetto' }}</h2>
         <div class="form-grid">
           <div class="form-group col-2">
             <label>Nome</label>
-            <input type="text" [(ngModel)]="selectedItem.name" placeholder="Es. Trapano a percussione" />
+            <input type="text" formControlName="name" placeholder="Es. Trapano a percussione" />
           </div>
           <div class="form-group">
             <label>Categoria</label>
-            <select [(ngModel)]="selectedItem.category">
+            <select formControlName="category">
               <option value="Tecnologia">Tecnologia</option>
               <option value="Attrezzi">Attrezzi</option>
               <option value="Giochi">Giochi</option>
@@ -121,39 +121,39 @@
           </div>
           <div class="form-group">
             <label>Posizione Fisica</label>
-            <input type="text" [(ngModel)]="selectedItem.location" placeholder="Es. Armadio corridoio" />
+            <input type="text" formControlName="location" placeholder="Es. Armadio corridoio" />
           </div>
           <div class="form-group">
             <label>Proprietario</label>
-            <select [(ngModel)]="selectedItem.owner_id">
+            <select formControlName="owner_id">
               <option [ngValue]="null">Nessuno</option>
-              <option *ngFor="let m of members" [value]="m.id">{{ m.username }}</option>
+              <option *ngFor="let m of members" [ngValue]="m.id">{{ m.username }}</option>
             </select>
           </div>
           <div class="form-group">
             <label>Documento Collegato</label>
-            <select [(ngModel)]="selectedItem.document_id">
+            <select formControlName="document_id">
               <option [ngValue]="null">Nessuno</option>
-              <option *ngFor="let d of documents" [value]="d.id">{{ d.title }}</option>
+              <option *ngFor="let d of documents" [ngValue]="d.id">{{ d.title }}</option>
             </select>
           </div>
           <div class="form-group">
             <label>Data Acquisto</label>
-            <input type="date" [(ngModel)]="selectedItem.purchase_date" />
+            <input type="date" formControlName="purchase_date" />
           </div>
           <div class="form-group">
             <label>Scadenza Garanzia</label>
-            <input type="date" [(ngModel)]="selectedItem.warranty_expiry" />
+            <input type="date" formControlName="warranty_expiry" />
           </div>
         </div>
 
         <div class="form-group">
           <label>Note</label>
-          <textarea [(ngModel)]="selectedItem.notes" placeholder="Dettagli aggiuntivi, numero di serie, ecc."></textarea>
+          <textarea formControlName="notes" placeholder="Dettagli aggiuntivi, numero di serie, ecc."></textarea>
         </div>
 
         <div class="footer-actions">
-          <button class="btn-primary" (click)="saveItem()" [disabled]="!selectedItem.name?.trim() || isSaving">
+          <button class="btn-primary" (click)="saveItem()" [disabled]="itemForm.invalid || isSaving">
             <span *ngIf="!isSaving">Salva oggetto</span>
             <span *ngIf="isSaving" class="spinner-inline">Attendere...</span>
           </button>

@@ -1,4 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TasksService, Task, FamilyMember } from './tasks.service';
 
 @Component({
@@ -11,8 +12,21 @@ export class TasksPageComponent implements OnInit {
   members: FamilyMember[] = [];
   editingTask: Task | null = null;
   familyMember: string = '';
+  taskForm: FormGroup;
 
-  constructor(private tasksService: TasksService) {}
+  constructor(
+    private tasksService: TasksService,
+    private fb: FormBuilder
+  ) {
+    this.taskForm = this.fb.group({
+      title: ['', Validators.required],
+      description: [''],
+      assigned_to: [null],
+      priority: ['medium'],
+      due_date: [''],
+      status: ['todo']
+    });
+  }
 
   ngOnInit() {
     this.loadTasks();
@@ -29,15 +43,32 @@ export class TasksPageComponent implements OnInit {
 
   createNewTask() {
     this.editingTask = { title: '', description: '', status: 'todo', priority: 'medium', assigned_to: undefined };
+    this.taskForm.reset({
+      title: '',
+      description: '',
+      assigned_to: null,
+      priority: 'medium',
+      due_date: '',
+      status: 'todo'
+    });
   }
 
   editTask(task: Task) {
     this.editingTask = { ...task };
+    this.taskForm.patchValue({
+      title: task.title,
+      description: task.description,
+      assigned_to: task.assigned_to,
+      priority: task.priority,
+      due_date: task.due_date,
+      status: task.status
+    });
   }
 
   saveTask() {
-    if (!this.editingTask) return;
-    this.tasksService.saveTask(this.editingTask).subscribe(() => {
+    if (this.taskForm.invalid || !this.editingTask) return;
+    const taskData = { ...this.editingTask, ...this.taskForm.value };
+    this.tasksService.saveTask(taskData).subscribe(() => {
       this.editingTask = null;
       this.loadTasks();
     });

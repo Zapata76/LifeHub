@@ -26,14 +26,14 @@
         <h2>Ricette</h2>
         <button class="btn-primary btn-add-circle" (click)="startNewRecipe()" title="Nuova ricetta">+</button>
       </div>
-      <div class="filters">
+      <div class="filters" [formGroup]="searchForm">
         <input
           type="text"
-          [(ngModel)]="searchTerm"
+          formControlName="searchTerm"
           (input)="loadRecipes()"
           placeholder="Cerca per titolo, autore, testo..."
         />
-        <select [(ngModel)]="selectedCategory" (change)="loadRecipes()">
+        <select formControlName="selectedCategory" (change)="loadRecipes()">
           <option value="">Tutte le categorie</option>
           <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
         </select>
@@ -102,24 +102,24 @@
       </div>
 
       <!-- EDIT MODE -->
-      <div *ngIf="isEditingMode || !editingRecipe.id">
+      <div *ngIf="isEditingMode || !editingRecipe.id" [formGroup]="recipeForm">
         <h2>{{ editingRecipe?.id ? 'Modifica Ricetta' : 'Nuova Ricetta' }}</h2>
         <div class="form-grid">
           <div class="form-group col-2">
             <label>Titolo</label>
-            <input type="text" [(ngModel)]="editingRecipe.name" placeholder="Es. Lasagna della domenica" />
+            <input type="text" formControlName="name" placeholder="Es. Lasagna della domenica" />
           </div>
           <div class="form-group">
             <label>Categoria</label>
-            <input type="text" [(ngModel)]="editingRecipe.category" placeholder="primo, secondo, dolce..." />
+            <input type="text" formControlName="category" placeholder="primo, secondo, dolce..." />
           </div>
           <div class="form-group">
             <label>Tempo (min)</label>
-            <input type="number" [(ngModel)]="editingRecipe.prep_time_minutes" min="1" />
+            <input type="number" formControlName="prep_time_minutes" min="1" />
           </div>
           <div class="form-group">
             <label>Difficolta</label>
-            <select [(ngModel)]="editingRecipe.difficulty">
+            <select formControlName="difficulty">
               <option value="bassa">bassa</option>
               <option value="media">media</option>
               <option value="alta">alta</option>
@@ -127,34 +127,34 @@
           </div>
           <div class="form-group">
             <label>Autore</label>
-            <input type="text" [(ngModel)]="editingRecipe.author_name" placeholder="Nome autore" />
+            <input type="text" formControlName="author_name" placeholder="Nome autore" />
           </div>
         </div>
 
         <div class="form-group">
           <label>Ingredienti (lista strutturata)</label>
-          <div class="ingredients-table">
+          <div class="ingredients-table" formArrayName="ingredients">
             <div class="ingredient-row head">
               <span>Prodotto</span>
               <span>Ingrediente libero</span>
               <span>Quantita</span>
               <span></span>
             </div>
-            <div class="ingredient-row" *ngFor="let ingredient of editingRecipe.ingredients; let i = index">
+            <div class="ingredient-row" *ngFor="let ingredient of ingredients.controls; let i = index" [formGroupName]="i">
               <div class="product-search" (click)="$event.stopPropagation()">
                 <input
                   type="text"
-                  [ngModel]="getIngredientProductSearchValue(i, ingredient)"
-                  (ngModelChange)="onIngredientProductSearchChange(i, $event)"
+                  [value]="getIngredientProductSearchValue(i)"
+                  (input)="onIngredientProductSearchChange(i, $event.target.value)"
                   (focus)="openIngredientProductDropdown(i)"
                   placeholder="Cerca prodotto..."
                 />
                 <div class="ingredient-dropdown" *ngIf="activeIngredientDropdown === i">
-                  <div class="dropdown-item" (click)="clearIngredientProduct(i, ingredient)">Nessun prodotto</div>
+                  <div class="dropdown-item" (click)="clearIngredientProduct(i)">Nessun prodotto</div>
                   <div
                     class="dropdown-item"
                     *ngFor="let product of filteredProductsCatalog(i)"
-                    (click)="selectIngredientProduct(i, ingredient, product)"
+                    (click)="selectIngredientProduct(i, product)"
                   >
                     <span class="cat-prefix">{{ product.category_name }}</span> - {{ product.name }}
                   </div>
@@ -162,11 +162,11 @@
               </div>
               <input
                 type="text"
-                [(ngModel)]="ingredient.ingredient_name"
-                [readonly]="!!ingredient.product_id"
-                [placeholder]="ingredient.product_id ? 'Automatico' : 'Ingrediente'"
+                formControlName="ingredient_name"
+                [readonly]="!!ingredient.get('product_id')?.value"
+                [placeholder]="ingredient.get('product_id')?.value ? 'Automatico' : 'Ingrediente'"
               />
-              <input type="text" [(ngModel)]="ingredient.quantity" placeholder="Qt&agrave;" />
+              <input type="text" formControlName="quantity" placeholder="Qt&agrave;" />
               <button class="btn-danger" (click)="removeIngredient(i)">x</button>
             </div>
           </div>
@@ -175,7 +175,7 @@
 
         <div class="form-group">
           <label>Procedimento</label>
-          <textarea [(ngModel)]="editingRecipe.instructions" placeholder="Descrivi i passaggi della ricetta"></textarea>
+          <textarea formControlName="instructions" placeholder="Descrivi i passaggi della ricetta"></textarea>
         </div>
 
         <div class="form-group">
@@ -217,7 +217,7 @@
         </div>
 
         <div class="footer-actions">
-          <button class="btn-primary" (click)="saveRecipe()" [disabled]="!editingRecipe.name.trim() || isSaving">
+          <button class="btn-primary" (click)="saveRecipe()" [disabled]="recipeForm.invalid || isSaving">
             <span *ngIf="!isSaving">Salva ricetta</span>
             <span *ngIf="isSaving" class="spinner-inline">Attendere...</span>
           </button>

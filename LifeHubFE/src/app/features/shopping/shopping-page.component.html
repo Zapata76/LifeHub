@@ -19,12 +19,12 @@
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
+      <nav class="main-nav">
+        <button (click)="view = 'list'" [class.active]="view === 'list'">Lista</button>
+        <button (click)="view = 'prices'" [class.active]="view === 'prices'">Prezzi</button>
+        <button (click)="view = 'products'" [class.active]="view === 'products'">Anagrafica</button>
+      </nav>
     </div>
-    <nav class="main-nav">
-      <button (click)="view = 'list'" [class.active]="view === 'list'">Lista</button>
-      <button (click)="view = 'prices'" [class.active]="view === 'prices'">Prezzi</button>
-      <button (click)="view = 'products'" [class.active]="view === 'products'">Anagrafica</button>
-    </nav>
   </header>
 
   <main [ngSwitch]="view">
@@ -36,11 +36,11 @@
           <button class="btn-danger btn-sm" (click)="clearChecked()" *ngIf="hasCheckedItems()">Pulisci</button>
         </div>
 
-        <div class="add-item-container">
+        <div class="add-item-container" [formGroup]="addItemForm">
           <div class="search-select">
             <input
               type="text"
-              [(ngModel)]="productSearchTerm"
+              formControlName="productSearchTerm"
               (focus)="showProductDropdown = true"
               (blur)="hideProductDropdown()"
               placeholder="Cerca prodotto..."
@@ -55,14 +55,14 @@
           </div>
 
           <div class="add-controls">
-            <select [(ngModel)]="selectedSupermarketId" class="market-select">
+            <select formControlName="supermarket_id" class="market-select">
               <option [ngValue]="0">Qualsiasi supermercato</option>
               <option *ngFor="let s of supermarkets" [ngValue]="s.id">
                 {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
               </option>
             </select>
-            <input type="text" [(ngModel)]="itemQuantity" placeholder="Qt&agrave;" class="qty-input" />
-            <button (click)="addToList()" [disabled]="!selectedProductId" class="add-btn">+</button>
+            <input type="text" formControlName="quantity" placeholder="Qt&agrave;" class="qty-input" />
+            <button (click)="addToList()" [disabled]="!selectedProductId || addItemForm.invalid" class="add-btn">+</button>
           </div>
 
           <div class="selected-info" *ngIf="selectedProductName">
@@ -71,9 +71,9 @@
           </div>
         </div>
 
-        <div class="list-filter-row">
+        <div class="list-filter-row" [formGroup]="filterForm">
           <label for="listFilterMarket">Filtro supermercato</label>
-          <select id="listFilterMarket" [(ngModel)]="listFilterSupermarketId">
+          <select id="listFilterMarket" formControlName="listFilterSupermarketId">
             <option [ngValue]="0">Mostra tutti i prodotti</option>
             <option *ngFor="let s of supermarkets" [ngValue]="s.id">
               {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
@@ -111,11 +111,11 @@
       <!-- List FIRST -->
       <section class="card full-width">
         <h2>Prezzi Registrati</h2>
-        <div class="search-box">
+        <div class="search-box" [formGroup]="filterForm">
           <input
             type="text"
             placeholder="Filtra per prodotto, categoria o supermercato..."
-            [(ngModel)]="priceListSearch"
+            formControlName="priceListSearch"
           />
         </div>
         <ul class="item-list price-history-list">
@@ -183,34 +183,33 @@
       <!-- Form SECOND -->
       <section class="card">
         <h2>Registra Prezzo</h2>
-        <form (submit)="savePrice()" class="stacked-form">
+        <form (submit)="savePrice()" [formGroup]="priceForm" class="stacked-form">
           <div class="form-group">
             <label>Prodotto</label>
             <div class="search-select">
               <input
                 type="text"
-                [(ngModel)]="priceProductSearch"
+                formControlName="productSearchTerm"
                 (focus)="showPriceDropdown = true"
                 (blur)="hidePriceDropdown()"
                 placeholder="Cerca prodotto..."
-                name="priceProdSearch"
                 class="search-input"
                 [disabled]="isUploading"
               />
               <div class="dropdown-list" *ngIf="showPriceDropdown">
-                <div class="dropdown-item" *ngFor="let p of sortedProducts(priceProductSearch)" (click)="selectPriceProduct(p)">
+                <div class="dropdown-item" *ngFor="let p of sortedProducts(priceForm.get('productSearchTerm')?.value || '')" (click)="selectPriceProduct(p)">
                   <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
                 </div>
               </div>
             </div>
-            <div class="selected-label" *ngIf="newPrice.product_id">
-              Selezionato: <strong>{{ getProductName(newPrice.product_id) }}</strong>
+            <div class="selected-label" *ngIf="priceForm.get('product_id')?.value">
+              Selezionato: <strong>{{ getProductName(priceForm.get('product_id')?.value) }}</strong>
             </div>
           </div>
 
           <div class="form-group">
             <label>Supermercato</label>
-            <select [(ngModel)]="newPrice.supermarket_id" name="market" required [disabled]="isUploading">
+            <select formControlName="supermarket_id" required [disabled]="isUploading">
               <option [value]="0" disabled>Seleziona supermercato...</option>
               <option *ngFor="let s of supermarkets" [value]="s.id">
                 {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
@@ -223,8 +222,7 @@
               <input
                 type="number"
                 step="0.01"
-                [(ngModel)]="newPrice.price"
-                name="price"
+                formControlName="price"
                 required
                 [disabled]="isUploading"
               />
@@ -233,8 +231,7 @@
               <label>Formato</label>
               <input
                 type="text"
-                [(ngModel)]="newPrice.format"
-                name="format"
+                formControlName="format"
                 placeholder="Es. 500g"
                 [disabled]="isUploading"
               />
@@ -276,14 +273,13 @@
         <!-- Product Form (Integrated) -->
         <div class="inline-form" *ngIf="showProductForm">
           <h3 class="form-title">{{ editingProduct ? 'Modifica' : 'Nuovo' }} Prodotto</h3>
-          <form (submit)="saveProduct()" class="stacked-form">
+          <form (submit)="saveProduct()" [formGroup]="productForm" class="stacked-form">
             <div class="form-row">
               <div class="form-group flex-2">
                 <label>Nome Prodotto</label>
                 <input
                   type="text"
-                  [(ngModel)]="newProduct.name"
-                  name="prodName"
+                  formControlName="name"
                   required
                   placeholder="Nome prodotto"
                   [disabled]="isUploading"
@@ -291,9 +287,9 @@
               </div>
               <div class="form-group flex-1">
                 <label>Categoria</label>
-                <select [(ngModel)]="newProduct.category_id" name="prodCat" required [disabled]="isUploading">
-                  <option [value]="undefined" disabled>Scegli...</option>
-                  <option *ngFor="let c of categories" [value]="c.id">{{ c.name }}</option>
+                <select formControlName="category_id" required [disabled]="isUploading">
+                  <option [ngValue]="null" disabled>Scegli...</option>
+                  <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
                 </select>
               </div>
             </div>
@@ -301,8 +297,8 @@
               <label>Foto Prodotto (Scatta o Scegli)</label>
               <div class="photo-upload-row">
                 <img
-                  *ngIf="previewUrl || newProduct.image_url"
-                  [src]="previewUrl || newProduct.image_url"
+                  *ngIf="previewUrl || (editingProduct && editingProduct.image_url)"
+                  [src]="previewUrl || editingProduct?.image_url"
                   class="thumb-large"
                 />
                 <input
@@ -319,7 +315,7 @@
               <button
                 type="submit"
                 class="btn-primary"
-                [disabled]="!newProduct.name || !newProduct.category_id || isUploading"
+                [disabled]="productForm.invalid || isUploading"
               >
                 <span *ngIf="!isUploading">{{ editingProduct ? 'Aggiorna' : 'Salva' }}</span>
                 <span *ngIf="isUploading" class="spinner-inline">Attendere...</span>
@@ -331,8 +327,8 @@
           </form>
         </div>
 
-        <div class="search-box">
-          <input type="text" placeholder="Filtra prodotti..." [(ngModel)]="searchTerm" />
+        <div class="search-box" [formGroup]="filterForm">
+          <input type="text" placeholder="Filtra prodotti..." formControlName="productSearchTerm" />
         </div>
 
         <ul class="item-list">
@@ -352,10 +348,10 @@
       <!-- Categories Section -->
       <section class="card full-width">
         <h2>Categorie</h2>
-        <div class="add-item-box">
-          <input type="text" [(ngModel)]="newCategoryName" placeholder="Nuova categoria..." />
-          <button (click)="saveCategory()" [disabled]="!newCategoryName.trim()">+</button>
-        </div>
+        <form class="add-item-box" [formGroup]="categoryForm" (submit)="saveCategory()">
+          <input type="text" formControlName="name" placeholder="Nuova categoria..." />
+          <button type="submit" [disabled]="categoryForm.invalid">+</button>
+        </form>
         <ul class="item-list horizontal-list">
           <li *ngFor="let c of categories" class="tag-item">
             <span (click)="editCategory(c)" class="clickable">{{ c.name }}</span>
@@ -367,18 +363,18 @@
       <!-- Supermarkets Section -->
       <section class="card full-width">
         <h2>Supermercati</h2>
-        <div class="add-item-box stacked-form">
+        <form class="add-item-box stacked-form" [formGroup]="supermarketForm" (submit)="saveSupermarket()">
           <div class="form-row">
-            <input type="text" [(ngModel)]="newSupermarket.name" placeholder="Nome supermercato..." class="flex-2" />
-            <input type="text" [(ngModel)]="newSupermarket.location" placeholder="Località (opzionale)" class="flex-1" />
+            <input type="text" formControlName="name" placeholder="Nome supermercato..." class="flex-2" />
+            <input type="text" formControlName="location" placeholder="Località (opzionale)" class="flex-1" />
           </div>
-          <button class="btn-primary" (click)="saveSupermarket()" [disabled]="!newSupermarket.name.trim()">
+          <button type="submit" class="btn-primary" [disabled]="supermarketForm.invalid">
             {{ editingSupermarket ? 'Aggiorna' : 'Aggiungi' }} Supermercato
           </button>
           <button class="btn-secondary btn-sm" *ngIf="editingSupermarket" (click)="cancelEditSupermarket()">
             Annulla
           </button>
-        </div>
+        </form>
         <ul class="item-list">
           <li *ngFor="let s of supermarkets">
             <div class="item-info clickable" (click)="startEditSupermarket(s)">

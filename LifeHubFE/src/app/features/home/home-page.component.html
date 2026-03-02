@@ -1,12 +1,16 @@
 <div class="shell">
   <header>
-    <div class="logo">{{ appTitle }}</div>
-    <div class="user-box" *ngIf="user">
-      <div class="user-meta">
-        <div class="u-name">{{ user.username }}</div>
-        <div class="u-role">{{ user.role }}</div>
+    <div class="header-content">
+      <div class="header-row">
+        <div class="logo">{{ appTitle }}</div>
+        <div class="user-box" *ngIf="user">
+          <div class="user-meta">
+            <div class="u-name">{{ user.username }}</div>
+            <div class="u-role">{{ user.role }}</div>
+          </div>
+          <button (click)="logout()">Logout</button>
+        </div>
       </div>
-      <button (click)="logout()">Logout</button>
     </div>
   </header>
 
