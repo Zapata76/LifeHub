@@ -48,7 +48,6 @@ export class RecipesPageComponent implements OnInit {
       category: [''],
       prep_time_minutes: [null],
       difficulty: ['media'],
-      author_name: [''],
       instructions: [''],
       ingredients: this.fb.array([])
     });
@@ -194,7 +193,6 @@ export class RecipesPageComponent implements OnInit {
         category: recipe.category || '',
         prep_time_minutes: recipe.prep_time_minutes,
         difficulty: recipe.difficulty || 'media',
-        author_name: recipe.author_name || '',
         instructions: recipe.instructions || ''
       });
 
@@ -223,7 +221,6 @@ export class RecipesPageComponent implements OnInit {
       category: '',
       prep_time_minutes: null,
       difficulty: 'media',
-      author_name: '',
       instructions: ''
     });
     this.ingredients.clear();
@@ -392,7 +389,6 @@ export class RecipesPageComponent implements OnInit {
     formData.append('instructions', formValues.instructions || '');
     formData.append('prep_time_minutes', formValues.prep_time_minutes ? formValues.prep_time_minutes.toString() : '');
     formData.append('difficulty', formValues.difficulty || 'media');
-    formData.append('author_name', formValues.author_name || '');
     formData.append('ingredients', JSON.stringify(ingredients));
     
     if (this.selectedFile) {

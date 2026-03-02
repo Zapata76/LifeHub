@@ -57,16 +57,28 @@ switch ($action) {
         $start = isset($_GET['start']) ? $_GET['start'] : date('Y-m-d');
         $end = isset($_GET['end']) ? $_GET['end'] : date('Y-m-d', strtotime('+7 days'));
 
-        $stmt = $conn->prepare("SELECT mp.*, r.name AS recipe_name
+        $stmt = $conn->prepare("SELECT mp.*
                                 FROM meal_plan mp
-                                LEFT JOIN recipes r ON mp.recipe_id = r.id
                                 WHERE mp.meal_date BETWEEN ? AND ?
                                 ORDER BY mp.meal_date ASC,
                                 FIELD(mp.meal_type, 'lunch', 'dinner') ASC");
         if (!$stmt) exit_with_error("Error querying meal plan: " . $conn->error);
         $stmt->bind_param("ss", $start, $end);
         $stmt->execute();
-        echo json_encode(stmt_fetch_all_assoc($stmt));
+        $meals = stmt_fetch_all_assoc($stmt);
+
+        // Fetch associated recipes for each meal
+        foreach ($meals as &$meal) {
+            $mprStmt = $conn->prepare("SELECT r.id, r.name 
+                                       FROM meal_plan_recipes mpr
+                                       JOIN recipes r ON mpr.recipe_id = r.id
+                                       WHERE mpr.meal_plan_id = ?");
+            $mprStmt->bind_param("i", $meal['id']);
+            $mprStmt->execute();
+            $meal['recipes'] = stmt_fetch_all_assoc($mprStmt);
+        }
+        
+        echo json_encode($meals);
         break;
 
     case 'save_meal':
@@ -76,43 +88,45 @@ switch ($action) {
         $id = isset($data['id']) ? (int)$data['id'] : 0;
         $meal_date = isset($data['meal_date']) ? $data['meal_date'] : '';
         $meal_type = isset($data['meal_type']) ? $data['meal_type'] : '';
-        $recipe_id = (isset($data['recipe_id']) && (int)$data['recipe_id'] > 0) ? (int)$data['recipe_id'] : null;
+        $description = isset($data['description']) ? $data['description'] : '';
         $notes = isset($data['notes']) ? $data['notes'] : '';
+        $recipe_ids = isset($data['recipe_ids']) && is_array($data['recipe_ids']) ? $data['recipe_ids'] : array();
 
         if (!$meal_date || !$meal_type) exit_with_error("Date and meal type are required");
         if (!in_array($meal_type, array('lunch', 'dinner'))) exit_with_error("Invalid meal type");
 
-        if ($id > 0) {
-            if ($recipe_id === null) {
-                $stmt = $conn->prepare("UPDATE meal_plan SET meal_date = ?, meal_type = ?, recipe_id = NULL, notes = ? WHERE id = ?");
-                if (!$stmt) exit_with_error("Error updating meal: " . $conn->error);
-                $stmt->bind_param("sssi", $meal_date, $meal_type, $notes, $id);
-            } else {
-                $stmt = $conn->prepare("UPDATE meal_plan SET meal_date = ?, meal_type = ?, recipe_id = ?, notes = ? WHERE id = ?");
-                if (!$stmt) exit_with_error("Error updating meal: " . $conn->error);
-                $stmt->bind_param("ssisi", $meal_date, $meal_type, $recipe_id, $notes, $id);
-            }
-        } else {
-            if ($recipe_id === null) {
-                $stmt = $conn->prepare("INSERT INTO meal_plan (meal_date, meal_type, recipe_id, notes)
-                                        VALUES (?, ?, NULL, ?)");
-                if (!$stmt) exit_with_error("Error inserting meal: " . $conn->error);
-                $stmt->bind_param("sss", $meal_date, $meal_type, $notes);
-            } else {
-                $stmt = $conn->prepare("INSERT INTO meal_plan (meal_date, meal_type, recipe_id, notes)
-                                        VALUES (?, ?, ?, ?)");
-                if (!$stmt) exit_with_error("Error inserting meal: " . $conn->error);
-                $stmt->bind_param("ssis", $meal_date, $meal_type, $recipe_id, $notes);
-            }
-        }
+        $conn->begin_transaction();
 
-        if ($stmt->execute()) {
+        try {
+            if ($id > 0) {
+                $stmt = $conn->prepare("UPDATE meal_plan SET meal_date = ?, meal_type = ?, description = ?, notes = ? WHERE id = ?");
+                if (!$stmt) throw new Exception("Error preparing update: " . $conn->error);
+                $stmt->bind_param("ssssi", $meal_date, $meal_type, $description, $notes, $id);
+            } else {
+                $stmt = $conn->prepare("INSERT INTO meal_plan (meal_date, meal_type, description, notes) VALUES (?, ?, ?, ?)");
+                if (!$stmt) throw new Exception("Error preparing insert: " . $conn->error);
+                $stmt->bind_param("ssss", $meal_date, $meal_type, $description, $notes);
+            }
+
+            if (!$stmt->execute()) throw new Exception("Error saving meal: " . $stmt->error);
+            
+            $meal_plan_id = ($id > 0 ? $id : (int)$stmt->insert_id);
+
+            // Update recipes association
+            $conn->query("DELETE FROM meal_plan_recipes WHERE meal_plan_id = $meal_plan_id");
+            foreach ($recipe_ids as $r_id) {
+                $r_id = (int)$r_id;
+                $conn->query("INSERT INTO meal_plan_recipes (meal_plan_id, recipe_id) VALUES ($meal_plan_id, $r_id)");
+            }
+
+            $conn->commit();
             echo json_encode(array(
                 'message' => 'Meal saved',
-                'id' => ($id > 0 ? $id : (int)$stmt->insert_id)
+                'id' => $meal_plan_id
             ));
-        } else {
-            exit_with_error("Error saving meal: " . $stmt->error);
+        } catch (Exception $e) {
+            $conn->rollback();
+            exit_with_error($e->getMessage());
         }
         break;
 
@@ -131,9 +145,9 @@ switch ($action) {
 
         $ids_string = implode(',', $id_list);
         $sql = "SELECT ri.product_id, ri.ingredient_name, ri.quantity
-                FROM meal_plan mp
-                JOIN recipe_ingredients ri ON mp.recipe_id = ri.recipe_id
-                WHERE mp.id IN ($ids_string)";
+                FROM meal_plan_recipes mpr
+                JOIN recipe_ingredients ri ON mpr.recipe_id = ri.recipe_id
+                WHERE mpr.meal_plan_id IN ($ids_string)";
         $result = $conn->query($sql);
         if (!$result) exit_with_error("Error retrieving ingredients: " . $conn->error);
 
@@ -330,19 +344,24 @@ function ensure_meal_plan_schema($conn) {
         id INT(11) NOT NULL AUTO_INCREMENT,
         meal_date DATE NOT NULL,
         meal_type VARCHAR(20) NOT NULL,
-        recipe_id INT(11) NULL DEFAULT NULL,
+        description TEXT NULL,
         notes TEXT NULL,
         created_by INT(11) NULL DEFAULT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
-        KEY idx_meal_plan_date (meal_date),
-        KEY idx_meal_plan_recipe (recipe_id)
+        KEY idx_meal_plan_date (meal_date)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 
-    ensure_column($conn, 'meal_plan', 'recipe_id', "INT(11) NULL DEFAULT NULL AFTER meal_type");
-    ensure_column($conn, 'meal_plan', 'notes', "TEXT NULL AFTER recipe_id");
-    ensure_column($conn, 'meal_plan', 'created_by', "INT(11) NULL DEFAULT NULL AFTER notes");
-    ensure_column($conn, 'meal_plan', 'created_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER created_by");
+    ensure_column($conn, 'meal_plan', 'description', "TEXT NULL AFTER meal_type");
+    ensure_column($conn, 'meal_plan', 'notes', "TEXT NULL AFTER description");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS meal_plan_recipes (
+        meal_plan_id INT(11) NOT NULL,
+        recipe_id INT(11) NOT NULL,
+        PRIMARY KEY (meal_plan_id, recipe_id),
+        KEY idx_mpr_meal (meal_plan_id),
+        KEY idx_mpr_recipe (recipe_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 }
 
 function ensure_column($conn, $table, $column, $definition) {

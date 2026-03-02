@@ -59,6 +59,10 @@
           </span>
         </div>
 
+        <div *ngIf="!goal.trackers || goal.trackers.length === 0" class="muted mt-10">
+          Nessun tracker impostato 👻
+        </div>
+
         <div *ngFor="let tracker of goal.trackers" class="tracker-item">
           <button class="btn-primary btn-large" (click)="toggleLogForm(tracker.id!)">
             <span *ngIf="tracker.type === 'boolean'">✅ Fatto oggi!</span>
@@ -95,6 +99,10 @@
           <div class="meta-row">
             <span class="badge" [attr.data-status]="goal.status">{{ goal.status }}</span>
             <span class="meta-item ml-auto">👤 {{ goal.owner_name }}</span>
+          </div>
+
+          <div *ngIf="!goal.trackers || goal.trackers.length === 0" class="muted mt-10">
+            Nessun tracker impostato per questo obiettivo.
           </div>
 
           <div *ngFor="let tracker of goal.trackers" class="tracker-section">
@@ -174,8 +182,9 @@
           <div class="trackers-section-edit">
             <label>Tracker Progressi</label>
             <div class="tracker-badges-row">
-              <span *ngFor="let t of editingGoal.trackers; let i = index" class="badge">
+              <span *ngFor="let t of editingGoal.trackers; let i = index" class="badge badge-with-remove">
                 {{ t.type }} ({{ t.frequency }})
+                <span class="remove-tracker-icon" (click)="removeTracker(i)">✕</span>
               </span>
             </div>
             

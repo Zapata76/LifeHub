@@ -176,4 +176,9 @@ export class GoalsPageComponent implements OnInit {
   cancelEdit() {
     this.editingGoal = null;
   }
+
+  removeTracker(index: number) {
+    if (!this.editingGoal || !this.editingGoal.trackers) return;
+    this.editingGoal.trackers.splice(index, 1);
+  }
 }

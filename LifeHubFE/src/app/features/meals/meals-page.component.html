@@ -19,7 +19,10 @@
       </div>
       <div class="header-row header-bottom">
         <div class="header-controls">
-          <button class="btn-primary btn-sm" (click)="generateShoppingList()">Genera Spesa</button>
+          <button class="btn-primary btn-sm" (click)="generateShoppingList()" [disabled]="isLoading">
+            <span *ngIf="!isLoading">Genera Spesa</span>
+            <span *ngIf="isLoading" class="spinner"></span>
+          </button>
           <a routerLink="/recipes" class="home-link">Ricette</a>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
@@ -37,22 +40,28 @@
 
         <div class="meal-slot" (click)="editMeal(day, 'lunch')">
           <label>Pranzo</label>
-          <div class="meal-content" [class.empty]="!getMeal(day, 'lunch')">
-            {{ getMeal(day, 'lunch')?.recipe_name || 'Non pianificato' }}
+          <div class="meal-content" [class.empty]="!getMeal(day, 'lunch')?.description">
+            {{ getMeal(day, 'lunch')?.description || 'Non pianificato' }}
+            <div class="meal-recipes" *ngIf="getMeal(day, 'lunch')?.recipes?.length">
+              <small *ngFor="let r of getMeal(day, 'lunch')?.recipes">• {{ r.name }} </small>
+            </div>
           </div>
         </div>
 
         <div class="meal-slot" (click)="editMeal(day, 'dinner')">
           <label>Cena</label>
-          <div class="meal-content" [class.empty]="!getMeal(day, 'dinner')">
-            {{ getMeal(day, 'dinner')?.recipe_name || 'Non pianificato' }}
+          <div class="meal-content" [class.empty]="!getMeal(day, 'dinner')?.description">
+            {{ getMeal(day, 'dinner')?.description || 'Non pianificato' }}
+            <div class="meal-recipes" *ngIf="getMeal(day, 'dinner')?.recipes?.length">
+              <small *ngFor="let r of getMeal(day, 'dinner')?.recipes">• {{ r.name }} </small>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Meal Editor (Modal) -->
-    <div class="modal" *ngIf="editingMeal" (click)="editingMeal = null">
+    <div class="modal" *ngIf="editingMeal" (click)="!isLoading && (editingMeal = null)">
       <div class="modal-content card" (click)="$event.stopPropagation()" [formGroup]="mealForm">
         <h2>Pianifica Pasto</h2>
         <p>
@@ -60,11 +69,20 @@
         </p>
 
         <div class="form-group">
-          <label>Scegli Ricetta</label>
-          <select formControlName="recipe_id">
-            <option [ngValue]="undefined">Libero / Nessuna ricetta</option>
-            <option *ngFor="let r of recipes" [ngValue]="r.id">{{ r.name }}</option>
-          </select>
+          <label>Descrizione Pasto</label>
+          <input type="text" formControlName="description" placeholder="Es: Cena con amici, Pasta al forno...">
+        </div>
+
+        <div class="form-group">
+          <label>Associa Ricette</label>
+          <div class="recipes-selection">
+            <div *ngFor="let r of recipes" 
+                 class="recipe-chip" 
+                 [class.selected]="isRecipeSelected(r.id)"
+                 (click)="toggleRecipe(r.id)">
+              <span *ngIf="isRecipeSelected(r.id)" class="check-icon">✓</span> {{ r.name }}
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -73,8 +91,11 @@
         </div>
 
         <div class="modal-footer">
-          <button class="btn-secondary" (click)="editingMeal = null">Annulla</button>
-          <button class="btn-primary" (click)="saveMeal()">Salva</button>
+          <button class="btn-secondary" (click)="editingMeal = null" [disabled]="isLoading">Annulla</button>
+          <button class="btn-primary" (click)="saveMeal()" [disabled]="isLoading">
+            <span *ngIf="!isLoading">Salva</span>
+            <span *ngIf="isLoading" class="spinner"></span>
+          </button>
         </div>
       </div>
     </div>

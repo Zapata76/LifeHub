@@ -23,8 +23,9 @@ export interface MealPlan {
   id?: number;
   meal_date: string;
   meal_type: 'lunch' | 'dinner';
-  recipe_id?: number;
-  recipe_name?: string;
+  description?: string;
+  recipe_ids?: number[];
+  recipes?: { id: number, name: string }[];
   notes?: string;
 }
 

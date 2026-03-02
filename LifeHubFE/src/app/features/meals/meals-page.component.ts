@@ -13,13 +13,15 @@ export class MealsPageComponent implements OnInit {
   recipes: Recipe[] = [];
   editingMeal: MealPlan | null = null;
   mealForm: FormGroup;
+  isLoading = false;
 
   constructor(
     private mealsService: MealsService,
     private fb: FormBuilder
   ) {
     this.mealForm = this.fb.group({
-      recipe_id: [undefined],
+      description: [''],
+      recipe_ids: [[]],
       notes: ['']
     });
   }
@@ -42,7 +44,12 @@ export class MealsPageComponent implements OnInit {
     const start = this.formatDate(this.weekDays[0]);
     const end = this.formatDate(this.weekDays[6]);
     
-    this.mealsService.getMealPlan(start, end).subscribe((data: any) => this.mealPlan = data);
+    this.isLoading = true;
+    this.mealsService.getMealPlan(start, end).subscribe((data: any) => {
+      this.mealPlan = data;
+      this.isLoading = false;
+    }, () => this.isLoading = false);
+    
     this.mealsService.getRecipes().subscribe((data: any) => this.recipes = data);
   }
 
@@ -54,31 +61,57 @@ export class MealsPageComponent implements OnInit {
   editMeal(date: Date, type: 'lunch' | 'dinner') {
     const existing = this.getMeal(date, type);
     this.editingMeal = existing ? { ...existing } : { meal_date: this.formatDate(date), meal_type: type };
+    
+    const recipeIds = existing?.recipes?.map(r => Number(r.id)) || [];
+    
     this.mealForm.reset({
-      recipe_id: this.editingMeal.recipe_id,
+      description: this.editingMeal.description || '',
+      recipe_ids: recipeIds,
       notes: this.editingMeal.notes || ''
     });
   }
 
+  isRecipeSelected(id: any): boolean {
+    const selected: any[] = this.mealForm.get('recipe_ids')?.value || [];
+    return selected.map(v => Number(v)).includes(Number(id));
+  }
+
+  toggleRecipe(id: any) {
+    const selected: any[] = [...(this.mealForm.get('recipe_ids')?.value || [])];
+    const numId = Number(id);
+    const index = selected.findIndex(v => Number(v) === numId);
+    if (index > -1) {
+      selected.splice(index, 1); // Rimuove se già presente
+    } else {
+      selected.push(numId); // Aggiunge se non presente
+    }
+    this.mealForm.get('recipe_ids')?.setValue(selected);
+  }
+
   saveMeal() {
-    if (!this.editingMeal) return;
+    if (!this.editingMeal || this.isLoading) return;
+    this.isLoading = true;
     const mealData = { ...this.editingMeal, ...this.mealForm.value };
     this.mealsService.saveMeal(mealData).subscribe(() => {
       this.editingMeal = null;
       this.loadData();
-    });
+    }, () => this.isLoading = false);
   }
 
   generateShoppingList() {
-    const mealIds = this.mealPlan.filter(m => m.recipe_id).map(m => m.id!);
+    const mealsWithRecipes = this.mealPlan.filter(m => m.recipes && m.recipes.length > 0);
+    const mealIds = mealsWithRecipes.map(m => m.id!);
+    
     if (mealIds.length === 0) {
         alert("Pianifica qualche pasto con ricetta per generare la spesa!");
         return;
     }
     if (confirm("Generare la lista della spesa per i prossimi 7 giorni?")) {
+        this.isLoading = true;
         this.mealsService.generateShoppingList(mealIds).subscribe(res => {
+            this.isLoading = false;
             alert(res.message);
-        });
+        }, () => this.isLoading = false);
     }
   }
 

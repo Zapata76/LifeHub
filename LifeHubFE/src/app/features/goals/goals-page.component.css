@@ -227,3 +227,30 @@ main {
   gap: 8px;
   margin-bottom: 15px;
 }
+
+.badge-with-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 8px;
+}
+
+.remove-tracker-icon {
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  transition: 0.2s;
+}
+
+.remove-tracker-icon:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ff5c5c;
+}
+
+.mt-10 { margin-top: 10px; }

@@ -65,6 +65,7 @@ switch ($action) {
             
             // Handle trackers if provided
             if (isset($data['trackers']) && is_array($data['trackers'])) {
+                $incoming_ids = array();
                 foreach ($data['trackers'] as $tracker) {
                     $t_id = isset($tracker['id']) ? (int)$tracker['id'] : 0;
                     $type = $tracker['type'];
@@ -73,11 +74,28 @@ switch ($action) {
                     if ($t_id > 0) {
                         $t_stmt = $conn->prepare("UPDATE trackers SET type = ?, frequency = ? WHERE id = ? AND goal_id = ?");
                         $t_stmt->bind_param("ssii", $type, $frequency, $t_id, $goal_id);
+                        $t_stmt->execute();
+                        $incoming_ids[] = $t_id;
                     } else {
                         $t_stmt = $conn->prepare("INSERT INTO trackers (goal_id, type, frequency) VALUES (?, ?, ?)");
                         $t_stmt->bind_param("iss", $goal_id, $type, $frequency);
+                        $t_stmt->execute();
+                        $incoming_ids[] = $conn->insert_id;
                     }
-                    $t_stmt->execute();
+                }
+                
+                // Delete trackers that were removed from the UI
+                $delete_sql = "SELECT id FROM trackers WHERE goal_id = $goal_id";
+                if (!empty($incoming_ids)) {
+                    $delete_sql .= " AND id NOT IN (" . implode(',', $incoming_ids) . ")";
+                }
+                $res = $conn->query($delete_sql);
+                if ($res) {
+                    while($row = $res->fetch_assoc()) {
+                        $tid = $row['id'];
+                        $conn->query("DELETE FROM goal_logs WHERE tracker_id = $tid");
+                        $conn->query("DELETE FROM trackers WHERE id = $tid");
+                    }
                 }
             }
             

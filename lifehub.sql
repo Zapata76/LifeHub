@@ -65,13 +65,25 @@ CREATE TABLE IF NOT EXISTS `meal_plan` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `meal_date` date NOT NULL,
   `meal_type` enum('lunch','dinner') NOT NULL,
-  `recipe_id` int(11) DEFAULT NULL,
+  `description` text,
   `notes` text,
   `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `meal_date` (`meal_date`),
-  KEY `recipe_id` (`recipe_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+  KEY `meal_date` (`meal_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=1 ;
+
+--
+-- Struttura della tabella `meal_plan_recipes`
+--
+
+CREATE TABLE IF NOT EXISTS `meal_plan_recipes` (
+  `meal_plan_id` int(11) NOT NULL,
+  `recipe_id` int(11) NOT NULL,
+  PRIMARY KEY (`meal_plan_id`,`recipe_id`),
+  KEY `idx_mpr_meal` (`meal_plan_id`),
+  KEY `idx_mpr_recipe` (`recipe_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 --
 -- Dump dei dati per la tabella `meal_plan`
@@ -162,7 +174,6 @@ CREATE TABLE IF NOT EXISTS `recipes` (
   `instructions` text,
   `prep_time_minutes` int(11) DEFAULT NULL,
   `difficulty` varchar(30) DEFAULT NULL,
-  `author_name` varchar(100) DEFAULT NULL,
   `image_url` varchar(255) DEFAULT NULL,
   `created_by` int(11) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',

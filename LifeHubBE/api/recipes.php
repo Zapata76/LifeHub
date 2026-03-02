@@ -14,14 +14,15 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 switch ($action) {
 
     case 'get_recipes':
-        $sql = "SELECT r.*, COUNT(ri.id) AS ingredients_count
+        $sql = "SELECT r.*, u.username as author_name, COUNT(ri.id) AS ingredients_count
                 FROM recipes r
+                LEFT JOIN users u ON u.id = r.created_by
                 LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id";
         $where = array();
 
         if (!empty($_GET['search'])) {
             $search = $conn->real_escape_string(trim($_GET['search']));
-            $where[] = "(r.name LIKE '%$search%' OR r.instructions LIKE '%$search%' OR r.author_name LIKE '%$search%')";
+            $where[] = "(r.name LIKE '%$search%' OR r.instructions LIKE '%$search%' OR u.username LIKE '%$search%')";
         }
         if (!empty($_GET['category'])) {
             $category = $conn->real_escape_string(trim($_GET['category']));
@@ -46,7 +47,10 @@ switch ($action) {
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         if (!$id) exit_with_error("Recipe ID is required");
 
-        $stmt = $conn->prepare("SELECT * FROM recipes WHERE id = ?");
+        $stmt = $conn->prepare("SELECT r.*, u.username as author_name 
+                                FROM recipes r 
+                                LEFT JOIN users u ON u.id = r.created_by 
+                                WHERE r.id = ?");
         if (!$stmt) exit_with_error("Prepare error: " . $conn->error);
         $stmt->bind_param("i", $id);
         $stmt->execute();
@@ -97,7 +101,6 @@ switch ($action) {
             $description = isset($_POST['description']) ? trim($_POST['description']) : '';
             $prep_time = (isset($_POST['prep_time_minutes']) && $_POST['prep_time_minutes'] !== '') ? (int)$_POST['prep_time_minutes'] : null;
             $difficulty = isset($_POST['difficulty']) ? trim($_POST['difficulty']) : '';
-            $author_name = isset($_POST['author_name']) ? trim($_POST['author_name']) : '';
             $image_url = isset($_POST['existing_image']) ? trim($_POST['existing_image']) : null;
             $ingredients_json = isset($_POST['ingredients']) ? $_POST['ingredients'] : '[]';
             $ingredients = json_decode($ingredients_json, true);
@@ -112,7 +115,6 @@ switch ($action) {
             $description = isset($data['description']) ? trim($data['description']) : '';
             $prep_time = (isset($data['prep_time_minutes']) && $data['prep_time_minutes'] !== '') ? (int)$data['prep_time_minutes'] : null;
             $difficulty = isset($data['difficulty']) ? trim($data['difficulty']) : '';
-            $author_name = isset($data['author_name']) ? trim($data['author_name']) : '';
             $image_url = isset($data['image_url']) ? trim($data['image_url']) : null;
             $ingredients = isset($data['ingredients']) && is_array($data['ingredients']) ? $data['ingredients'] : array();
         }
@@ -133,15 +135,15 @@ switch ($action) {
 
         if ($id > 0) {
             $stmt = $conn->prepare("UPDATE recipes
-                                    SET name = ?, category = ?, description = ?, instructions = ?, prep_time_minutes = ?, difficulty = ?, author_name = ?, image_url = ?, updated_at = NOW()
+                                    SET name = ?, category = ?, description = ?, instructions = ?, prep_time_minutes = ?, difficulty = ?, image_url = ?, updated_at = NOW()
                                     WHERE id = ?");
             if (!$stmt) exit_with_error("Prepare error (update): " . $conn->error);
-            $stmt->bind_param("ssssisssi", $name, $category, $description, $instructions, $prep_time, $difficulty, $author_name, $image_url, $id);
+            $stmt->bind_param("ssssissi", $name, $category, $description, $instructions, $prep_time, $difficulty, $image_url, $id);
         } else {
-            $stmt = $conn->prepare("INSERT INTO recipes (name, category, description, instructions, prep_time_minutes, difficulty, author_name, image_url, created_by, created_at, updated_at)
-                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
+            $stmt = $conn->prepare("INSERT INTO recipes (name, category, description, instructions, prep_time_minutes, difficulty, image_url, created_by, created_at, updated_at)
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
             if (!$stmt) exit_with_error("Prepare error (insert): " . $conn->error);
-            $stmt->bind_param("ssssisssi", $name, $category, $description, $instructions, $prep_time, $difficulty, $author_name, $image_url, $user['id']);
+            $stmt->bind_param("ssssissi", $name, $category, $description, $instructions, $prep_time, $difficulty, $image_url, $user['id']);
         }
 
         if (!$stmt->execute()) exit_with_error("Errore salvataggio ricetta: " . $stmt->error);
@@ -262,7 +264,6 @@ function ensure_recipes_schema($conn) {
         instructions TEXT NULL,
         prep_time_minutes INT(11) NULL DEFAULT NULL,
         difficulty VARCHAR(30) NULL DEFAULT NULL,
-        author_name VARCHAR(100) NULL DEFAULT NULL,
         image_url VARCHAR(255) NULL DEFAULT NULL,
         created_by INT(11) NULL DEFAULT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -287,8 +288,12 @@ function ensure_recipes_schema($conn) {
     ensure_column($conn, 'recipes', 'instructions', "TEXT NULL AFTER description");
     ensure_column($conn, 'recipes', 'prep_time_minutes', "INT(11) NULL DEFAULT NULL AFTER instructions");
     ensure_column($conn, 'recipes', 'difficulty', "VARCHAR(30) NULL DEFAULT NULL AFTER prep_time_minutes");
-    ensure_column($conn, 'recipes', 'author_name', "VARCHAR(100) NULL DEFAULT NULL AFTER difficulty");
-    ensure_column($conn, 'recipes', 'image_url', "VARCHAR(255) NULL DEFAULT NULL AFTER author_name");
+    // Remove author_name column if it exists (optional but recommended based on task)
+    $checkAuthor = $conn->query("SHOW COLUMNS FROM `recipes` LIKE 'author_name'");
+    if ($checkAuthor && $checkAuthor->num_rows > 0) {
+        $conn->query("ALTER TABLE `recipes` DROP COLUMN `author_name`");
+    }
+    ensure_column($conn, 'recipes', 'image_url', "VARCHAR(255) NULL DEFAULT NULL AFTER difficulty");
     ensure_column($conn, 'recipes', 'created_by', "INT(11) NULL DEFAULT NULL AFTER image_url");
     ensure_column($conn, 'recipes', 'created_at', "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER created_by");
     ensure_column($conn, 'recipes', 'updated_at', "DATETIME NULL DEFAULT NULL AFTER created_at");
