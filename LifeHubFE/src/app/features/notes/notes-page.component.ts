@@ -4,9 +4,10 @@ import { NotesService, Note } from './notes.service';
 import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
-  selector: 'app-notes-page',
-  templateUrl: './notes-page.component.html',
-  styleUrls: ['./notes-page.component.css']
+    selector: 'app-notes-page',
+    templateUrl: './notes-page.component.html',
+    styleUrls: ['./notes-page.component.css'],
+    standalone: false
 })
 export class NotesPageComponent implements OnInit {
   notes: Note[] = [];

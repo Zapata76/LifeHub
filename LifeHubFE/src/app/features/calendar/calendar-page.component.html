@@ -16,21 +16,24 @@
       </div>
       <div class="header-row header-bottom">
         <div class="header-controls">
-          <span class="user-badge" *ngIf="user$ | async as user">{{ user.username }}</span>
+          @if (user$ | async; as user) {
+            <span class="user-badge">{{ user.username }}</span>
+          }
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
     </div>
   </header>
 
-  <div class="calendar-container" *ngIf="calendarUrl; else noCalendar">
-    <iframe [src]="calendarUrl" title="Calendario condiviso"></iframe>
-  </div>
-
-  <ng-template #noCalendar>
+  @if (calendarUrl) {
+    <div class="calendar-container">
+      <iframe [src]="calendarUrl" title="Calendario condiviso"></iframe>
+    </div>
+  } @else {
     <div class="calendar-empty">
       Nessun calendario associato al tuo account. Chiedi all'amministratore di configurare i tuoi calendari nella sezione
       Gestione Utenti.
     </div>
-  </ng-template>
+  }
+
 </div>

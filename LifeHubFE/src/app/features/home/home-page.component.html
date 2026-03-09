@@ -3,13 +3,15 @@
     <div class="header-content">
       <div class="header-row">
         <div class="logo">{{ appTitle }}</div>
-        <div class="user-box" *ngIf="user">
-          <div class="user-meta">
-            <div class="u-name">{{ user.username }}</div>
-            <div class="u-role">{{ user.role }}</div>
+        @if (user) {
+          <div class="user-box">
+            <div class="user-meta">
+              <div class="u-name">{{ user.username }}</div>
+              <div class="u-role">{{ user.role }}</div>
+            </div>
+            <button (click)="logout()">Logout</button>
           </div>
-          <button (click)="logout()">Logout</button>
-        </div>
+        }
       </div>
     </div>
   </header>
@@ -56,16 +58,20 @@
         <h3>Inventario</h3>
         <p>Organizzazione e ricerca oggetti in casa.</p>
       </a>
-      <a routerLink="/documents" class="card" *ngIf="user?.role === 'admin' || user?.role === 'adult'">
-        <div class="card-emoji">📂</div>
-        <h3>Documenti</h3>
-        <p>Archivio digitale sicuro dei documenti di famiglia.</p>
-      </a>
-      <a *ngIf="user?.role === 'admin'" routerLink="/users" class="card">
-        <div class="card-emoji">⚙️</div>
-        <h3>Gestione Utenti</h3>
-        <p>Amministrazione ruoli e permessi del sistema.</p>
-      </a>
+      @if (user?.role === 'admin' || user?.role === 'adult') {
+        <a routerLink="/documents" class="card">
+          <div class="card-emoji">📂</div>
+          <h3>Documenti</h3>
+          <p>Archivio digitale sicuro dei documenti di famiglia.</p>
+        </a>
+      }
+      @if (user?.role === 'admin') {
+        <a routerLink="/users" class="card">
+          <div class="card-emoji">⚙️</div>
+          <h3>Gestione Utenti</h3>
+          <p>Amministrazione ruoli e permessi del sistema.</p>
+        </a>
+      }
     </div>
   </main>
 

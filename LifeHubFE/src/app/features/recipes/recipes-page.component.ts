@@ -4,9 +4,10 @@ import { ProductCatalogItem, Recipe, RecipeIngredient, RecipesService } from './
 import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
-  selector: 'app-recipes-page',
-  templateUrl: './recipes-page.component.html',
-  styleUrls: ['./recipes-page.component.css']
+    selector: 'app-recipes-page',
+    templateUrl: './recipes-page.component.html',
+    styleUrls: ['./recipes-page.component.css'],
+    standalone: false
 })
 export class RecipesPageComponent implements OnInit {
   recipes: Recipe[] = [];

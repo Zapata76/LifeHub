@@ -3,9 +3,10 @@ import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms'
 import { ShoppingService, ShoppingItem, Product, Supermarket, Category, User } from './shopping.service';
 
 @Component({
-  selector: 'app-shopping-page',
-  templateUrl: './shopping-page.component.html',
-  styleUrls: ['./shopping-page.component.css']
+    selector: 'app-shopping-page',
+    templateUrl: './shopping-page.component.html',
+    styleUrls: ['./shopping-page.component.css'],
+    standalone: false
 })
 export class ShoppingPageComponent implements OnInit {
   view: 'list' | 'prices' | 'products' = 'list';

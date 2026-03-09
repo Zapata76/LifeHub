@@ -15,7 +15,9 @@
       </div>
       <div class="header-row header-bottom">
         <div class="header-controls">
-          <span class="user-badge" *ngIf="user">{{ user.username }}</span>
+          @if (user) {
+            <span class="user-badge">{{ user.username }}</span>
+          }
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
       </div>
@@ -27,366 +29,429 @@
     </div>
   </header>
 
-  <main [ngSwitch]="view">
-    <!-- VIEW: SHOPPING LIST -->
-    <div *ngSwitchCase="'list'" class="grid">
-      <section class="card">
-        <div class="card-header">
-          <h2>Lista Spesa</h2>
-          <button class="btn-danger btn-sm" (click)="clearChecked()" *ngIf="hasCheckedItems()">Pulisci</button>
-        </div>
-
-        <div class="add-item-container" [formGroup]="addItemForm">
-          <div class="search-select">
-            <input
-              type="text"
-              formControlName="productSearchTerm"
-              (focus)="showProductDropdown = true"
-              (blur)="hideProductDropdown()"
-              placeholder="Cerca prodotto..."
-              class="search-input"
-            />
-
-            <div class="dropdown-list" *ngIf="showProductDropdown">
-              <div class="dropdown-item" *ngFor="let p of sortedAndFilteredProducts" (click)="selectProduct(p)">
-                <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
-              </div>
+  <main>
+    @switch (view) {
+      <!-- VIEW: SHOPPING LIST -->
+      @case ('list') {
+        <div class="grid">
+          <section class="card">
+            <div class="card-header">
+              <h2>Lista Spesa</h2>
+              @if (hasCheckedItems()) {
+                <button class="btn-danger btn-sm" (click)="clearChecked()">Pulisci</button>
+              }
             </div>
-          </div>
-
-          <div class="add-controls">
-            <select formControlName="supermarket_id" class="market-select">
-              <option [ngValue]="0">Qualsiasi supermercato</option>
-              <option *ngFor="let s of supermarkets" [ngValue]="s.id">
-                {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
-              </option>
-            </select>
-            <input type="text" formControlName="quantity" placeholder="Qt&agrave;" class="qty-input" />
-            <button (click)="addToList()" [disabled]="!selectedProductId || addItemForm.invalid" class="add-btn">+</button>
-          </div>
-
-          <div class="selected-info" *ngIf="selectedProductName">
-            Aggiungendo: <strong>{{ selectedProductName }}</strong>
-            <span (click)="deselectProduct()" class="clear-selection">&times;</span>
-          </div>
-        </div>
-
-        <div class="list-filter-row" [formGroup]="filterForm">
-          <label for="listFilterMarket">Filtro supermercato</label>
-          <select id="listFilterMarket" formControlName="listFilterSupermarketId">
-            <option [ngValue]="0">Mostra tutti i prodotti</option>
-            <option *ngFor="let s of supermarkets" [ngValue]="s.id">
-              {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
-            </option>
-          </select>
-          <small>I prodotti senza supermercato specifico sono sempre visibili.</small>
-        </div>
-
-        <ul class="shopping-list">
-          <li *ngFor="let item of filteredShoppingList" [class.checked]="!!item.is_checked">
-            <input type="checkbox" [checked]="!!item.is_checked" (change)="toggleItem(item)" />
-
-            <div class="item-img-container" *ngIf="item.image_url">
-              <img [src]="item.image_url" class="thumb" />
-            </div>
-
-            <div class="item-content" (click)="editItem(item)">
-              <span class="item-name">{{ item.product_name }}</span>
-              <span class="item-cat">{{ item.category_name }}</span>
-              <span class="item-market" *ngIf="item.supermarket_name">Solo: {{ item.supermarket_name }}</span>
-            </div>
-
-            <div class="item-actions">
-              <span class="qty-badge">{{ item.quantity }}</span>
-              <button class="delete-btn" (click)="deleteItem(item); $event.stopPropagation()">&times;</button>
-            </div>
-          </li>
-          <li *ngIf="filteredShoppingList.length === 0" class="muted">Nessun prodotto con il filtro selezionato</li>
-        </ul>
-      </section>
-    </div>
-
-    <!-- VIEW: RECORD PRICES -->
-    <div *ngSwitchCase="'prices'" class="grid">
-      <!-- List FIRST -->
-      <section class="card full-width">
-        <h2>Prezzi Registrati</h2>
-        <div class="search-box" [formGroup]="filterForm">
-          <input
-            type="text"
-            placeholder="Filtra per prodotto, categoria o supermercato..."
-            formControlName="priceListSearch"
-          />
-        </div>
-        <ul class="item-list price-history-list">
-          <li *ngFor="let group of groupedPrices" class="price-group-item">
-            <div class="price-main-row">
-              <div class="item-info">
-                <img
-                  *ngIf="group.latest.photo_path"
-                  [src]="group.latest.photo_path"
-                  class="thumb clickable"
-                  (click)="openImage(group.latest.photo_path)"
-                />
-                <div class="text-info">
-                  <span class="name">
-                    <span class="cat-prefix" *ngIf="group.category_name">{{ group.category_name }}</span>
-                    {{ group.product_name }}
-                  </span>
-                  <span class="market-info"
-                    >{{ group.supermarket_name }}{{ group.supermarket_location ? ' (' + group.supermarket_location + ')' : '' }}</span
-                  >
-                  <span class="price-meta">
-                    <strong>{{ group.latest.price | number: '1.2-2' }} &euro;</strong>
-                    <span *ngIf="group.latest.format">/ {{ group.latest.format }}</span>
-                    &bull; <small>{{ group.latest.created_at | date: 'dd/MM/yyyy' }}</small>
-                  </span>
-                </div>
-              </div>
-              <div class="group-actions">
-                <button
-                  *ngIf="group.history.length > 1"
-                  (click)="toggleGroup(group.key)"
-                  class="expand-btn"
-                  [class.rotated]="expandedGroups.has(group.key)"
-                >
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z" />
-                  </svg>
-                </button>
-                <button class="delete-btn-sm" (click)="deletePrice(group.latest)">&times;</button>
-              </div>
-            </div>
-
-            <div class="price-history-details" *ngIf="expandedGroups.has(group.key)">
-              <div class="history-item" *ngFor="let h of group.history.slice(1)">
-                <div class="h-info">
-                  <img
-                    *ngIf="h.photo_path"
-                    [src]="h.photo_path"
-                    class="thumb-sm clickable"
-                    (click)="openImage(h.photo_path)"
-                  />
-                  <span class="h-price"
-                    >{{ h.price | number: '1.2-2' }} &euro; <small *ngIf="h.format">({{ h.format }})</small></span
-                  >
-                  &bull; <small class="h-date">{{ h.created_at | date: 'dd/MM/yyyy' }}</small>
-                </div>
-                <button class="delete-btn-sm" (click)="deletePrice(h)">&times;</button>
-              </div>
-            </div>
-          </li>
-          <li *ngIf="groupedPrices.length === 0" class="muted">Nessun prezzo trovato</li>
-        </ul>
-      </section>
-
-      <!-- Form SECOND -->
-      <section class="card">
-        <h2>Registra Prezzo</h2>
-        <form (submit)="savePrice()" [formGroup]="priceForm" class="stacked-form">
-          <div class="form-group">
-            <label>Prodotto</label>
-            <div class="search-select">
-              <input
-                type="text"
-                formControlName="productSearchTerm"
-                (focus)="showPriceDropdown = true"
-                (blur)="hidePriceDropdown()"
-                placeholder="Cerca prodotto..."
-                class="search-input"
-                [disabled]="isUploading"
-              />
-              <div class="dropdown-list" *ngIf="showPriceDropdown">
-                <div class="dropdown-item" *ngFor="let p of sortedProducts(priceForm.get('productSearchTerm')?.value || '')" (click)="selectPriceProduct(p)">
-                  <span class="cat-prefix" *ngIf="p.category_name">{{ p.category_name }}</span> {{ p.name }}
-                </div>
-              </div>
-            </div>
-            <div class="selected-label" *ngIf="priceForm.get('product_id')?.value">
-              Selezionato: <strong>{{ getProductName(priceForm.get('product_id')?.value) }}</strong>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Supermercato</label>
-            <select formControlName="supermarket_id" required [disabled]="isUploading">
-              <option [value]="0" disabled>Seleziona supermercato...</option>
-              <option *ngFor="let s of supermarkets" [value]="s.id">
-                {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
-              </option>
-            </select>
-          </div>
-          <div class="form-row">
-            <div class="form-group flex-2">
-              <label>Prezzo (&euro;)</label>
-              <input
-                type="number"
-                step="0.01"
-                formControlName="price"
-                required
-                [disabled]="isUploading"
-              />
-            </div>
-            <div class="form-group flex-1">
-              <label>Formato</label>
-              <input
-                type="text"
-                formControlName="format"
-                placeholder="Es. 500g"
-                [disabled]="isUploading"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Foto Prezzo/Etichetta (Opzionale)</label>
-            <div class="photo-upload-row">
-              <img *ngIf="pricePreviewUrl" [src]="pricePreviewUrl" class="thumb-large" />
-              <input
-                type="file"
-                (change)="onPriceFileSelected($event)"
-                accept="image/*"
-                capture="environment"
-                class="file-input"
-                [disabled]="isUploading"
-              />
-            </div>
-          </div>
-
-          <button type="submit" class="btn-primary" [disabled]="!isPriceFormValid() || isUploading">
-            <span *ngIf="!isUploading">Salva Prezzo</span>
-            <span *ngIf="isUploading" class="spinner-inline">Salvataggio...</span>
-          </button>
-        </form>
-      </section>
-    </div>
-
-    <!-- VIEW: PRODUCTS AND CATEGORIES REGISTRY -->
-    <div *ngSwitchCase="'products'" class="grid">
-      <!-- Products Registry Section -->
-      <section class="card full-width">
-        <div class="card-header">
-          <h2>Anagrafica Prodotti</h2>
-          <button class="btn-primary btn-sm" (click)="showProductForm = true" *ngIf="!showProductForm">+ Nuovo</button>
-        </div>
-
-        <!-- Product Form (Integrated) -->
-        <div class="inline-form" *ngIf="showProductForm">
-          <h3 class="form-title">{{ editingProduct ? 'Modifica' : 'Nuovo' }} Prodotto</h3>
-          <form (submit)="saveProduct()" [formGroup]="productForm" class="stacked-form">
-            <div class="form-row">
-              <div class="form-group flex-2">
-                <label>Nome Prodotto</label>
+            <div class="add-item-container" [formGroup]="addItemForm">
+              <div class="search-select">
                 <input
                   type="text"
-                  formControlName="name"
-                  required
-                  placeholder="Nome prodotto"
-                  [disabled]="isUploading"
-                />
-              </div>
-              <div class="form-group flex-1">
-                <label>Categoria</label>
-                <select formControlName="category_id" required [disabled]="isUploading">
-                  <option [ngValue]="null" disabled>Scegli...</option>
-                  <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
-                </select>
-              </div>
+                  formControlName="productSearchTerm"
+                  (focus)="showProductDropdown = true"
+                  (blur)="hideProductDropdown()"
+                  placeholder="Cerca prodotto..."
+                  class="search-input"
+                  />
+                  @if (showProductDropdown) {
+                    <div class="dropdown-list">
+                      @for (p of sortedAndFilteredProducts; track p) {
+                        <div class="dropdown-item" (click)="selectProduct(p)">
+                          @if (p.category_name) {
+                            <span class="cat-prefix">{{ p.category_name }}</span>
+                            } {{ p.name }}
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                  <div class="add-controls">
+                    <select formControlName="supermarket_id" class="market-select">
+                      <option [ngValue]="0">Qualsiasi supermercato</option>
+                      @for (s of supermarkets; track s) {
+                        <option [ngValue]="s.id">
+                          {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+                        </option>
+                      }
+                    </select>
+                    <input type="text" formControlName="quantity" placeholder="Qt&agrave;" class="qty-input" />
+                    <button (click)="addToList()" [disabled]="!selectedProductId || addItemForm.invalid" class="add-btn">+</button>
+                  </div>
+                  @if (selectedProductName) {
+                    <div class="selected-info">
+                      Aggiungendo: <strong>{{ selectedProductName }}</strong>
+                      <span (click)="deselectProduct()" class="clear-selection">&times;</span>
+                    </div>
+                  }
+                </div>
+                <div class="list-filter-row" [formGroup]="filterForm">
+                  <label for="listFilterMarket">Filtro supermercato</label>
+                  <select id="listFilterMarket" formControlName="listFilterSupermarketId">
+                    <option [ngValue]="0">Mostra tutti i prodotti</option>
+                    @for (s of supermarkets; track s) {
+                      <option [ngValue]="s.id">
+                        {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+                      </option>
+                    }
+                  </select>
+                  <small>I prodotti senza supermercato specifico sono sempre visibili.</small>
+                </div>
+                <ul class="shopping-list">
+                  @for (item of filteredShoppingList; track item) {
+                    <li [class.checked]="!!item.is_checked">
+                      <input type="checkbox" [checked]="!!item.is_checked" (change)="toggleItem(item)" />
+                      @if (item.image_url) {
+                        <div class="item-img-container">
+                          <img [src]="item.image_url" class="thumb" />
+                        </div>
+                      }
+                      <div class="item-content" (click)="editItem(item)">
+                        <span class="item-name">{{ item.product_name }}</span>
+                        <span class="item-cat">{{ item.category_name }}</span>
+                        @if (item.supermarket_name) {
+                          <span class="item-market">Solo: {{ item.supermarket_name }}</span>
+                        }
+                      </div>
+                      <div class="item-actions">
+                        <span class="qty-badge">{{ item.quantity }}</span>
+                        <button class="delete-btn" (click)="deleteItem(item); $event.stopPropagation()">&times;</button>
+                      </div>
+                    </li>
+                  }
+                  @if (filteredShoppingList.length === 0) {
+                    <li class="muted">Nessun prodotto con il filtro selezionato</li>
+                  }
+                </ul>
+              </section>
             </div>
-            <div class="form-group">
-              <label>Foto Prodotto (Scatta o Scegli)</label>
-              <div class="photo-upload-row">
-                <img
-                  *ngIf="previewUrl || (editingProduct && editingProduct.image_url)"
-                  [src]="previewUrl || editingProduct?.image_url"
-                  class="thumb-large"
-                />
-                <input
-                  type="file"
-                  (change)="onFileSelected($event)"
-                  accept="image/*"
-                  capture="environment"
-                  class="file-input"
-                  [disabled]="isUploading"
-                />
-              </div>
-            </div>
-            <div class="btn-group-row">
-              <button
-                type="submit"
-                class="btn-primary"
-                [disabled]="productForm.invalid || isUploading"
-              >
-                <span *ngIf="!isUploading">{{ editingProduct ? 'Aggiorna' : 'Salva' }}</span>
-                <span *ngIf="isUploading" class="spinner-inline">Attendere...</span>
-              </button>
-              <button type="button" class="btn-secondary" (click)="cancelEditProduct()" [disabled]="isUploading">
-                Annulla
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div class="search-box" [formGroup]="filterForm">
-          <input type="text" placeholder="Filtra prodotti..." formControlName="productSearchTerm" />
-        </div>
-
-        <ul class="item-list">
-          <li *ngFor="let p of filteredProducts">
-            <div class="item-info clickable" (click)="startEditProduct(p)">
-              <img *ngIf="p.image_url" [src]="p.image_url" class="thumb" />
-              <div class="text-info">
-                <span class="name">{{ p.name }}</span>
-                <span class="category">{{ p.category_name || 'Nessuna' }}</span>
-              </div>
-            </div>
-            <button class="delete-btn-sm" (click)="deleteProduct(p); $event.stopPropagation()">&times;</button>
-          </li>
-        </ul>
-      </section>
-
-      <!-- Categories Section -->
-      <section class="card full-width">
-        <h2>Categorie</h2>
-        <form class="add-item-box" [formGroup]="categoryForm" (submit)="saveCategory()">
-          <input type="text" formControlName="name" placeholder="Nuova categoria..." />
-          <button type="submit" [disabled]="categoryForm.invalid">+</button>
-        </form>
-        <ul class="item-list horizontal-list">
-          <li *ngFor="let c of categories" class="tag-item">
-            <span (click)="editCategory(c)" class="clickable">{{ c.name }}</span>
-            <button class="delete-btn-sm" (click)="deleteCategory(c)">&times;</button>
-          </li>
-        </ul>
-      </section>
-
-      <!-- Supermarkets Section -->
-      <section class="card full-width">
-        <h2>Supermercati</h2>
-        <form class="add-item-box stacked-form" [formGroup]="supermarketForm" (submit)="saveSupermarket()">
-          <div class="form-row">
-            <input type="text" formControlName="name" placeholder="Nome supermercato..." class="flex-2" />
-            <input type="text" formControlName="location" placeholder="Località (opzionale)" class="flex-1" />
-          </div>
-          <button type="submit" class="btn-primary" [disabled]="supermarketForm.invalid">
-            {{ editingSupermarket ? 'Aggiorna' : 'Aggiungi' }} Supermercato
-          </button>
-          <button class="btn-secondary btn-sm" *ngIf="editingSupermarket" (click)="cancelEditSupermarket()">
-            Annulla
-          </button>
-        </form>
-        <ul class="item-list">
-          <li *ngFor="let s of supermarkets">
-            <div class="item-info clickable" (click)="startEditSupermarket(s)">
-              <div class="text-info">
-                <span class="name">{{ s.name }}</span>
-                <span class="category">{{ s.location || 'Nessuna località' }}</span>
-              </div>
-            </div>
-            <button class="delete-btn-sm" (click)="deleteSupermarket(s); $event.stopPropagation()">&times;</button>
-          </li>
-        </ul>
-      </section>
-    </div>
-  </main>
-</div>
+          }
+          <!-- VIEW: RECORD PRICES -->
+          @case ('prices') {
+            <div class="grid">
+              <!-- List FIRST -->
+              <section class="card full-width">
+                <h2>Prezzi Registrati</h2>
+                <div class="search-box" [formGroup]="filterForm">
+                  <input
+                    type="text"
+                    placeholder="Filtra per prodotto, categoria o supermercato..."
+                    formControlName="priceListSearch"
+                    />
+                  </div>
+                  <ul class="item-list price-history-list">
+                    @for (group of groupedPrices; track group) {
+                      <li class="price-group-item">
+                        <div class="price-main-row">
+                          <div class="item-info">
+                            @if (group.latest.photo_path) {
+                              <img
+                                [src]="group.latest.photo_path"
+                                class="thumb clickable"
+                                (click)="openImage(group.latest.photo_path)"
+                                />
+                            }
+                            <div class="text-info">
+                              <span class="name">
+                                @if (group.category_name) {
+                                  <span class="cat-prefix">{{ group.category_name }}</span>
+                                }
+                                {{ group.product_name }}
+                              </span>
+                              <span class="market-info"
+                                >{{ group.supermarket_name }}{{ group.supermarket_location ? ' (' + group.supermarket_location + ')' : '' }}</span
+                                >
+                                <span class="price-meta">
+                                  <strong>{{ group.latest.price | number: '1.2-2' }} &euro;</strong>
+                                  @if (group.latest.format) {
+                                    <span>/ {{ group.latest.format }}</span>
+                                  }
+                                  &bull; <small>{{ group.latest.created_at | date: 'dd/MM/yyyy' }}</small>
+                                </span>
+                              </div>
+                            </div>
+                            <div class="group-actions">
+                              @if (group.history.length > 1) {
+                                <button
+                                  (click)="toggleGroup(group.key)"
+                                  class="expand-btn"
+                                  [class.rotated]="expandedGroups.has(group.key)"
+                                  >
+                                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                                    <path d="M7 10l5 5 5-5z" />
+                                  </svg>
+                                </button>
+                              }
+                              <button class="delete-btn-sm" (click)="deletePrice(group.latest)">&times;</button>
+                            </div>
+                          </div>
+                          @if (expandedGroups.has(group.key)) {
+                            <div class="price-history-details">
+                              @for (h of group.history.slice(1); track h) {
+                                <div class="history-item">
+                                  <div class="h-info">
+                                    @if (h.photo_path) {
+                                      <img
+                                        [src]="h.photo_path"
+                                        class="thumb-sm clickable"
+                                        (click)="openImage(h.photo_path)"
+                                        />
+                                    }
+                                    <span class="h-price"
+                                      >{{ h.price | number: '1.2-2' }} &euro; @if (h.format) {
+                                      <small>({{ h.format }})</small>
+                                      }</span
+                                      >
+                                      &bull; <small class="h-date">{{ h.created_at | date: 'dd/MM/yyyy' }}</small>
+                                    </div>
+                                    <button class="delete-btn-sm" (click)="deletePrice(h)">&times;</button>
+                                  </div>
+                                }
+                              </div>
+                            }
+                          </li>
+                        }
+                        @if (groupedPrices.length === 0) {
+                          <li class="muted">Nessun prezzo trovato</li>
+                        }
+                      </ul>
+                    </section>
+                    <!-- Form SECOND -->
+                    <section class="card">
+                      <h2>Registra Prezzo</h2>
+                      <form (submit)="savePrice()" [formGroup]="priceForm" class="stacked-form">
+                        <div class="form-group">
+                          <label>Prodotto</label>
+                          <div class="search-select">
+                            <input
+                              type="text"
+                              formControlName="productSearchTerm"
+                              (focus)="showPriceDropdown = true"
+                              (blur)="hidePriceDropdown()"
+                              placeholder="Cerca prodotto..."
+                              class="search-input"
+                              [disabled]="isUploading"
+                              />
+                              @if (showPriceDropdown) {
+                                <div class="dropdown-list">
+                                  @for (p of sortedProducts(priceForm.get('productSearchTerm')?.value || ''); track p) {
+                                    <div class="dropdown-item" (click)="selectPriceProduct(p)">
+                                      @if (p.category_name) {
+                                        <span class="cat-prefix">{{ p.category_name }}</span>
+                                        } {{ p.name }}
+                                      </div>
+                                    }
+                                  </div>
+                                }
+                              </div>
+                              @if (priceForm.get('product_id')?.value) {
+                                <div class="selected-label">
+                                  Selezionato: <strong>{{ getProductName(priceForm.get('product_id')?.value) }}</strong>
+                                </div>
+                              }
+                            </div>
+                            <div class="form-group">
+                              <label>Supermercato</label>
+                              <select formControlName="supermarket_id" required [disabled]="isUploading">
+                                <option [value]="0" disabled>Seleziona supermercato...</option>
+                                @for (s of supermarkets; track s) {
+                                  <option [value]="s.id">
+                                    {{ s.name }}{{ s.location ? ' (' + s.location + ')' : '' }}
+                                  </option>
+                                }
+                              </select>
+                            </div>
+                            <div class="form-row">
+                              <div class="form-group flex-2">
+                                <label>Prezzo (&euro;)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  formControlName="price"
+                                  required
+                                  [disabled]="isUploading"
+                                  />
+                                </div>
+                                <div class="form-group flex-1">
+                                  <label>Formato</label>
+                                  <input
+                                    type="text"
+                                    formControlName="format"
+                                    placeholder="Es. 500g"
+                                    [disabled]="isUploading"
+                                    />
+                                  </div>
+                                </div>
+                                <div class="form-group">
+                                  <label>Foto Prezzo/Etichetta (Opzionale)</label>
+                                  <div class="photo-upload-row">
+                                    @if (pricePreviewUrl) {
+                                      <img [src]="pricePreviewUrl" class="thumb-large" />
+                                    }
+                                    <input
+                                      type="file"
+                                      (change)="onPriceFileSelected($event)"
+                                      accept="image/*"
+                                      capture="environment"
+                                      class="file-input"
+                                      [disabled]="isUploading"
+                                      />
+                                    </div>
+                                  </div>
+                                  <button type="submit" class="btn-primary" [disabled]="!isPriceFormValid() || isUploading">
+                                    @if (!isUploading) {
+                                      <span>Salva Prezzo</span>
+                                    }
+                                    @if (isUploading) {
+                                      <span class="spinner-inline">Salvataggio...</span>
+                                    }
+                                  </button>
+                                </form>
+                              </section>
+                            </div>
+                          }
+                          <!-- VIEW: PRODUCTS AND CATEGORIES REGISTRY -->
+                          @case ('products') {
+                            <div class="grid">
+                              <!-- Products Registry Section -->
+                              <section class="card full-width">
+                                <div class="card-header">
+                                  <h2>Anagrafica Prodotti</h2>
+                                  @if (!showProductForm) {
+                                    <button class="btn-primary btn-sm" (click)="showProductForm = true">+ Nuovo</button>
+                                  }
+                                </div>
+                                <!-- Product Form (Integrated) -->
+                                @if (showProductForm) {
+                                  <div class="inline-form">
+                                    <h3 class="form-title">{{ editingProduct ? 'Modifica' : 'Nuovo' }} Prodotto</h3>
+                                    <form (submit)="saveProduct()" [formGroup]="productForm" class="stacked-form">
+                                      <div class="form-row">
+                                        <div class="form-group flex-2">
+                                          <label>Nome Prodotto</label>
+                                          <input
+                                            type="text"
+                                            formControlName="name"
+                                            required
+                                            placeholder="Nome prodotto"
+                                            [disabled]="isUploading"
+                                            />
+                                          </div>
+                                          <div class="form-group flex-1">
+                                            <label>Categoria</label>
+                                            <select formControlName="category_id" required [disabled]="isUploading">
+                                              <option [ngValue]="null" disabled>Scegli...</option>
+                                              @for (c of categories; track c) {
+                                                <option [ngValue]="c.id">{{ c.name }}</option>
+                                              }
+                                            </select>
+                                          </div>
+                                        </div>
+                                        <div class="form-group">
+                                          <label>Foto Prodotto (Scatta o Scegli)</label>
+                                          <div class="photo-upload-row">
+                                            @if (previewUrl || (editingProduct && editingProduct.image_url)) {
+                                              <img
+                                                [src]="previewUrl || editingProduct?.image_url"
+                                                class="thumb-large"
+                                                />
+                                            }
+                                            <input
+                                              type="file"
+                                              (change)="onFileSelected($event)"
+                                              accept="image/*"
+                                              capture="environment"
+                                              class="file-input"
+                                              [disabled]="isUploading"
+                                              />
+                                            </div>
+                                          </div>
+                                          <div class="btn-group-row">
+                                            <button
+                                              type="submit"
+                                              class="btn-primary"
+                                              [disabled]="productForm.invalid || isUploading"
+                                              >
+                                              @if (!isUploading) {
+                                                <span>{{ editingProduct ? 'Aggiorna' : 'Salva' }}</span>
+                                              }
+                                              @if (isUploading) {
+                                                <span class="spinner-inline">Attendere...</span>
+                                              }
+                                            </button>
+                                            <button type="button" class="btn-secondary" (click)="cancelEditProduct()" [disabled]="isUploading">
+                                              Annulla
+                                            </button>
+                                          </div>
+                                        </form>
+                                      </div>
+                                    }
+                                    <div class="search-box" [formGroup]="filterForm">
+                                      <input type="text" placeholder="Filtra prodotti..." formControlName="productSearchTerm" />
+                                    </div>
+                                    <ul class="item-list">
+                                      @for (p of filteredProducts; track p) {
+                                        <li>
+                                          <div class="item-info clickable" (click)="startEditProduct(p)">
+                                            @if (p.image_url) {
+                                              <img [src]="p.image_url" class="thumb" />
+                                            }
+                                            <div class="text-info">
+                                              <span class="name">{{ p.name }}</span>
+                                              <span class="category">{{ p.category_name || 'Nessuna' }}</span>
+                                            </div>
+                                          </div>
+                                          <button class="delete-btn-sm" (click)="deleteProduct(p); $event.stopPropagation()">&times;</button>
+                                        </li>
+                                      }
+                                    </ul>
+                                  </section>
+                                  <!-- Categories Section -->
+                                  <section class="card full-width">
+                                    <h2>Categorie</h2>
+                                    <form class="add-item-box" [formGroup]="categoryForm" (submit)="saveCategory()">
+                                      <input type="text" formControlName="name" placeholder="Nuova categoria..." />
+                                      <button type="submit" [disabled]="categoryForm.invalid">+</button>
+                                    </form>
+                                    <ul class="item-list horizontal-list">
+                                      @for (c of categories; track c) {
+                                        <li class="tag-item">
+                                          <span (click)="editCategory(c)" class="clickable">{{ c.name }}</span>
+                                          <button class="delete-btn-sm" (click)="deleteCategory(c)">&times;</button>
+                                        </li>
+                                      }
+                                    </ul>
+                                  </section>
+                                  <!-- Supermarkets Section -->
+                                  <section class="card full-width">
+                                    <h2>Supermercati</h2>
+                                    <form class="add-item-box stacked-form" [formGroup]="supermarketForm" (submit)="saveSupermarket()">
+                                      <div class="form-row">
+                                        <input type="text" formControlName="name" placeholder="Nome supermercato..." class="flex-2" />
+                                        <input type="text" formControlName="location" placeholder="Località (opzionale)" class="flex-1" />
+                                      </div>
+                                      <button type="submit" class="btn-primary" [disabled]="supermarketForm.invalid">
+                                        {{ editingSupermarket ? 'Aggiorna' : 'Aggiungi' }} Supermercato
+                                      </button>
+                                      @if (editingSupermarket) {
+                                        <button class="btn-secondary btn-sm" (click)="cancelEditSupermarket()">
+                                          Annulla
+                                        </button>
+                                      }
+                                    </form>
+                                    <ul class="item-list">
+                                      @for (s of supermarkets; track s) {
+                                        <li>
+                                          <div class="item-info clickable" (click)="startEditSupermarket(s)">
+                                            <div class="text-info">
+                                              <span class="name">{{ s.name }}</span>
+                                              <span class="category">{{ s.location || 'Nessuna località' }}</span>
+                                            </div>
+                                          </div>
+                                          <button class="delete-btn-sm" (click)="deleteSupermarket(s); $event.stopPropagation()">&times;</button>
+                                        </li>
+                                      }
+                                    </ul>
+                                  </section>
+                                </div>
+                              }
+                            }
+                          </main>
+                        </div>

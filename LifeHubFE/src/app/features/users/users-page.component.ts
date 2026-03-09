@@ -4,9 +4,10 @@ import { HubManagedUser, UsersService } from './users.service';
 import { CalendarsService, HubCalendar } from '../calendar/calendars.service';
 
 @Component({
-  selector: 'app-users-page',
-  templateUrl: './users-page.component.html',
-  styleUrls: ['./users-page.component.css']
+    selector: 'app-users-page',
+    templateUrl: './users-page.component.html',
+    styleUrls: ['./users-page.component.css'],
+    standalone: false
 })
 export class UsersPageComponent implements OnInit {
   users: HubManagedUser[] = [];

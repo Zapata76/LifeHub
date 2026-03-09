@@ -3,9 +3,10 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { MealsService, MealPlan, Recipe } from './meals.service';
 
 @Component({
-  selector: 'app-meals-page',
-  templateUrl: './meals-page.component.html',
-  styleUrls: ['./meals-page.component.css']
+    selector: 'app-meals-page',
+    templateUrl: './meals-page.component.html',
+    styleUrls: ['./meals-page.component.css'],
+    standalone: false
 })
 export class MealsPageComponent implements OnInit {
   weekDays: Date[] = [];

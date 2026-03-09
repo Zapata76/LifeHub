@@ -5,9 +5,10 @@ import { DocumentsService, HubDocument } from '../documents/documents.service';
 import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
-  selector: 'app-inventory-page',
-  templateUrl: './inventory-page.component.html',
-  styleUrls: ['./inventory-page.component.css']
+    selector: 'app-inventory-page',
+    templateUrl: './inventory-page.component.html',
+    styleUrls: ['./inventory-page.component.css'],
+    standalone: false
 })
 export class InventoryPageComponent implements OnInit {
   items: InventoryItem[] = [];

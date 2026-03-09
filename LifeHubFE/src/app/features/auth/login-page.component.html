@@ -1,7 +1,9 @@
 <div class="wrap">
   <form class="card" [formGroup]="loginForm" (submit)="doLogin($event)">
     <h1>{{ appTitle }}</h1>
-    <p class="err" *ngIf="error">{{ error }}</p>
+    @if (error) {
+      <p class="err">{{ error }}</p>
+    }
     <label>Username</label>
     <input type="text" formControlName="username">
     <label>Password</label>

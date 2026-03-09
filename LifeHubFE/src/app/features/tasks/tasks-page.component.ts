@@ -3,9 +3,10 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { TasksService, Task, FamilyMember } from './tasks.service';
 
 @Component({
-  selector: 'app-tasks-page',
-  templateUrl: './tasks-page.component.html',
-  styleUrls: ['./tasks-page.component.css']
+    selector: 'app-tasks-page',
+    templateUrl: './tasks-page.component.html',
+    styleUrls: ['./tasks-page.component.css'],
+    standalone: false
 })
 export class TasksPageComponent implements OnInit {
   tasks: Task[] = [];

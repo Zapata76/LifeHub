@@ -6,9 +6,10 @@ import { RuntimeConfigService } from '../../core/runtime-config.service';
 import { CalendarsService, HubCalendar } from './calendars.service';
 
 @Component({
-  selector: 'app-calendar-page',
-  templateUrl: './calendar-page.component.html',
-  styleUrls: ['./calendar-page.component.css']
+    selector: 'app-calendar-page',
+    templateUrl: './calendar-page.component.html',
+    styleUrls: ['./calendar-page.component.css'],
+    standalone: false
 })
 export class CalendarPageComponent implements OnInit {
   user$: Observable<HubUser | null>;

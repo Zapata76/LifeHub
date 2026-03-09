@@ -3,9 +3,10 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
-  selector: 'app-logout-page',
-  templateUrl: './logout-page.component.html',
-  styleUrls: ['./logout-page.component.css']
+    selector: 'app-logout-page',
+    templateUrl: './logout-page.component.html',
+    styleUrls: ['./logout-page.component.css'],
+    standalone: false
 })
 export class LogoutPageComponent implements OnInit {
   constructor(private auth: AuthService, private router: Router) {}

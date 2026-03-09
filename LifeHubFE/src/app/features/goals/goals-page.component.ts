@@ -5,9 +5,10 @@ import { AuthService, HubUser } from '../../core/auth.service';
 import { TasksService, FamilyMember } from '../tasks/tasks.service';
 
 @Component({
-  selector: 'app-goals-page',
-  templateUrl: './goals-page.component.html',
-  styleUrls: ['./goals-page.component.css']
+    selector: 'app-goals-page',
+    templateUrl: './goals-page.component.html',
+    styleUrls: ['./goals-page.component.css'],
+    standalone: false
 })
 export class GoalsPageComponent implements OnInit {
   goals: Goal[] = [];

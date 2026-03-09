@@ -5,9 +5,10 @@ import { AuthService } from '../../core/auth.service';
 import { RuntimeConfigService } from '../../core/runtime-config.service';
 
 @Component({
-  selector: 'app-login-page',
-  templateUrl: './login-page.component.html',
-  styleUrls: ['./login-page.component.css']
+    selector: 'app-login-page',
+    templateUrl: './login-page.component.html',
+    styleUrls: ['./login-page.component.css'],
+    standalone: false
 })
 export class LoginPageComponent implements OnInit {
   appTitle = 'Life Hub';

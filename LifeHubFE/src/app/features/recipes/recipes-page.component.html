@@ -15,14 +15,15 @@
       <div class="header-row header-bottom">
         <div class="header-controls">
           <div class="user-filters">
-            <button
-              *ngFor="let m of members"
-              class="filter-btn"
-              [class.inactive]="userFilters[m.username] === false"
-              (click)="toggleUserFilter(m.username)"
-            >
-              {{ m.username }}
-            </button>
+            @for (m of members; track m) {
+              <button
+                class="filter-btn"
+                [class.inactive]="userFilters[m.username] === false"
+                (click)="toggleUserFilter(m.username)"
+                >
+                {{ m.username }}
+              </button>
+            }
           </div>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
@@ -42,195 +43,232 @@
           formControlName="searchTerm"
           (input)="loadRecipes()"
           placeholder="Cerca per titolo, autore, testo..."
-        />
-        <select formControlName="selectedCategory" (change)="loadRecipes()">
-          <option value="">Tutte le categorie</option>
-          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
-        </select>
-      </div>
-
-      <ul class="recipe-list">
-        <li
-          *ngFor="let recipe of getFilteredRecipes()"
-          [class.active]="editingRecipe && editingRecipe.id === recipe.id"
-          (click)="selectRecipe(recipe.id!)"
-        >
-          <div class="recipe-row">
-            <img *ngIf="recipe.image_url" [src]="recipe.image_url" class="recipe-thumb" />
-            <div class="recipe-info">
-              <div class="recipe-name">{{ recipe.name }}</div>
-              <div class="recipe-meta">
-                <span *ngIf="recipe.category">{{ recipe.category }}</span>
-                <span *ngIf="recipe.prep_time_minutes">{{ recipe.prep_time_minutes }} min</span>
-                <span *ngIf="recipe.difficulty">{{ recipe.difficulty }}</span>
-              </div>
-            </div>
-          </div>
-        </li>
-        <li *ngIf="getFilteredRecipes().length === 0" class="muted">Nessuna ricetta trovata</li>
-      </ul>
-    </section>
-
-    <section class="card editor-panel">
-      <!-- VIEW MODE -->
-      <div *ngIf="!isEditingMode && editingRecipe.id">
-        <div class="recipe-detail-header">
-          <h2>{{ editingRecipe.name }}</h2>
-          <div class="recipe-detail-meta">
-            <span class="badge" *ngIf="editingRecipe.category">{{ editingRecipe.category }}</span>
-            <span class="meta-item" *ngIf="editingRecipe.prep_time_minutes">⏱️ {{ editingRecipe.prep_time_minutes }} min</span>
-            <span class="meta-item difficulty-tag" [ngClass]="editingRecipe.difficulty">📊 {{ editingRecipe.difficulty }}</span>
-            <span class="meta-item" *ngIf="editingRecipe.author_name">✍️ {{ editingRecipe.author_name }}</span>
-          </div>
+          />
+          <select formControlName="selectedCategory" (change)="loadRecipes()">
+            <option value="">Tutte le categorie</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+          </select>
         </div>
 
-        <div class="recipe-detail-content">
-          <div class="detail-photo-container" *ngIf="editingRecipe.image_url">
-            <img [src]="editingRecipe.image_url" class="recipe-detail-photo" />
-          </div>
-
-          <div class="detail-section">
-            <h3>Ingredienti</h3>
-            <ul class="detail-ingredients">
-              <li *ngFor="let ing of editingRecipe.ingredients">
-                <span class="ing-qty">{{ ing.quantity }}</span>
-                <span class="ing-name">{{ ing.ingredient_name }}</span>
-              </li>
-            </ul>
-          </div>
-
-          <div class="detail-section">
-            <h3>Procedimento</h3>
-            <div class="instructions-display">{{ editingRecipe.instructions }}</div>
-          </div>
-        </div>
-
-        <div class="footer-actions">
-          <button class="btn-primary" (click)="isEditingMode = true">Modifica</button>
-          <button class="btn-danger" (click)="deleteRecipe()">Elimina</button>
-        </div>
-      </div>
-
-      <!-- EDIT MODE -->
-      <div *ngIf="isEditingMode || !editingRecipe.id" [formGroup]="recipeForm">
-        <h2>{{ editingRecipe?.id ? 'Modifica Ricetta' : 'Nuova Ricetta' }}</h2>
-        <div class="form-grid">
-          <div class="form-group col-2">
-            <label>Titolo</label>
-            <input type="text" formControlName="name" placeholder="Es. Lasagna della domenica" />
-          </div>
-          <div class="form-group">
-            <label>Categoria</label>
-            <input type="text" formControlName="category" placeholder="primo, secondo, dolce..." />
-          </div>
-          <div class="form-group">
-            <label>Tempo (min)</label>
-            <input type="number" formControlName="prep_time_minutes" min="1" />
-          </div>
-          <div class="form-group">
-            <label>Difficolta</label>
-            <select formControlName="difficulty">
-              <option value="bassa">bassa</option>
-              <option value="media">media</option>
-              <option value="alta">alta</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Ingredienti (lista strutturata)</label>
-          <div class="ingredients-table" formArrayName="ingredients">
-            <div class="ingredient-row head">
-              <span>Prodotto</span>
-              <span>Ingrediente libero</span>
-              <span>Quantita</span>
-              <span></span>
-            </div>
-            <div class="ingredient-row" *ngFor="let ingredient of ingredients.controls; let i = index" [formGroupName]="i">
-              <div class="product-search" (click)="$event.stopPropagation()">
-                <input
-                  type="text"
-                  [value]="getIngredientProductSearchValue(i)"
-                  (input)="onIngredientProductSearchChange(i, $event.target.value)"
-                  (focus)="openIngredientProductDropdown(i)"
-                  placeholder="Cerca prodotto..."
-                />
-                <div class="ingredient-dropdown" *ngIf="activeIngredientDropdown === i">
-                  <div class="dropdown-item" (click)="clearIngredientProduct(i)">Nessun prodotto</div>
-                  <div
-                    class="dropdown-item"
-                    *ngFor="let product of filteredProductsCatalog(i)"
-                    (click)="selectIngredientProduct(i, product)"
-                  >
-                    <span class="cat-prefix">{{ product.category_name }}</span> - {{ product.name }}
+        <ul class="recipe-list">
+          @for (recipe of getFilteredRecipes(); track recipe) {
+            <li
+              [class.active]="editingRecipe && editingRecipe.id === recipe.id"
+              (click)="selectRecipe(recipe.id!)"
+              >
+              <div class="recipe-row">
+                @if (recipe.image_url) {
+                  <img [src]="recipe.image_url" class="recipe-thumb" />
+                }
+                <div class="recipe-info">
+                  <div class="recipe-name">{{ recipe.name }}</div>
+                  <div class="recipe-meta">
+                    @if (recipe.category) {
+                      <span>{{ recipe.category }}</span>
+                    }
+                    @if (recipe.prep_time_minutes) {
+                      <span>{{ recipe.prep_time_minutes }} min</span>
+                    }
+                    @if (recipe.difficulty) {
+                      <span>{{ recipe.difficulty }}</span>
+                    }
                   </div>
                 </div>
               </div>
-              <input
-                type="text"
-                formControlName="ingredient_name"
-                [readonly]="!!ingredient.get('product_id')?.value"
-                [placeholder]="ingredient.get('product_id')?.value ? 'Automatico' : 'Ingrediente'"
-              />
-              <input type="text" formControlName="quantity" placeholder="Qt&agrave;" />
-              <button class="btn-danger" (click)="removeIngredient(i)">x</button>
+            </li>
+          }
+          @if (getFilteredRecipes().length === 0) {
+            <li class="muted">Nessuna ricetta trovata</li>
+          }
+        </ul>
+      </section>
+
+      <section class="card editor-panel">
+        <!-- VIEW MODE -->
+        @if (!isEditingMode && editingRecipe.id) {
+          <div>
+            <div class="recipe-detail-header">
+              <h2>{{ editingRecipe.name }}</h2>
+              <div class="recipe-detail-meta">
+                @if (editingRecipe.category) {
+                  <span class="badge">{{ editingRecipe.category }}</span>
+                }
+                @if (editingRecipe.prep_time_minutes) {
+                  <span class="meta-item">⏱️ {{ editingRecipe.prep_time_minutes }} min</span>
+                }
+                <span class="meta-item difficulty-tag" [ngClass]="editingRecipe.difficulty">📊 {{ editingRecipe.difficulty }}</span>
+                @if (editingRecipe.author_name) {
+                  <span class="meta-item">✍️ {{ editingRecipe.author_name }}</span>
+                }
+              </div>
+            </div>
+            <div class="recipe-detail-content">
+              @if (editingRecipe.image_url) {
+                <div class="detail-photo-container">
+                  <img [src]="editingRecipe.image_url" class="recipe-detail-photo" />
+                </div>
+              }
+              <div class="detail-section">
+                <h3>Ingredienti</h3>
+                <ul class="detail-ingredients">
+                  @for (ing of editingRecipe.ingredients; track ing) {
+                    <li>
+                      <span class="ing-qty">{{ ing.quantity }}</span>
+                      <span class="ing-name">{{ ing.ingredient_name }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+              <div class="detail-section">
+                <h3>Procedimento</h3>
+                <div class="instructions-display">{{ editingRecipe.instructions }}</div>
+              </div>
+            </div>
+            <div class="footer-actions">
+              <button class="btn-primary" (click)="isEditingMode = true">Modifica</button>
+              <button class="btn-danger" (click)="deleteRecipe()">Elimina</button>
             </div>
           </div>
-          <button class="btn-secondary btn-sm" (click)="addIngredient()">+ aggiungi ingrediente</button>
-        </div>
+        }
 
-        <div class="form-group">
-          <label>Procedimento</label>
-          <textarea formControlName="instructions" placeholder="Descrivi i passaggi della ricetta"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Foto Ricetta</label>
-          <div class="photo-upload-container">
-            <div class="photo-preview-wrapper" *ngIf="previewUrl || editingRecipe.image_url">
-              <img [src]="previewUrl || editingRecipe.image_url" class="recipe-photo-preview" />
-              <button class="remove-photo-btn" (click)="removePhoto()" title="Rimuovi foto">&times;</button>
+        <!-- EDIT MODE -->
+        @if (isEditingMode || !editingRecipe.id) {
+          <div [formGroup]="recipeForm">
+            <h2>{{ editingRecipe?.id ? 'Modifica Ricetta' : 'Nuova Ricetta' }}</h2>
+            <div class="form-grid">
+              <div class="form-group col-2">
+                <label>Titolo</label>
+                <input type="text" formControlName="name" placeholder="Es. Lasagna della domenica" />
+              </div>
+              <div class="form-group">
+                <label>Categoria</label>
+                <input type="text" formControlName="category" placeholder="primo, secondo, dolce..." />
+              </div>
+              <div class="form-group">
+                <label>Tempo (min)</label>
+                <input type="number" formControlName="prep_time_minutes" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Difficolta</label>
+                <select formControlName="difficulty">
+                  <option value="bassa">bassa</option>
+                  <option value="media">media</option>
+                  <option value="alta">alta</option>
+                </select>
+              </div>
             </div>
-            <div class="upload-controls" *ngIf="!previewUrl && !editingRecipe.image_url">
-              <label class="upload-btn">
-                <span class="icon">📁</span> Galleria
-                <input type="file" (change)="onFileSelected($event)" accept="image/*" hidden />
-              </label>
-
-              <!-- Mobile Camera -->
-              <label class="upload-btn" *ngIf="hasCamera && isMobileDevice">
-                <span class="icon">📷</span> Fotocamera
-                <input type="file" (change)="onFileSelected($event)" accept="image/*" capture="environment" hidden />
-              </label>
-
-              <!-- PC Webcam -->
-              <button type="button" class="upload-btn" *ngIf="hasCamera && !isMobileDevice" (click)="startWebcam()">
-                <span class="icon">📷</span> Webcam
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Webcam Overlay -->
-        <div class="webcam-overlay" *ngIf="isWebcamActive">
-          <div class="webcam-container">
-            <video #webcamVideo autoplay playsinline></video>
-            <div class="webcam-actions">
-              <button type="button" class="btn-primary" (click)="captureWebcam()">Scatta Foto</button>
-              <button type="button" class="btn-secondary" (click)="stopWebcam()">Chiudi</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="footer-actions">
-          <button class="btn-primary" (click)="saveRecipe()" [disabled]="recipeForm.invalid || isSaving">
-            <span *ngIf="!isSaving">Salva ricetta</span>
-            <span *ngIf="isSaving" class="spinner-inline">Attendere...</span>
-          </button>
-          <button class="btn-secondary" (click)="cancelEdit()" [disabled]="isSaving">Annulla</button>
-          <button class="btn-danger" *ngIf="editingRecipe.id" (click)="deleteRecipe()">Elimina</button>
-        </div>
+            <div class="form-group">
+              <label>Ingredienti (lista strutturata)</label>
+              <div class="ingredients-table" formArrayName="ingredients">
+                <div class="ingredient-row head">
+                  <span>Prodotto</span>
+                  <span>Ingrediente libero</span>
+                  <span>Quantita</span>
+                  <span></span>
+                </div>
+                @for (ingredient of ingredients.controls; track ingredient; let i = $index) {
+                  <div class="ingredient-row" [formGroupName]="i">
+                    <div class="product-search" (click)="$event.stopPropagation()">
+                      <input
+                        type="text"
+                        [value]="getIngredientProductSearchValue(i)"
+                        (input)="onIngredientProductSearchChange(i, $event.target.value)"
+                        (focus)="openIngredientProductDropdown(i)"
+                        placeholder="Cerca prodotto..."
+                        />
+                        @if (activeIngredientDropdown === i) {
+                          <div class="ingredient-dropdown">
+                            <div class="dropdown-item" (click)="clearIngredientProduct(i)">Nessun prodotto</div>
+                            @for (product of filteredProductsCatalog(i); track product) {
+                              <div
+                                class="dropdown-item"
+                                (click)="selectIngredientProduct(i, product)"
+                                >
+                                <span class="cat-prefix">{{ product.category_name }}</span> - {{ product.name }}
+                              </div>
+                            }
+                          </div>
+                        }
+                      </div>
+                      <input
+                        type="text"
+                        formControlName="ingredient_name"
+                        [readonly]="!!ingredient.get('product_id')?.value"
+                        [placeholder]="ingredient.get('product_id')?.value ? 'Automatico' : 'Ingrediente'"
+                        />
+                        <input type="text" formControlName="quantity" placeholder="Qt&agrave;" />
+                        <button class="btn-danger" (click)="removeIngredient(i)">x</button>
+                      </div>
+                    }
+                  </div>
+                  <button class="btn-secondary btn-sm" (click)="addIngredient()">+ aggiungi ingrediente</button>
+                </div>
+                <div class="form-group">
+                  <label>Procedimento</label>
+                  <textarea formControlName="instructions" placeholder="Descrivi i passaggi della ricetta"></textarea>
+                </div>
+                <div class="form-group">
+                  <label>Foto Ricetta</label>
+                  <div class="photo-upload-container">
+                    @if (previewUrl || editingRecipe.image_url) {
+                      <div class="photo-preview-wrapper">
+                        <img [src]="previewUrl || editingRecipe.image_url" class="recipe-photo-preview" />
+                        <button class="remove-photo-btn" (click)="removePhoto()" title="Rimuovi foto">&times;</button>
+                      </div>
+                    }
+                    @if (!previewUrl && !editingRecipe.image_url) {
+                      <div class="upload-controls">
+                        <label class="upload-btn">
+                          <span class="icon">📁</span> Galleria
+                          <input type="file" (change)="onFileSelected($event)" accept="image/*" hidden />
+                        </label>
+                        <!-- Mobile Camera -->
+                        @if (hasCamera && isMobileDevice) {
+                          <label class="upload-btn">
+                            <span class="icon">📷</span> Fotocamera
+                            <input type="file" (change)="onFileSelected($event)" accept="image/*" capture="environment" hidden />
+                          </label>
+                        }
+                        <!-- PC Webcam -->
+                        @if (hasCamera && !isMobileDevice) {
+                          <button type="button" class="upload-btn" (click)="startWebcam()">
+                            <span class="icon">📷</span> Webcam
+                          </button>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+                <!-- Webcam Overlay -->
+                @if (isWebcamActive) {
+                  <div class="webcam-overlay">
+                    <div class="webcam-container">
+                      <video #webcamVideo autoplay playsinline></video>
+                      <div class="webcam-actions">
+                        <button type="button" class="btn-primary" (click)="captureWebcam()">Scatta Foto</button>
+                        <button type="button" class="btn-secondary" (click)="stopWebcam()">Chiudi</button>
+                      </div>
+                    </div>
+                  </div>
+                }
+                <div class="footer-actions">
+                  <button class="btn-primary" (click)="saveRecipe()" [disabled]="recipeForm.invalid || isSaving">
+                    @if (!isSaving) {
+                      <span>Salva ricetta</span>
+                    }
+                    @if (isSaving) {
+                      <span class="spinner-inline">Attendere...</span>
+                    }
+                  </button>
+                  <button class="btn-secondary" (click)="cancelEdit()" [disabled]="isSaving">Annulla</button>
+                  @if (editingRecipe.id) {
+                    <button class="btn-danger" (click)="deleteRecipe()">Elimina</button>
+                  }
+                </div>
+              </div>
+            }
+          </section>
+        </main>
       </div>
-    </section>
-  </main>
-</div>

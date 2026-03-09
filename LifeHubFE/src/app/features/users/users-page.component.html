@@ -24,91 +24,103 @@
 
   <main>
     <section class="card">
-    <h2>Nuovo Utente</h2>
-    <p class="status" [class.err]="statusMode === 'err'" [class.ok]="statusMode === 'ok'">{{ status }}</p>
-    <form class="row" [formGroup]="userForm" (submit)="create()" autocomplete="off">
-      <input formControlName="username" placeholder="Username" autocomplete="new-username" />
-      <input
-        formControlName="password"
-        placeholder="Password"
-        type="password"
-        autocomplete="new-password"
-      />
-      <select formControlName="role">
-        <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
-      </select>
-      <button type="submit" [disabled]="userForm.invalid">Crea</button>
-    </form>
-  </section>
+      <h2>Nuovo Utente</h2>
+      <p class="status" [class.err]="statusMode === 'err'" [class.ok]="statusMode === 'ok'">{{ status }}</p>
+      <form class="row" [formGroup]="userForm" (submit)="create()" autocomplete="off">
+        <input formControlName="username" placeholder="Username" autocomplete="new-username" />
+        <input
+          formControlName="password"
+          placeholder="Password"
+          type="password"
+          autocomplete="new-password"
+          />
+          <select formControlName="role">
+            @for (r of roles; track r) {
+              <option [value]="r">{{ r }}</option>
+            }
+          </select>
+          <button type="submit" [disabled]="userForm.invalid">Crea</button>
+        </form>
+      </section>
 
-  <section class="card">
-    <h2>Utenti</h2>
-    <div class="table-container">
-      <table class="users-table">
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Ruolo</th>
-          <th>Calendari associati</th>
-          <th>Azioni</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of users">
-          <td>{{ u.username }}</td>
-          <td>
-            <select [(ngModel)]="u.role" [ngModelOptions]="{standalone: true}">
-              <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
-            </select>
-          </td>
-          <td>
-            <div class="calendar-toggles">
-              <label *ngFor="let cal of allCalendars" class="toggle-item">
-                <input
-                  type="checkbox"
-                  [checked]="isCalendarAssociated(u.id, cal.id)"
-                  (change)="toggleAssociation(u.id, cal.id, $event)"
-                />
-                {{ cal.name }}
-              </label>
-            </div>
-          </td>
-          <td class="actions">
-            <button (click)="saveRole(u)">Salva ruolo</button>
-            <button (click)="resetPassword(u)">Reset password</button>
-            <button class="danger" (click)="remove(u)">Elimina</button>
-          </td>
-        </tr>
-      </tbody>
-      </table>
-    </div>
-  </section>
+      <section class="card">
+        <h2>Utenti</h2>
+        <div class="table-container">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Ruolo</th>
+                <th>Calendari associati</th>
+                <th>Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (u of users; track u) {
+                <tr>
+                  <td>{{ u.username }}</td>
+                  <td>
+                    <select [(ngModel)]="u.role" [ngModelOptions]="{standalone: true}">
+                      @for (r of roles; track r) {
+                        <option [value]="r">{{ r }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <div class="calendar-toggles">
+                      @for (cal of allCalendars; track cal) {
+                        <label class="toggle-item">
+                          <input
+                            type="checkbox"
+                            [checked]="isCalendarAssociated(u.id, cal.id)"
+                            (change)="toggleAssociation(u.id, cal.id, $event)"
+                            />
+                            {{ cal.name }}
+                          </label>
+                        }
+                      </div>
+                    </td>
+                    <td class="actions">
+                      <button (click)="saveRole(u)">Salva ruolo</button>
+                      <button (click)="resetPassword(u)">Reset password</button>
+                      <button class="danger" (click)="remove(u)">Elimina</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-  <section class="card">
-    <h2>Anagrafica Calendari Google</h2>
-    <form class="add-calendar-box" [formGroup]="calendarForm" (submit)="addCalendar()">
-      <input formControlName="name" placeholder="Nome (es. Famiglia)" />
-      <input formControlName="googleId" placeholder="Google ID (email del calendario)" />
-      <button type="submit" [disabled]="calendarForm.invalid">Aggiungi</button>
-    </form>
-    <div class="table-container">
-      <table class="cal-table" *ngIf="allCalendars.length > 0">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>Google ID</th>
-          <th>Azione</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let c of allCalendars">
-          <td><input [value]="c.name" (input)="c.name = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
-          <td><input [value]="c.google_id" (input)="c.google_id = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
-          <td><button class="danger btn-sm" (click)="deleteCalendar(c.id)">&times;</button></td>
-        </tr>
-      </tbody>
-      </table>
+        <section class="card">
+          <h2>Anagrafica Calendari Google</h2>
+          <form class="add-calendar-box" [formGroup]="calendarForm" (submit)="addCalendar()">
+            <input formControlName="name" placeholder="Nome (es. Famiglia)" />
+            <input formControlName="googleId" placeholder="Google ID (email del calendario)" />
+            <button type="submit" [disabled]="calendarForm.invalid">Aggiungi</button>
+          </form>
+          <div class="table-container">
+            @if (allCalendars.length > 0) {
+              <table class="cal-table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Google ID</th>
+                    <th>Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of allCalendars; track c) {
+                    <tr>
+                      <td><input [value]="c.name" (input)="c.name = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
+                      <td><input [value]="c.google_id" (input)="c.google_id = $any($event.target).value" (blur)="updateCalendar(c)" /></td>
+                      <td><button class="danger btn-sm" (click)="deleteCalendar(c.id)">&times;</button></td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </section>
+      </main>
     </div>
-  </section>
-  </main>
-</div>

@@ -16,14 +16,15 @@
         <div class="header-controls">
           <button class="btn-primary btn-sm" (click)="createNewTask()">+ Nuova</button>
           <div class="user-filters">
-            <button
-              *ngFor="let m of members"
-              class="filter-btn"
-              [class.inactive]="userFilters[m.id] === false"
-              (click)="toggleUserFilter(m.id)"
-            >
-              {{ m.username }}
-            </button>
+            @for (m of members; track m) {
+              <button
+                class="filter-btn"
+                [class.inactive]="userFilters[m.id] === false"
+                (click)="toggleUserFilter(m.id)"
+                >
+                {{ m.username }}
+              </button>
+            }
           </div>
           <a routerLink="/home" class="home-link">Home Hub</a>
         </div>
@@ -33,67 +34,68 @@
 
   <main>
     <!-- Task Editor (Modal) -->
-    <div class="modal" *ngIf="editingTask" (click)="cancelEdit()">
-      <div class="modal-content card" (click)="$event.stopPropagation()" [formGroup]="taskForm">
-        <h2>{{ editingTask.id ? 'Modifica' : 'Nuova' }} Attivita</h2>
-
-        <div class="modal-body-scroll">
-          <div class="form-group">
-            <label>Titolo</label>
-            <input type="text" formControlName="title" placeholder="Cosa c'e da fare?" class="title-input" />
-          </div>
-
-          <div class="form-group">
-            <label>Descrizione</label>
-            <textarea
-              formControlName="description"
-              placeholder="Aggiungi dettagli..."
-              class="desc-textarea"
-            ></textarea>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label>Assegnata a</label>
-              <select formControlName="assigned_to">
-                <option [ngValue]="null">Chiunque</option>
-                <option *ngFor="let m of members" [ngValue]="m.id">{{ m.username }}</option>
-              </select>
+    @if (editingTask) {
+      <div class="modal" (click)="cancelEdit()">
+        <div class="modal-content card" (click)="$event.stopPropagation()" [formGroup]="taskForm">
+          <h2>{{ editingTask.id ? 'Modifica' : 'Nuova' }} Attivita</h2>
+          <div class="modal-body-scroll">
+            <div class="form-group">
+              <label>Titolo</label>
+              <input type="text" formControlName="title" placeholder="Cosa c'e da fare?" class="title-input" />
             </div>
-            <div class="form-group flex-1">
-              <label>Priorita</label>
-              <select formControlName="priority">
-                <option value="low">Bassa</option>
-                <option value="medium">Media</option>
-                <option value="high">Alta</option>
-              </select>
+            <div class="form-group">
+              <label>Descrizione</label>
+              <textarea
+                formControlName="description"
+                placeholder="Aggiungi dettagli..."
+                class="desc-textarea"
+              ></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Assegnata a</label>
+                <select formControlName="assigned_to">
+                  <option [ngValue]="null">Chiunque</option>
+                  @for (m of members; track m) {
+                    <option [ngValue]="m.id">{{ m.username }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label>Priorita</label>
+                <select formControlName="priority">
+                  <option value="low">Bassa</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label>Scadenza</label>
+                <input type="date" formControlName="due_date" />
+              </div>
+              <div class="form-group flex-1">
+                <label>Stato</label>
+                <select formControlName="status">
+                  <option value="todo">Da fare</option>
+                  <option value="doing">In corso</option>
+                  <option value="done">Fatto</option>
+                </select>
+              </div>
             </div>
           </div>
-
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label>Scadenza</label>
-              <input type="date" formControlName="due_date" />
-            </div>
-            <div class="form-group flex-1">
-              <label>Stato</label>
-              <select formControlName="status">
-                <option value="todo">Da fare</option>
-                <option value="doing">In corso</option>
-                <option value="done">Fatto</option>
-              </select>
-            </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="cancelEdit()">Annulla</button>
+            @if (editingTask.id) {
+              <button class="btn-danger" (click)="deleteTask(editingTask)">Elimina</button>
+            }
+            <span class="spacer"></span>
+            <button class="btn-primary" (click)="saveTask()" [disabled]="taskForm.invalid">Salva</button>
           </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn-secondary" (click)="cancelEdit()">Annulla</button>
-          <button class="btn-danger" (click)="deleteTask(editingTask)" *ngIf="editingTask.id">Elimina</button>
-          <span class="spacer"></span>
-          <button class="btn-primary" (click)="saveTask()" [disabled]="taskForm.invalid">Salva</button>
         </div>
       </div>
-    </div>
+    }
 
     <!-- Kanban Board -->
     <div class="kanban-board">
@@ -101,25 +103,30 @@
       <div class="kanban-col">
         <h3 class="col-title">DA FARE ({{ getTasksByStatus('todo').length }})</h3>
         <div class="task-list">
-          <div
-            class="task-card card"
-            *ngFor="let t of getTasksByStatus('todo')"
-            (click)="editTask(t)"
-            [class.high-priority]="t.priority === 'high'"
-          >
-            <div class="task-header">
-              <span class="priority-dot" [attr.data-prio]="t.priority"></span>
-              <h4>{{ t.title }}</h4>
-            </div>
-            <p class="task-desc">{{ t.description }}</p>
-            <div class="task-footer">
-              <div class="task-meta">
-                <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
-                <span class="due-date" *ngIf="t.due_date">{{ t.due_date | date: 'dd/MM' }}</span>
+          @for (t of getTasksByStatus('todo'); track t) {
+            <div
+              class="task-card card"
+              (click)="editTask(t)"
+              [class.high-priority]="t.priority === 'high'"
+              >
+              <div class="task-header">
+                <span class="priority-dot" [attr.data-prio]="t.priority"></span>
+                <h4>{{ t.title }}</h4>
               </div>
-              <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+              <p class="task-desc">{{ t.description }}</p>
+              <div class="task-footer">
+                <div class="task-meta">
+                  @if (t.assigned_user) {
+                    <span class="user-tag">{{ t.assigned_user }}</span>
+                  }
+                  @if (t.due_date) {
+                    <span class="due-date">{{ t.due_date | date: 'dd/MM' }}</span>
+                  }
+                </div>
+                <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+              </div>
             </div>
-          </div>
+          }
         </div>
       </div>
 
@@ -127,18 +134,22 @@
       <div class="kanban-col">
         <h3 class="col-title">IN CORSO ({{ getTasksByStatus('doing').length }})</h3>
         <div class="task-list">
-          <div class="task-card card" *ngFor="let t of getTasksByStatus('doing')" (click)="editTask(t)">
-            <h4>{{ t.title }}</h4>
-            <div class="task-footer">
-              <div class="task-meta">
-                <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
-              </div>
-              <div class="btn-group">
-                <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
-                <button class="done-btn" (click)="markAsDone(t); $event.stopPropagation()">Fatto</button>
+          @for (t of getTasksByStatus('doing'); track t) {
+            <div class="task-card card" (click)="editTask(t)">
+              <h4>{{ t.title }}</h4>
+              <div class="task-footer">
+                <div class="task-meta">
+                  @if (t.assigned_user) {
+                    <span class="user-tag">{{ t.assigned_user }}</span>
+                  }
+                </div>
+                <div class="btn-group">
+                  <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+                  <button class="done-btn" (click)="markAsDone(t); $event.stopPropagation()">Fatto</button>
+                </div>
               </div>
             </div>
-          </div>
+          }
         </div>
       </div>
 
@@ -146,13 +157,15 @@
       <div class="kanban-col">
         <h3 class="col-title">FATTO ({{ getTasksByStatus('done').length }})</h3>
         <div class="task-list">
-          <div class="task-card card done" *ngFor="let t of getTasksByStatus('done')">
-            <h4>{{ t.title }}</h4>
-            <div class="task-footer">
-              <div class="task-meta"></div>
-              <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+          @for (t of getTasksByStatus('done'); track t) {
+            <div class="task-card card done">
+              <h4>{{ t.title }}</h4>
+              <div class="task-footer">
+                <div class="task-meta"></div>
+                <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+              </div>
             </div>
-          </div>
+          }
         </div>
       </div>
     </div>

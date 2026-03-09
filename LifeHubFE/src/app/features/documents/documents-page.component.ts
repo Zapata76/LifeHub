@@ -3,9 +3,10 @@ import { FormBuilder, FormGroup, Validators, FormControl } from '@angular/forms'
 import { DocumentsService, HubDocument } from './documents.service';
 
 @Component({
-  selector: 'app-documents-page',
-  templateUrl: './documents-page.component.html',
-  styleUrls: ['./documents-page.component.css']
+    selector: 'app-documents-page',
+    templateUrl: './documents-page.component.html',
+    styleUrls: ['./documents-page.component.css'],
+    standalone: false
 })
 export class DocumentsPageComponent implements OnInit {
   documents: HubDocument[] = [];
