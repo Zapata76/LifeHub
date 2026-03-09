@@ -95,7 +95,10 @@ export class TasksPageComponent implements OnInit {
 
   deleteTask(task: Task) {
     if (confirm("Eliminare questa attivita?")) {
-      this.tasksService.deleteTask(task.id!).subscribe(() => this.loadTasks());
+      this.tasksService.deleteTask(task.id!).subscribe(() => {
+        this.editingTask = null;
+        this.loadTasks();
+      });
     }
   }
 

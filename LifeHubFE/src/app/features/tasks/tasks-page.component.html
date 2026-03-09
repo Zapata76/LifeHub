@@ -88,6 +88,8 @@
 
         <div class="modal-footer">
           <button class="btn-secondary" (click)="cancelEdit()">Annulla</button>
+          <button class="btn-danger" (click)="deleteTask(editingTask)" *ngIf="editingTask.id">Elimina</button>
+          <span class="spacer"></span>
           <button class="btn-primary" (click)="saveTask()" [disabled]="taskForm.invalid">Salva</button>
         </div>
       </div>
@@ -111,8 +113,11 @@
             </div>
             <p class="task-desc">{{ t.description }}</p>
             <div class="task-footer">
-              <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
-              <span class="due-date" *ngIf="t.due_date">{{ t.due_date | date: 'dd/MM' }}</span>
+              <div class="task-meta">
+                <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
+                <span class="due-date" *ngIf="t.due_date">{{ t.due_date | date: 'dd/MM' }}</span>
+              </div>
+              <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
             </div>
           </div>
         </div>
@@ -125,8 +130,13 @@
           <div class="task-card card" *ngFor="let t of getTasksByStatus('doing')" (click)="editTask(t)">
             <h4>{{ t.title }}</h4>
             <div class="task-footer">
-              <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
-              <button class="done-btn" (click)="markAsDone(t); $event.stopPropagation()">Fatto</button>
+              <div class="task-meta">
+                <span class="user-tag" *ngIf="t.assigned_user">{{ t.assigned_user }}</span>
+              </div>
+              <div class="btn-group">
+                <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
+                <button class="done-btn" (click)="markAsDone(t); $event.stopPropagation()">Fatto</button>
+              </div>
             </div>
           </div>
         </div>
@@ -139,6 +149,7 @@
           <div class="task-card card done" *ngFor="let t of getTasksByStatus('done')">
             <h4>{{ t.title }}</h4>
             <div class="task-footer">
+              <div class="task-meta"></div>
               <button class="delete-btn" (click)="deleteTask(t); $event.stopPropagation()">Elimina</button>
             </div>
           </div>

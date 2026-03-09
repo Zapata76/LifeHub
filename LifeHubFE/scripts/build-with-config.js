@@ -2,6 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+// Fix for Node.js 17+ OpenSSL issues with older Angular/Webpack - TO BE DELETED
+const nodeVersion = process.versions.node.split('.')[0];
+if (parseInt(nodeVersion) >= 17) {
+  if (!process.env.NODE_OPTIONS || !process.env.NODE_OPTIONS.includes('--openssl-legacy-provider')) {
+    process.env.NODE_OPTIONS = (process.env.NODE_OPTIONS || '') + ' --openssl-legacy-provider';
+  }
+}
+
 const projectRoot = path.resolve(__dirname, '..');
 const localConfigPath = path.join(projectRoot, 'config', 'deploy.local.json');
 
@@ -40,6 +48,10 @@ if (!hasBaseHrefFlag) args.push('--base-href', baseHref);
 args.push(...cliArgs);
 
 const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-const result = spawnSync(npxCmd, args, { cwd: projectRoot, stdio: 'inherit' });
+const result = spawnSync(npxCmd, args, { 
+  cwd: projectRoot, 
+  stdio: 'inherit',
+  shell: process.platform === 'win32' 
+});
 
 process.exit(typeof result.status === 'number' ? result.status : 1);

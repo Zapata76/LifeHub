@@ -127,3 +127,43 @@ main {
   transform: translateY(-1px);
   filter: brightness(1.1);
 }
+
+.done-btn, .delete-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.done-btn {
+  background: rgba(39, 174, 96, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+}
+.done-btn:hover {
+  background: #27ae60;
+  color: white;
+}
+
+.delete-btn {
+  background: rgba(255, 92, 92, 0.15);
+  color: #ff7e7e;
+  border: 1px solid rgba(255, 92, 92, 0.3);
+}
+.delete-btn:hover {
+  background: #8c2d2d;
+  color: white;
+}
+
+.btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.task-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
