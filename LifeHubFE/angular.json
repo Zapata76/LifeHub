@@ -67,7 +67,6 @@
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
-              "extractCss": true,
               "namedChunks": false,
               "extractLicenses": true,
               "vendorChunk": false,
@@ -92,18 +91,18 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "shopping-app:build"
+            "buildTarget": "lifehub-fe:build"
           },
           "configurations": {
             "production": {
-              "browserTarget": "shopping-app:build:production"
+              "buildTarget": "lifehub-fe:build:production"
             }
           }
         },
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "shopping-app:build"
+            "buildTarget": "lifehub-fe:build"
           }
         },
         "test": {
@@ -123,32 +122,19 @@
             "scripts": []
           }
         },
-        "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
-          "options": {
-            "tsConfig": [
-              "tsconfig.app.json",
-              "tsconfig.spec.json",
-              "e2e/tsconfig.json"
-            ],
-            "exclude": [
-              "**/node_modules/**"
-            ]
-          }
-        },
         "e2e": {
           "builder": "@angular-devkit/build-angular:protractor",
           "options": {
             "protractorConfig": "e2e/protractor.conf.js",
-            "devServerTarget": "shopping-app:serve"
+            "devServerTarget": "lifehub-fe:serve"
           },
           "configurations": {
             "production": {
-              "devServerTarget": "shopping-app:serve:production"
+              "devServerTarget": "lifehub-fe:serve:production"
             }
           }
         }
       }
-    }},
-  "defaultProject": "lifehub-fe"
+    }
+  }
 }
