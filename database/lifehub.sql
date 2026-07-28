@@ -1,0 +1,446 @@
+-- Life Hub database schema.
+-- MySQL 5.0-compatible, MyISAM, no application or household data.
+-- Apply once to a new, empty database.
+
+CREATE TABLE IF NOT EXISTS `lh_attachments` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `owner_type` varchar(64) NOT NULL,
+  `owner_id` bigint(20) NOT NULL,
+  `original_name` mediumblob NOT NULL,
+  `storage_key` varchar(190) NOT NULL,
+  `detected_mime` varchar(96) NOT NULL,
+  `size_bytes` bigint(20) NOT NULL,
+  `sha256` char(64) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_attachment_storage` (`storage_key`),
+  KEY `ix_lh_attachment_owner` (`household_id`,`owner_type`,`owner_id`),
+  KEY `ix_lh_attachment_checksum` (`sha256`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_audit_log` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `actor_id` int(11) NOT NULL,
+  `event_code` varchar(96) NOT NULL,
+  `entity_type` varchar(64) NOT NULL,
+  `entity_id` bigint(20) DEFAULT NULL,
+  `correlation_id` varchar(64) NOT NULL,
+  `occurred_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_audit_household_time` (`household_id`,`occurred_at`),
+  KEY `ix_lh_audit_entity` (`entity_type`,`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_calendars` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `name` varbinary(255) NOT NULL,
+  `external_id` mediumblob NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_calendars_household` (`household_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `name` varbinary(190) NOT NULL,
+  `name_key` varchar(190) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_category_name` (`household_id`,`name_key`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_documents` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `title` varbinary(255) NOT NULL,
+  `title_search` varchar(255) NOT NULL,
+  `description` mediumblob,
+  `category_text` varbinary(100) DEFAULT NULL,
+  `visibility` varchar(16) NOT NULL DEFAULT 'private',
+  `owner_id` int(11) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_documents_owner` (`household_id`,`owner_id`),
+  KEY `ix_lh_documents_search` (`household_id`,`title_search`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_entity_relations` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `source_type` varchar(64) NOT NULL,
+  `source_id` bigint(20) NOT NULL,
+  `relation_type` varchar(64) NOT NULL,
+  `target_type` varchar(64) NOT NULL,
+  `target_id` bigint(20) NOT NULL,
+  `position_no` int(11) NOT NULL DEFAULT '0',
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_relation` (`household_id`,`source_type`,`source_id`,`relation_type`,`target_type`,`target_id`),
+  KEY `ix_lh_relation_target` (`household_id`,`target_type`,`target_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_goal_logs` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `tracker_id` int(11) NOT NULL,
+  `log_date` date NOT NULL,
+  `value_number` decimal(14,4) DEFAULT NULL,
+  `value_boolean` tinyint(1) DEFAULT NULL,
+  `note` mediumblob,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  `archived_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_goal_log_day` (`household_id`,`tracker_id`,`log_date`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_goals` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `owner_id` int(11) NOT NULL,
+  `title` varbinary(255) NOT NULL,
+  `description` mediumblob,
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `status` varchar(24) NOT NULL DEFAULT 'active',
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_goals_owner` (`household_id`,`owner_id`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_households` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varbinary(255) NOT NULL,
+  `timezone` varchar(64) NOT NULL,
+  `home_eyebrow` varbinary(190) DEFAULT NULL,
+  `home_title` varbinary(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_inventory` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `owner_id` int(11) DEFAULT NULL,
+  `document_id` int(11) DEFAULT NULL,
+  `name` varbinary(255) NOT NULL,
+  `name_search` varchar(255) NOT NULL,
+  `category_text` mediumblob,
+  `quantity` decimal(14,4) DEFAULT NULL,
+  `unit_code` varchar(32) DEFAULT NULL,
+  `location` mediumblob,
+  `status` varchar(32) NOT NULL DEFAULT 'active',
+  `notes` mediumblob,
+  `purchase_date` date DEFAULT NULL,
+  `warranty_expiry` date DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_inventory_owner` (`household_id`,`owner_id`),
+  KEY `ix_lh_inventory_document` (`household_id`,`document_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_login_attempts` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `username_key` varchar(190) NOT NULL,
+  `ip_hash` char(64) NOT NULL,
+  `attempted_at` datetime NOT NULL,
+  `succeeded` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_login_attempt_window` (`username_key`,`ip_hash`,`attempted_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_meal_plan` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `meal_date` date NOT NULL,
+  `meal_type` varchar(32) NOT NULL,
+  `description` mediumblob,
+  `notes` mediumblob,
+  `servings` int(11) DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_meals_date` (`household_id`,`meal_date`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_meal_plan_recipes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `meal_plan_id` int(11) NOT NULL,
+  `recipe_id` int(11) NOT NULL,
+  `position_no` int(11) NOT NULL DEFAULT '0',
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_meal_recipe` (`household_id`,`meal_plan_id`,`recipe_id`),
+  KEY `ix_lh_meal_recipe_recipe` (`household_id`,`recipe_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_meal_shopping_exports` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `meal_plan_id` int(11) NOT NULL,
+  `recipe_ingredient_id` int(11) NOT NULL,
+  `shopping_item_id` int(11) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_meal_export` (`household_id`,`meal_plan_id`,`recipe_ingredient_id`),
+  KEY `ix_lh_meal_export_item` (`household_id`,`shopping_item_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_notes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `title` varbinary(255) NOT NULL,
+  `title_search` varchar(255) NOT NULL,
+  `body` mediumblob NOT NULL,
+  `visibility` varchar(16) NOT NULL DEFAULT 'household',
+  `color_hex` varchar(7) NOT NULL DEFAULT '#1e1e1e',
+  `is_pinned` tinyint(1) NOT NULL DEFAULT '0',
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_by` int(11) NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_notes_household_creator` (`household_id`,`created_by`),
+  KEY `ix_lh_notes_search` (`household_id`,`title_search`),
+  KEY `ix_lh_notes_pinned` (`household_id`,`is_pinned`,`updated_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_operation_runs` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `operation_type` varchar(64) NOT NULL,
+  `idempotency_key` varchar(190) NOT NULL,
+  `input_checksum` char(64) NOT NULL,
+  `status` varchar(24) NOT NULL,
+  `attempt_count` int(11) NOT NULL DEFAULT '0',
+  `last_error_code` varchar(64) DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_operation_idempotency` (`household_id`,`operation_type`,`idempotency_key`),
+  KEY `ix_lh_operation_status` (`status`,`updated_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_operation_steps` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `operation_run_id` bigint(20) NOT NULL,
+  `step_key` varchar(96) NOT NULL,
+  `status` varchar(24) NOT NULL,
+  `output_checksum` char(64) DEFAULT NULL,
+  `attempt_count` int(11) NOT NULL DEFAULT '0',
+  `last_error_code` varchar(64) DEFAULT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_operation_step` (`operation_run_id`,`step_key`),
+  KEY `ix_lh_operation_step_status` (`operation_run_id`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_prices` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `supermarket_id` int(11) NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `currency` char(3) NOT NULL DEFAULT 'EUR',
+  `package_text` mediumblob,
+  `observed_on` date DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_prices_product` (`household_id`,`product_id`),
+  KEY `ix_lh_prices_supermarket` (`household_id`,`supermarket_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_products` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `category_id` int(11) DEFAULT NULL,
+  `name` varbinary(255) NOT NULL,
+  `name_key` varchar(255) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_products_category` (`household_id`,`category_id`),
+  KEY `ix_lh_products_name` (`household_id`,`name_key`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_recipe_ingredients` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `recipe_id` int(11) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `ingredient_name` mediumblob NOT NULL,
+  `quantity_raw` mediumblob,
+  `quantity_value` decimal(14,4) DEFAULT NULL,
+  `unit_code` varchar(32) DEFAULT NULL,
+  `position_no` int(11) NOT NULL DEFAULT '0',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_ingredients_recipe` (`household_id`,`recipe_id`,`position_no`),
+  KEY `ix_lh_ingredients_product` (`household_id`,`product_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_recipes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `title` varbinary(255) NOT NULL,
+  `title_search` varchar(255) NOT NULL,
+  `description` mediumblob,
+  `instructions` mediumblob,
+  `category_text` mediumblob,
+  `prep_time_minutes` int(11) DEFAULT NULL,
+  `difficulty` varchar(30) DEFAULT NULL,
+  `servings` decimal(10,2) DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_by` int(11) NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_recipes_search` (`household_id`,`title_search`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_shopping_items` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `list_id` int(11) NOT NULL,
+  `product_id` int(11) DEFAULT NULL,
+  `supermarket_id` int(11) DEFAULT NULL,
+  `label` mediumblob NOT NULL,
+  `quantity_raw` mediumblob,
+  `checked` tinyint(1) NOT NULL DEFAULT '0',
+  `source_type` varchar(32) DEFAULT NULL,
+  `source_id` bigint(20) DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_by` int(11) NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_shopping_items_list` (`household_id`,`list_id`,`checked`),
+  KEY `ix_lh_shopping_items_product` (`household_id`,`product_id`),
+  KEY `ix_lh_shopping_items_source` (`household_id`,`source_type`,`source_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_shopping_lists` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `name` varbinary(190) NOT NULL,
+  `name_key` varchar(190) NOT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_shopping_primary` (`household_id`,`is_primary`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_supermarkets` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `name` varbinary(190) NOT NULL,
+  `name_key` varchar(190) NOT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_supermarket_name` (`household_id`,`name_key`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_tasks` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `title` varbinary(255) NOT NULL,
+  `title_search` varchar(255) NOT NULL,
+  `description` mediumblob,
+  `assigned_to` int(11) DEFAULT NULL,
+  `status` varchar(16) NOT NULL,
+  `priority` varchar(16) NOT NULL,
+  `due_date` date DEFAULT NULL,
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_by` int(11) NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_by` int(11) DEFAULT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_tasks_household_status` (`household_id`,`status`),
+  KEY `ix_lh_tasks_assigned` (`household_id`,`assigned_to`),
+  KEY `ix_lh_tasks_creator` (`household_id`,`created_by`),
+  KEY `ix_lh_tasks_due` (`household_id`,`due_date`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_trackers` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `goal_id` int(11) NOT NULL,
+  `tracker_type` varchar(24) NOT NULL,
+  `target_value` decimal(14,4) DEFAULT NULL,
+  `unit_code` varchar(32) DEFAULT NULL,
+  `frequency_code` varchar(32) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `ix_lh_trackers_goal` (`household_id`,`goal_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_user_calendars` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `calendar_id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `created_by` int(11) NOT NULL DEFAULT '1',
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_user_calendar` (`household_id`,`user_id`,`calendar_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `username` varbinary(190) NOT NULL,
+  `username_key` varchar(190) NOT NULL,
+  `password_hash` varbinary(255) DEFAULT NULL,
+  `role` varchar(16) NOT NULL,
+  `status` varchar(16) NOT NULL DEFAULT 'active',
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `archived_at` datetime DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  `session_version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_users_household_username` (`household_id`,`username_key`),
+  KEY `ix_lh_users_household_role` (`household_id`,`role`),
+  KEY `ix_lh_users_household_status` (`household_id`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;

@@ -1,0 +1,50 @@
+{
+  "name": "lifehub/api",
+  "description": "Life Hub modular API",
+  "type": "project",
+  "license": "AGPL-3.0-only",
+  "require": {
+    "php": "~7.4.33",
+    "ext-fileinfo": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-session": "*",
+    "monolog/monolog": "^2.10",
+    "slim/csrf": "^1.5",
+    "slim/psr7": "~1.6.2",
+    "slim/slim": "~4.15.2"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^1.12",
+    "phpunit/phpunit": "^9.6",
+    "squizlabs/php_codesniffer": "^3.13"
+  },
+  "autoload": {
+    "psr-4": {
+      "LifeHub\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "LifeHub\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml",
+    "analyse": "phpstan analyse --configuration phpstan.neon --no-progress --memory-limit=512M",
+    "lint": "phpcs --standard=phpcs.xml",
+    "quality": ["@lint", "@analyse", "@test"]
+  },
+  "config": {
+    "allow-plugins": {},
+    "platform": {
+      "php": "7.4.33"
+    },
+    "sort-packages": true
+  },
+  "prefer-stable": true,
+  "minimum-stability": "stable"
+}

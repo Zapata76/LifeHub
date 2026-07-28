@@ -1,0 +1,98 @@
+<div class="page-heading note-page-heading">
+  <div><p class="eyebrow">Modulo</p><h1>Note condivise</h1></div>
+  <div class="actions">
+    <button type="button" (click)="toggleArchive()">{{ showArchived() ? 'Mostra attive' : 'Mostra archivio' }}</button>
+    @if (!showArchived()) { <button class="note-primary" type="button" (click)="openCreate()">+ Nuova</button> }
+  </div>
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+<section class="card note-toolbar" aria-label="Ricerca e filtri note">
+  <input type="search" placeholder="Cerca per titolo, contenuto o autore…" (input)="setSearch($event)">
+  <div class="note-author-filters" aria-label="Filtra per autore">
+    @for (member of overview()?.members ?? []; track member.id) {
+      <button type="button" class="note-filter" [class.inactive]="!visibleAuthors().has(member.id)"
+        (click)="toggleAuthor(member.id)">{{ member.username }}</button>
+    }
+  </div>
+</section>
+
+@if (loading()) { <p class="state" role="status">Caricamento note…</p> }
+@else {
+  <section class="notes-grid" [attr.aria-label]="showArchived() ? 'Note archiviate' : 'Note attive'">
+    @for (note of filteredNotes(); track note.id) {
+      <article class="note-card card" [style.border-top-color]="note.color_hex || '#1e1e1e'"
+        [class.note-pinned]="isPinned(note)" [class.note-archived]="showArchived()"
+        (click)="openEdit(note)" (keydown.enter)="openEdit(note)" tabindex="0">
+        @if (note.image_attachment_id) {
+          <div class="note-card-image"><img [src]="api.attachment(note.image_attachment_id)"
+            [alt]="'Foto della nota ' + (note.title || 'senza titolo')"></div>
+        }
+        <div class="note-card-body">
+          <header class="note-card-header"><h2>{{ note.title || 'Senza titolo' }}</h2>
+            @if (!showArchived() && note.can_edit) {
+              <button class="note-pin" type="button" [class.active]="isPinned(note)"
+                [attr.aria-label]="isPinned(note) ? 'Rimuovi nota dalle fissate' : 'Fissa nota in alto'"
+                (click)="togglePin(note, $event)">{{ isPinned(note) ? 'Fissa' : 'Pin' }}</button>
+            }
+          </header>
+          @if (note.body) { <p class="note-preview">{{ note.body }}</p> }
+          <footer class="note-card-footer"><span>Di {{ note.author_name }}</span><span class="note-updated">{{ note.updated_at }}</span>
+            @if (note.can_edit) {
+              <button [class.note-restore]="showArchived()" [class.note-delete]="!showArchived()" type="button"
+                (click)="setArchived(note, $event)">{{ showArchived() ? 'Ripristina' : 'Elimina' }}</button>
+            }
+          </footer>
+        </div>
+      </article>
+    } @empty { <div class="note-empty"><span aria-hidden="true">📝</span><p>Nessuna nota presente.</p></div> }
+  </section>
+}
+
+@if (editorOpen()) {
+  <div class="note-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+    <section class="note-modal card" role="dialog" aria-modal="true" aria-labelledby="note-editor-title"
+      [style.border-top-color]="form.controls.color.value" (click)="$event.stopPropagation()">
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="note-modal-body">
+          <h2 id="note-editor-title" class="visually-hidden">{{ editing() ? 'Modifica nota' : 'Nuova nota' }}</h2>
+          <input class="note-title-input" formControlName="title" maxlength="255" placeholder="Titolo"
+            aria-label="Titolo nota">
+          <textarea class="note-textarea" formControlName="body" maxlength="50000" rows="8"
+            placeholder="Inizia a scrivere…" aria-label="Contenuto nota"></textarea>
+          <section class="note-photo-editor" aria-label="Foto della nota">
+            @if (imageSource(editing()); as photo) {
+              <div class="note-photo-preview"><img [src]="photo" alt="Anteprima foto">
+                <button type="button" aria-label="Rimuovi foto" (click)="removePhoto()">×</button></div>
+            } @else {
+              <div class="note-photo-actions"><label>📁 Galleria
+                <input hidden type="file" accept="image/jpeg,image/png" (change)="selectImage($event)"></label>
+                @if (mobileDevice) { <label>📷 Fotocamera
+                  <input hidden type="file" accept="image/*" capture="environment" (change)="selectImage($event)"></label> }
+              </div>
+            }
+          </section>
+        </div>
+        <footer class="note-modal-footer">
+          <div class="note-color-picker" aria-label="Colore nota">
+            @for (color of colors; track color) {
+              <button type="button" [style.background]="color" [class.selected]="form.controls.color.value === color"
+                [attr.aria-label]="'Colore ' + color" (click)="form.controls.color.setValue(color); form.markAsDirty()"></button>
+            }
+          </div>
+          <label class="note-pin-control"><input type="checkbox" formControlName="pinned"> Fissa in alto</label>
+          <div class="note-modal-actions">
+            @if (editing(); as note) {
+              <button class="note-delete" type="button" (click)="setArchived(note)">Elimina</button>
+            }
+            <span class="modal-spacer"></span><button type="button" (click)="closeEditor()">Annulla</button>
+            <button class="note-primary" type="submit" [disabled]="noteEmpty() || busy()">
+              {{ busy() ? 'Salvataggio…' : 'Salva' }}</button>
+          </div>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

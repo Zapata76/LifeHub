@@ -1,0 +1,163 @@
+<div class="page-heading meal-page-heading">
+  <div><p class="eyebrow">Organizzazione</p><h1>Piano pasti</h1><p class="muted">Programma i pasti dei prossimi giorni e prepara la spesa dalle ricette.</p></div>
+  <button class="primary" type="button" [disabled]="busy() || !(overview()?.meals?.length)" (click)="openShoppingPreview()">
+    🛒 Genera la spesa
+  </button>
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+<section class="card meal-toolbar" aria-label="Periodo del piano pasti">
+  <div class="meal-period-navigation">
+    <button type="button" aria-label="Periodo precedente" (click)="movePeriod(-1)">‹</button>
+    <button type="button" (click)="today()">Oggi</button>
+    <button type="button" aria-label="Periodo successivo" (click)="movePeriod(1)">›</button>
+  </div>
+  <strong>{{ periodLabel() }}</strong>
+  <label>Vai alla data<input type="date" [value]="selectedDay()" (change)="chooseWeek($event)"></label>
+  <div class="meal-segmented" aria-label="Ampiezza del piano">
+    <button type="button" [class.active]="rangeDays() === 7" (click)="setRange(7)">7 giorni</button>
+    <button type="button" [class.active]="rangeDays() === 14" (click)="setRange(14)">2 settimane</button>
+  </div>
+  <div class="meal-segmented" aria-label="Tipo di visualizzazione">
+    <button type="button" [class.active]="view() === 'day'" (click)="setView('day')">Giorno</button>
+    <button type="button" [class.active]="view() === 'week'" (click)="setView('week')">Settimana</button>
+  </div>
+</section>
+
+@if (view() === 'day') {
+  <div class="meal-day-strip" aria-label="Scegli il giorno">
+    @for (day of days(); track day.date) {
+      <button type="button" [class.active]="selectedDay() === day.date" [class.today]="isToday(day.date)" (click)="chooseDay(day.date)">
+        <small>{{ dayName(day).slice(0, 3) }}</small><strong>{{ day.dateValue.getDate() }}</strong>
+      </button>
+    }
+  </div>
+}
+
+@if (loading()) { <p class="state">Caricamento del piano…</p> }
+@else {
+  <div class="meal-planner" [class.day-view]="view() === 'day'" [class.two-weeks]="rangeDays() === 14">
+    @for (day of visibleDays(); track day.date) {
+      <article class="card meal-day" [class.today]="isToday(day.date)">
+        <header>
+          <span>{{ dayName(day) }}</span><strong>{{ dayNumber(day) }}</strong>
+          @if (isToday(day.date)) { <small>Oggi</small> }
+        </header>
+        <div class="meal-slots">
+          @for (type of mealTypes; track type.value) {
+            @if (meal(day.date, type.value); as planned) {
+              <section class="meal-slot planned" [class]="'meal-slot planned ' + type.value">
+                <div class="meal-slot-heading">
+                  <span>{{ type.icon }} {{ type.label }}</span>
+                  <label class="meal-export-check" title="Includi nella generazione della spesa">
+                    <input type="checkbox" [checked]="mealSelected(planned.id)" (change)="toggleMealSelection(planned.id)">
+                    <span>spesa</span>
+                  </label>
+                </div>
+                <button class="meal-slot-content" type="button" (click)="openEdit(planned)">
+                  @if (planned.description) { <strong>{{ planned.description }}</strong> }
+                  @for (recipe of planned.recipes; track recipe.id) {
+                    <span class="meal-recipe-line"><img [src]="recipeImage(recipe)" alt="">{{ recipe.title }}</span>
+                  }
+                  @if (planned.servings) { <small>👥 {{ planned.servings }} porzioni</small> }
+                  @if (planned.notes) { <small class="meal-note">📝 {{ planned.notes }}</small> }
+                </button>
+              </section>
+            } @else {
+              <button class="meal-slot empty" type="button" (click)="openCreate(day.date, type.value)">
+                <span>{{ type.icon }} {{ type.label }}</span><small>+ Pianifica</small>
+              </button>
+            }
+          }
+        </div>
+      </article>
+    }
+  </div>
+}
+
+<p class="meal-help"><span>Il segno “spesa” seleziona i pasti da trasformare in articoli.</span><span>I pasti già esportati non vengono duplicati.</span></p>
+
+@if (editorOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+    <section class="shopping-modal card meal-editor-modal" role="dialog" aria-modal="true" aria-labelledby="meal-editor-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="meal-editor-title">{{ editing() ? 'Modifica pasto' : 'Pianifica pasto' }}</h2>
+      @if (error()) { <p class="error shopping-modal-error">{{ error() }}</p> }
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="meal-editor-body">
+          <div class="meal-editor-fields">
+            <label>Data<input type="date" formControlName="date"></label>
+            <label>Fascia<select formControlName="type">
+              @for (type of mealTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }
+            </select></label>
+            <label>Porzioni<input type="number" min="1" max="100" formControlName="servings" placeholder="Es. 4"></label>
+            <label class="wide">Pasto libero<input formControlName="description" maxlength="2000" placeholder="Es. Minestrone, cena fuori, avanzi…"></label>
+            <label class="wide">Note<textarea rows="3" formControlName="notes" maxlength="10000" placeholder="Preferenze, ospiti, preparazioni da anticipare…"></textarea></label>
+          </div>
+
+          <section class="meal-recipe-picker">
+            <div class="section-heading"><div><p class="eyebrow">Ricette</p><h3>Abbina una o più ricette</h3></div>
+              <span class="pill">{{ selectedRecipeIds().length }} selezionate</span></div>
+            @if (selectedRecipes().length) {
+              <div class="meal-selected-recipes">
+                @for (recipe of selectedRecipes(); track recipe.id) {
+                  <button type="button" (click)="toggleRecipe(recipe.id)">{{ recipe.title }} ×</button>
+                }
+              </div>
+            }
+            <input type="search" placeholder="Cerca per titolo o categoria…" [value]="recipeSearch()" (input)="setRecipeSearch($event)">
+            <div class="meal-recipe-results">
+              @for (recipe of filteredRecipes(); track recipe.id) {
+                <button type="button" [class.selected]="hasRecipe(recipe.id)" (click)="toggleRecipe(recipe.id)">
+                  <img [src]="recipeImage(recipe)" alt=""><span><strong>{{ recipe.title }}</strong>
+                  <small>{{ recipe.category_text || 'Senza categoria' }} @if (recipe.prep_time_minutes) { · {{ recipe.prep_time_minutes }} min }</small></span>
+                  <span>{{ hasRecipe(recipe.id) ? '✓' : '+' }}</span>
+                </button>
+              } @empty { <p class="state">Nessuna ricetta trovata.</p> }
+            </div>
+          </section>
+        </div>
+        <footer class="shopping-modal-footer">
+          @if (editing()) {
+            @if (deleteConfirm()) {
+              <div class="meal-delete-confirm"><span>Rimuovere il pasto? Gli articoli già passati alla spesa resteranno nella lista.</span>
+                <button class="danger" type="button" [disabled]="busy()" (click)="remove()">Conferma rimozione</button></div>
+            } @else { <button class="danger" type="button" (click)="deleteConfirm.set(true)">Rimuovi</button> }
+          }
+          <span class="modal-spacer"></span>
+          <button type="button" (click)="closeEditor()">Annulla</button>
+          <button class="primary" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Salvataggio…' : 'Salva pasto' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (previewOpen() && preview(); as data) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closePreview()" (keydown.escape)="closePreview()">
+    <section class="shopping-modal card meal-shopping-modal" role="dialog" aria-modal="true" aria-labelledby="meal-shopping-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="meal-shopping-title">Anteprima della spesa</h2>
+      <div class="meal-shopping-body">
+        <p>Saranno aggiunti <strong>{{ data.items.length }} prodotti</strong> dalla pianificazione selezionata.</p>
+        <div class="meal-shopping-items">
+          @for (item of data.items; track item.productId) {
+            <div><span><strong>{{ item.name }}</strong><small>{{ item.sources.join(' · ') }}</small></span><b>{{ item.quantity }}</b></div>
+          } @empty { <p class="state">Non ci sono nuovi ingredienti collegati a prodotti da esportare.</p> }
+        </div>
+        @if (data.unresolved.length) {
+          <details><summary>{{ data.unresolved.length }} ingredienti senza prodotto non saranno aggiunti</summary>
+            <ul>@for (item of data.unresolved; track $index) { <li>{{ item.ingredient }} {{ item.quantity || '' }} — {{ item.recipe }}</li> }</ul>
+          </details>
+        }
+        <p class="muted">Gli ingredienti già esportati in precedenza sono esclusi automaticamente.</p>
+      </div>
+      <footer class="shopping-modal-footer"><button type="button" (click)="closePreview()">Annulla</button><span class="modal-spacer"></span>
+        <button class="primary" type="button" [disabled]="busy() || !data.items.length || !overview()?.primaryListId" (click)="generateShopping()">
+          {{ busy() ? 'Aggiornamento…' : 'Aggiungi alla lista' }}
+        </button></footer>
+    </section>
+  </div>
+}

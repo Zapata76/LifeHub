@@ -1,0 +1,125 @@
+<!-- Renders price capture and grouped history; image files are fetched through the authorized API. -->
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+<section aria-labelledby="price-history-title">
+  <div class="section-heading catalog-list-heading">
+    <div>
+      <p class="eyebrow">Confronto</p>
+      <h2 id="price-history-title">Storico prezzi</h2>
+      <small>{{ priceGroups().length }} prodotti · {{ prices().length }} rilevazioni</small>
+    </div>
+    <div class="catalog-toolbar">
+      @if (canManage()) {
+        <button class="primary" type="button" (click)="openPriceModal()">+ Registra prezzo</button>
+      }
+      <label>Cerca<input type="search" placeholder="Prodotto, categoria o supermercato" (input)="setFilter($event)"></label>
+    </div>
+  </div>
+  @if (loading()) { <p class="state" role="status">Caricamento prezzi…</p> }
+  @else if (prices().length === 0) { <p class="state">Nessun prezzo registrato.</p> }
+  @else {
+    <div class="price-groups">
+      @for (group of priceGroups(); track group.productId) {
+        <article class="card price-product-group">
+          <header class="price-product-header">
+            <div class="price-product-name">
+              <small>{{ group.categoryName || 'Prodotto' }}</small>
+              <h3>{{ group.productName }}</h3>
+            </div>
+            <div class="price-group-summary">
+              <span>Da <strong>{{ group.lowest.amount }} {{ group.lowest.currency }}</strong></span>
+              <span class="pill">{{ group.records.length }} rilevazioni</span>
+            </div>
+          </header>
+          <div class="price-observations" role="table" [attr.aria-label]="'Prezzi di ' + group.productName">
+            @for (price of group.records; track price.id) {
+              <div class="price-observation" role="row">
+                <div class="price-observation-amount" role="cell">
+                  <strong>{{ price.amount }}</strong><small>{{ price.currency }}</small>
+                </div>
+                <div class="price-observation-market" role="cell">
+                  <strong>{{ price.supermarket_name }}</strong>
+                  <small>{{ price.package_text || 'Formato non indicato' }}</small>
+                </div>
+                <div class="price-observation-date" role="cell">
+                  <span>{{ formatDate(price.observed_on || price.created_at) }}</span>
+                  @if (price.username) { <small>da {{ price.username }}</small> }
+                </div>
+                <div class="price-observation-media" role="cell">
+                  @if (hasImage(price)) {
+                    <img class="price-photo" loading="lazy" [src]="api.attachment(price.image_attachment_id!)"
+                      [alt]="'Foto della rilevazione di ' + price.product_name">
+                  }
+                </div>
+                @if (canManage()) {
+                  <div class="price-observation-actions" role="cell">
+                    <button class="danger compact" type="button" (click)="requestDelete(price)"
+                      [attr.aria-label]="'Rimuovi rilevazione di ' + price.product_name">Rimuovi</button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>
+
+@if (priceModalOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closePriceModal()"
+    (keydown.escape)="closePriceModal()">
+    <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="new-price-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="new-price-title">Registra un prezzo</h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="shopping-modal-body">
+          <label>Prodotto
+            <select formControlName="productId"><option value="">Seleziona</option>
+              @for (product of overview()?.products ?? []; track product.id) {
+                <option [value]="product.id">{{ product.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Supermercato
+            <select formControlName="supermarketId"><option value="">Seleziona</option>
+              @for (market of overview()?.supermarkets ?? []; track market.id) {
+                <option [value]="market.id">{{ market.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Prezzo (€)<input type="number" min="0.01" step="0.01" formControlName="amount"></label>
+          <label>Formato<input formControlName="packageText" maxlength="255" placeholder="es. 500 g"></label>
+          <label>Data rilevazione<input type="date" formControlName="observedOn"></label>
+          <label>Foto etichetta o scontrino
+            <input type="file" accept="image/jpeg,image/png" (change)="selectImage($event)">
+          </label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closePriceModal()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="form.invalid || busy()">Registra prezzo</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteTarget(); as price) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeDelete()" (keydown.escape)="closeDelete()">
+    <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
+      aria-labelledby="price-delete-title" (click)="$event.stopPropagation()">
+      <h2 id="price-delete-title">Elimina rilevazione</h2>
+      <div class="shopping-modal-body confirm-copy wide">
+        <p>Eliminare definitivamente il prezzo di {{ price.product_name }} presso {{ price.supermarket_name }}?</p>
+        <small>L’operazione non può essere annullata.</small>
+      </div>
+      <footer class="shopping-modal-footer">
+        <button class="task-secondary" type="button" (click)="closeDelete()">Annulla</button>
+        <span class="modal-spacer"></span>
+        <button class="danger" type="button" (click)="confirmDelete()" [disabled]="busy()">Elimina</button>
+      </footer>
+    </section>
+  </div>
+}

@@ -1,0 +1,122 @@
+<?php
+
+/**
+ * Runs Life Hub operational commands outside the HTTP runtime.
+ */
+
+declare(strict_types=1);
+
+use LifeHub\Installation\InitialAdminCreator;
+use LifeHub\Installation\SchemaInitializer;
+use LifeHub\Operations\IntegrityChecker;
+use LifeHub\Shared\Config\Settings;
+use LifeHub\Shared\Persistence\PdoFactory;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+$command = $argv[1] ?? 'help';
+$configurationPath = $argv[2] ?? null;
+
+try {
+    if ($command === 'runtime:check') {
+        echo json_encode([
+            'php' => PHP_VERSION,
+            'timezone' => date_default_timezone_get(),
+            'extensions' => [
+                'fileinfo' => extension_loaded('fileinfo'),
+                'mbstring' => extension_loaded('mbstring'),
+                'openssl' => extension_loaded('openssl'),
+                'pdo_mysql' => extension_loaded('pdo_mysql'),
+            ],
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'config:check') {
+        $settings = Settings::fromFile($configurationPath);
+        echo json_encode([
+            'environment' => $settings->get('environment'),
+            'apiBasePath' => $settings->get('apiBasePath'),
+            'siteName' => $settings->get('siteName'),
+            'dbHost' => $settings->get('dbHost'),
+            'dbPort' => $settings->get('dbPort'),
+            'dbName' => $settings->get('dbName'),
+            'sessionName' => $settings->get('sessionName'),
+            'sessionIdleSeconds' => $settings->get('sessionIdleSeconds'),
+            'storagePath' => $settings->get('storagePath'),
+            'logPath' => $settings->get('logPath'),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'db:init' || $command === 'db:init:dry-run') {
+        $settings = Settings::fromFile($configurationPath);
+        $initializer = new SchemaInitializer(
+            PdoFactory::create($settings),
+            dirname(__DIR__, 2) . '/database/lifehub.sql'
+        );
+        $report = $initializer->initialize($command === 'db:init:dry-run');
+        echo json_encode(['initialization' => $report], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'admin:create') {
+        $settings = Settings::fromFile($configurationPath);
+        $username = $argv[3] ?? '';
+        $password = $argv[4] ?? '';
+        $householdName = $argv[5] ?? 'Casa';
+        $timezone = $argv[6] ?? date_default_timezone_get();
+        if ($username === '' || $password === '') {
+            throw new RuntimeException(
+                'Usage: admin:create [config.php] <username> <password> [household-name] [timezone]'
+            );
+        }
+        $created = (new InitialAdminCreator(PdoFactory::create($settings)))->create(
+            $username,
+            $password,
+            $householdName,
+            $timezone
+        );
+        echo json_encode(['created' => $created], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'db:inspect') {
+        $settings = Settings::fromFile($configurationPath);
+        $pdo = PdoFactory::create($settings);
+        $tables = [
+            'lh_households', 'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks',
+            'lh_notes', 'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices',
+            'lh_recipes', 'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes',
+            'lh_shopping_lists', 'lh_shopping_items', 'lh_documents', 'lh_inventory',
+            'lh_goals', 'lh_trackers', 'lh_goal_logs', 'lh_attachments', 'lh_entity_relations',
+        ];
+        $counts = [];
+        foreach ($tables as $table) {
+            $counts[$table] = (int) $pdo->query('SELECT COUNT(*) FROM ' . $table)->fetchColumn();
+        }
+        echo json_encode([
+            'serverVersion' => $pdo->query('SELECT VERSION()')->fetchColumn(),
+            'database' => $pdo->query('SELECT DATABASE()')->fetchColumn(),
+            'counts' => $counts,
+            'totalRows' => array_sum($counts),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit(0);
+    }
+
+    if ($command === 'integrity') {
+        $settings = Settings::fromFile($configurationPath);
+        $report = (new IntegrityChecker(PdoFactory::create($settings)))->report();
+        echo json_encode($report, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+        exit($report['status'] === 'PASS' ? 0 : 1);
+    }
+
+    fwrite(
+        STDERR,
+        "Commands: runtime:check, config:check, db:init:dry-run, db:init, admin:create, db:inspect, integrity\n"
+    );
+    exit($command === 'help' ? 0 : 2);
+} catch (Throwable $exception) {
+    fwrite(STDERR, sprintf("Command failed: %s\n", $exception->getMessage()));
+    exit(1);
+}

@@ -1,0 +1,121 @@
+<!-- Presents catalog editing without exposing direct upload paths or backend authorization logic. -->
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+@if (canManage()) {
+  <div class="catalog-admin-grid">
+    <section class="card editor" aria-labelledby="categories-title">
+      <h2 id="categories-title">Categorie</h2>
+      <form [formGroup]="categoryForm" (ngSubmit)="createCategory()" class="inline-create">
+        <label>Nuova categoria<input formControlName="name" maxlength="190"></label>
+        <button class="primary" type="submit" [disabled]="categoryForm.invalid || busy()">Aggiungi</button>
+      </form>
+      <ul class="compact-admin-list">
+        @for (category of overview()?.categories ?? []; track category.id) {
+          <li><span>{{ category.name }}</span><button class="remove-icon" type="button"
+            (click)="requestDelete('categories', category)" aria-label="Elimina categoria">×</button></li>
+        }
+      </ul>
+    </section>
+    <section class="card editor" aria-labelledby="markets-title">
+      <h2 id="markets-title">Supermercati</h2>
+      <form [formGroup]="marketForm" (ngSubmit)="createMarket()" class="inline-create">
+        <label>Nuovo supermercato<input formControlName="name" maxlength="190"></label>
+        <button class="primary" type="submit" [disabled]="marketForm.invalid || busy()">Aggiungi</button>
+      </form>
+      <ul class="compact-admin-list">
+        @for (market of overview()?.supermarkets ?? []; track market.id) {
+          <li><span>{{ market.name }}</span><button class="remove-icon" type="button"
+            (click)="requestDelete('supermarkets', market)" aria-label="Elimina supermercato">×</button></li>
+        }
+      </ul>
+    </section>
+  </div>
+}
+
+<section aria-labelledby="products-title">
+  <div class="section-heading catalog-list-heading">
+    <div><p class="eyebrow">Anagrafica</p><h2 id="products-title">Prodotti ({{ products().length }})</h2></div>
+    <div class="catalog-toolbar">
+      @if (canManage()) {
+        <button class="primary" type="button" (click)="openCreate()">+ Nuovo prodotto</button>
+      }
+      <label>Cerca<input type="search" placeholder="Nome o categoria" (input)="setFilter($event)"></label>
+    </div>
+  </div>
+  @if (loading()) { <p class="state" role="status">Caricamento prodotti…</p> }
+  @else {
+    <div class="product-grid">
+      @for (product of products(); track product.id) {
+        <article class="card product-card">
+          <div class="product-thumb large" [class.product-placeholder]="!hasImage(product)">
+            @if (hasImage(product)) {
+              <img [src]="api.attachment(product.image_attachment_id!)" [alt]="'Immagine di ' + product.name">
+            } @else { <img src="icons/5a.png" alt="Immagine prodotto non disponibile"> }
+          </div>
+          <div class="product-card-body">
+            <small>{{ product.category_name || 'Senza categoria' }}</small>
+            <h3>{{ product.name }}</h3>
+            @if (canManage()) {
+              <div class="actions">
+                <button type="button" (click)="edit(product)">Modifica</button>
+                <button class="danger" type="button" (click)="requestDelete('products', product)">Elimina</button>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</section>
+
+@if (productModalOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeProductModal()"
+    (keydown.escape)="closeProductModal()">
+    <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="product-editor-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="product-editor-title">{{ editId() ? 'Modifica prodotto' : 'Nuovo prodotto' }}</h2>
+      <form [formGroup]="productForm" (ngSubmit)="saveProduct()">
+        <div class="shopping-modal-body">
+          <label>Nome<input formControlName="name" maxlength="255"></label>
+          <label>Categoria
+            <select formControlName="categoryId">
+              <option value="">Seleziona</option>
+              @for (category of overview()?.categories ?? []; track category.id) {
+                <option [value]="category.id">{{ category.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">Immagine
+            <input type="file" [accept]="canCapturePhoto ? 'image/*' : 'image/jpeg,image/png'"
+              [attr.capture]="canCapturePhoto ? 'environment' : null" (change)="selectImage($event)">
+            <small>{{ canCapturePhoto ? 'Scatta una foto o scegline una esistente.' : 'Carica un file JPEG o PNG.' }} Massimo 10 MiB.</small>
+          </label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeProductModal()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="productForm.invalid || busy()">Salva prodotto</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteTarget(); as target) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeDelete()" (keydown.escape)="closeDelete()">
+    <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
+      aria-labelledby="catalog-delete-title" (click)="$event.stopPropagation()">
+      <h2 id="catalog-delete-title">Elimina {{ resourceName(target.resource) }}</h2>
+      <div class="shopping-modal-body confirm-copy wide">
+        <p>Eliminare definitivamente “{{ target.label }}”?</p>
+        <small>L’operazione non può essere annullata. Gli eventuali riferimenti collegati saranno aggiornati.</small>
+      </div>
+      <footer class="shopping-modal-footer">
+        <button class="task-secondary" type="button" (click)="closeDelete()">Annulla</button>
+        <span class="modal-spacer"></span>
+        <button class="danger" type="button" (click)="confirmDelete()" [disabled]="busy()">Elimina</button>
+      </footer>
+    </section>
+  </div>
+}

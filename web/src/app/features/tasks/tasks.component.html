@@ -1,0 +1,112 @@
+<!-- Presents the three-column task board and keeps every task form inside an accessible modal. -->
+<div class="page-heading task-heading">
+  <div><p class="eyebrow">Organizzazione</p><h1>Attività</h1></div>
+  <div class="task-toolbar">
+    @if (!showArchived()) { <button class="task-primary" type="button" (click)="openNew()">+ Nuova</button> }
+    @for (member of members(); track member.id) {
+      <button class="task-filter" type="button" [class.inactive]="!isMemberVisible(member.id)"
+        [attr.aria-pressed]="isMemberVisible(member.id)" (click)="toggleMember(member.id)">{{ member.username }}</button>
+    }
+    <button class="task-secondary" type="button" (click)="toggleArchive()">
+      {{ showArchived() ? 'Board attiva' : 'Archivio' }}
+    </button>
+  </div>
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (loading()) { <p class="state" role="status">Caricamento attività…</p> }
+@else {
+  <section class="kanban-board" [attr.aria-label]="showArchived() ? 'Attività archiviate' : 'Board attività'">
+    <section class="kanban-column" aria-labelledby="todo-title">
+      <h2 id="todo-title">Da fare ({{ todo().length }})</h2>
+      <div class="kanban-list">
+        @for (task of todo(); track task.id) {
+          <ng-container [ngTemplateOutlet]="taskCard" [ngTemplateOutletContext]="{ task: task }" />
+        }
+      </div>
+    </section>
+    <section class="kanban-column" aria-labelledby="doing-title">
+      <h2 id="doing-title">In corso ({{ doing().length }})</h2>
+      <div class="kanban-list">
+        @for (task of doing(); track task.id) {
+          <ng-container [ngTemplateOutlet]="taskCard" [ngTemplateOutletContext]="{ task: task }" />
+        }
+      </div>
+    </section>
+    <section class="kanban-column" aria-labelledby="done-title">
+      <h2 id="done-title">Fatto ({{ done().length }})</h2>
+      <div class="kanban-list">
+        @for (task of done(); track task.id) {
+          <ng-container [ngTemplateOutlet]="taskCard" [ngTemplateOutletContext]="{ task: task }" />
+        }
+      </div>
+    </section>
+  </section>
+}
+
+<ng-template #taskCard let-task="task">
+  <article class="kanban-task" [class.high-priority]="task.priority === 'high'"
+    [class.done-task]="task.status === 'completed'" (click)="openEdit(task)" tabindex="0"
+    (keydown.enter)="openEdit(task)">
+    <div class="kanban-task-title"><span class="priority-dot" [attr.data-priority]="task.priority"></span>
+      <h3>{{ task.title }}</h3></div>
+    @if (task.description) { <p>{{ task.description }}</p> }
+    <footer class="kanban-task-footer">
+      <div class="task-meta">
+        @if (task.assigned_username) { <span class="user-badge">{{ task.assigned_username }}</span> }
+        @if (task.due_date) { <span class="due-date">{{ dueLabel(task.due_date) }}</span> }
+      </div>
+      <div class="task-card-actions">
+        @if (showArchived()) {
+          <button class="task-primary compact" type="button" (click)="archive(task); $event.stopPropagation()">Ripristina</button>
+        } @else {
+          <button class="task-delete compact" type="button" (click)="archive(task); $event.stopPropagation()">Elimina</button>
+          @if (task.status !== 'completed') {
+            <button class="task-done compact" type="button" (click)="complete(task); $event.stopPropagation()">Fatto</button>
+          }
+        }
+      </div>
+    </footer>
+  </article>
+</ng-template>
+
+@if (editorOpen()) {
+  <div class="task-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+    <section class="task-modal card" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="task-modal-title">{{ editing() ? 'Modifica attività' : 'Nuova attività' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="task-modal-body">
+          <label>Titolo<input formControlName="title" maxlength="255" placeholder="Cosa c’è da fare?"></label>
+          <label>Descrizione<textarea formControlName="description" rows="4" placeholder="Aggiungi dettagli…"></textarea></label>
+          <div class="task-form-row">
+            <label>Assegnata a
+              <select formControlName="assignedTo"><option value="">Chiunque</option>
+                @for (member of members(); track member.id) { <option [value]="member.id">{{ member.username }}</option> }
+              </select>
+            </label>
+            <label>Priorità
+              <select formControlName="priority"><option value="low">Bassa</option>
+                <option value="normal">Media</option><option value="high">Alta</option></select>
+            </label>
+          </div>
+          <div class="task-form-row">
+            <label>Scadenza<input type="date" formControlName="dueDate"></label>
+            <label>Stato
+              <select formControlName="status"><option value="open">Da fare</option>
+                <option value="in_progress">In corso</option><option value="completed">Fatto</option></select>
+            </label>
+          </div>
+        </div>
+        <footer class="task-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeEditor()">Annulla</button>
+          @if (editing(); as task) {
+            <button class="task-delete" type="button" (click)="archive(task)">Elimina</button>
+          }
+          <span class="modal-spacer"></span>
+          <button class="task-primary" type="submit" [disabled]="form.invalid || busy()">Salva</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

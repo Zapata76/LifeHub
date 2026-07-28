@@ -1,0 +1,111 @@
+<div class="page-heading document-page-heading">
+  <div><p class="eyebrow">Modulo</p><h1>Archivio documenti</h1></div>
+  @if (overview().can_manage) { <button class="primary" type="button" (click)="openCreate()">+ Nuovo documento</button> }
+</div>
+
+@if (error() && !editorOpen() && !deleteTarget()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+<div class="document-workspace">
+  <aside class="card document-sidebar" aria-labelledby="document-list-title">
+    <div class="section-heading"><h2 id="document-list-title">Documenti</h2><span class="pill">{{ filteredDocuments().length }}</span></div>
+    <input type="search" placeholder="Titolo, categoria, note…" (input)="setSearch($event)">
+    <select aria-label="Filtra per categoria" (change)="setCategory($event)">
+      <option value="">Tutte le categorie</option>
+      @for (category of overview().categories; track category) { <option [value]="category">{{ category }}</option> }
+    </select>
+    @if (loading()) { <p class="state">Caricamento documenti…</p> }
+    @else {
+      <div class="document-list">
+        @for (document of filteredDocuments(); track document.id) {
+          <button type="button" class="document-list-item" [class.active]="selected()?.id === document.id"
+            (click)="select(document)">
+            <span class="document-list-icon" aria-hidden="true">{{ fileIcon(document) }}</span>
+            <span><strong>{{ document.title }}</strong><small>{{ document.category_text || 'Altro' }} · {{ formatDate(document.created_at) }}</small></span>
+          </button>
+        } @empty { <p class="state">Nessun documento trovato.</p> }
+      </div>
+    }
+  </aside>
+
+  <main class="card document-detail-panel">
+    @if (selected(); as document) {
+      <header class="document-detail-header">
+        <div><p class="eyebrow">{{ document.category_text || 'Altro' }}</p><h2>{{ document.title }}</h2>
+          <div class="document-meta"><span>📅 {{ formatDate(document.created_at) }}</span><span>👤 {{ document.owner_name }}</span></div>
+        </div>
+        @if (document.can_edit) {
+          <div class="actions"><button type="button" (click)="openEdit()">Modifica</button>
+            <button class="danger" type="button" (click)="confirmDelete()">Elimina</button></div>
+        }
+      </header>
+
+      @if (document.description) {
+        <section class="document-detail-section"><h3>Note</h3><div class="document-notes">{{ document.description }}</div></section>
+      }
+      <section class="document-detail-section"><h3>File</h3>
+        @if (document.attachment_id) {
+          <div class="document-file-card">
+            <span class="document-file-icon" aria-hidden="true">{{ fileIcon(document) }}</span>
+            <div><strong>{{ document.attachment_name }}</strong><small>{{ document.attachment_mime }} · {{ formatSize(document.attachment_size) }}</small></div>
+            <div class="actions"><a class="button-link" [href]="api.attachment(document.attachment_id, true)" target="_blank" rel="noopener">Apri</a>
+              <a class="button-link" [href]="api.attachment(document.attachment_id)">Scarica</a></div>
+          </div>
+        } @else { <p class="state">Il file associato non è disponibile. Usa “Modifica” per caricarlo.</p> }
+      </section>
+    } @else {
+      <div class="document-empty-detail"><span aria-hidden="true">📂</span><p>Seleziona un documento o aggiungine uno nuovo.</p></div>
+    }
+  </main>
+</div>
+
+@if (editorOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+    <section class="shopping-modal card document-editor-modal" role="dialog" aria-modal="true"
+      aria-labelledby="document-editor-title" (click)="$event.stopPropagation()">
+      <h2 id="document-editor-title">{{ editing() ? 'Modifica documento' : 'Nuovo documento' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="document-editor-body">
+          <label class="wide">Titolo<input formControlName="title" maxlength="255" placeholder="Es. Contratto affitto 2026"></label>
+          <label>Categoria<select formControlName="category">
+            @for (category of ['Documenti', 'Contratti', 'Certificati', 'Garanzie', 'Altro']; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+            @for (category of overview().categories; track category) {
+              @if (!['Documenti', 'Contratti', 'Certificati', 'Garanzie', 'Altro'].includes(category)) {
+                <option [value]="category">{{ category }}</option>
+              }
+            }
+          </select></label>
+          <label class="wide">Note<textarea formControlName="notes" rows="5" maxlength="20000" placeholder="Descrizione o dettagli del documento"></textarea></label>
+          <section class="wide document-upload">
+            <h3>{{ editing() ? 'Sostituisci file' : 'File' }}</h3>
+            @if (editing() && selected()?.attachment_name && !selectedFile()) {
+              <p>File attuale: <strong>{{ selected()?.attachment_name }}</strong></p>
+            }
+            <label class="recipe-upload-button">📁 {{ selectedFile()?.name || (editing() ? 'Scegli un nuovo file' : 'Seleziona file') }}
+              <input hidden type="file" accept="application/pdf,image/jpeg,image/png" (change)="selectFile($event)"></label>
+            <small>PDF, JPEG o PNG, massimo 10 MiB. Il file è obbligatorio per un nuovo documento.</small>
+          </section>
+        </div>
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <footer class="shopping-modal-footer"><button class="task-secondary" type="button" (click)="closeEditor()">Annulla</button>
+          <span class="modal-spacer"></span><button class="primary" type="submit"
+            [disabled]="form.invalid || busy() || (!editing() && !selectedFile())">
+            {{ busy() ? 'Salvataggio…' : 'Salva documento' }}</button></footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteTarget(); as document) {
+  <div class="shopping-modal-backdrop" role="presentation">
+    <section class="shopping-modal card document-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="document-delete-title">
+      <h2 id="document-delete-title">Eliminare il documento?</h2>
+      <p>“{{ document.title }}” e il relativo file saranno eliminati definitivamente. Gli oggetti dell’inventario collegati resteranno senza documento.</p>
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <footer class="shopping-modal-footer"><button type="button" (click)="deleteTarget.set(null)" [disabled]="busy()">Annulla</button>
+        <span class="modal-spacer"></span><button class="danger" type="button" (click)="deleteDocument()" [disabled]="busy()">Elimina definitivamente</button></footer>
+    </section>
+  </div>
+}

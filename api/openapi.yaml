@@ -1,0 +1,788 @@
+openapi: 3.0.3
+info:
+  title: Life Hub API
+  version: 1.0.0
+  description: Same-origin household API. Unsafe requests require the session CSRF token.
+servers:
+  - url: /umbertini/api/v1
+tags:
+  - name: Identity
+  - name: Tasks
+  - name: Resources
+  - name: Attachments
+  - name: Shopping
+  - name: Recipes
+  - name: Inventory
+  - name: Notes
+  - name: Goals
+  - name: Documents
+  - name: Operations
+paths:
+  /health:
+    servers:
+      - url: /umbertini/api
+    get:
+      tags: [Operations]
+      summary: Read the unversioned deployment health probe
+      responses:
+        '200': {description: Runtime is reachable}
+  /app-config:
+    get:
+      tags: [Identity]
+      summary: Read public runtime branding configuration
+      responses:
+        '200': {description: Runtime application configuration}
+  /auth/session:
+    get:
+      tags: [Identity]
+      summary: Read the session model and bootstrap a CSRF token
+      responses:
+        '200':
+          description: Session model
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Session'}
+  /auth/login:
+    post:
+      tags: [Identity]
+      summary: Authenticate and rotate the session
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: {type: string, maxLength: 190}
+                password: {type: string, format: password}
+      responses:
+        '200': {description: Authenticated, content: {application/json: {schema: {$ref: '#/components/schemas/Session'}}}}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+  /auth/logout:
+    post:
+      tags: [Identity]
+      summary: Revoke the current session
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '200': {description: Logged out}
+  /users:
+    get:
+      tags: [Identity]
+      summary: List household users (admin)
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+        '403': {$ref: '#/components/responses/Error'}
+    post:
+      tags: [Identity]
+      summary: Create a household user (admin)
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '201': {description: Created}
+        '422': {$ref: '#/components/responses/Error'}
+  /users/{id}:
+    put:
+      tags: [Identity]
+      summary: Change role or status with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /users/{id}/password:
+    post:
+      tags: [Identity]
+      summary: Reset a household user password with bcrypt (admin)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Password reset}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /users/{id}/calendars/{calendarId}/{action}:
+    post:
+      tags: [Identity]
+      summary: Assign or unassign a validated calendar for a household user (admin)
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {name: calendarId, in: path, required: true, schema: {type: integer, minimum: 1}}
+        - {name: action, in: path, required: true, schema: {type: string, enum: [assign, unassign]}}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Assignment result}
+        '404': {$ref: '#/components/responses/Error'}
+  /tasks:
+    get:
+      tags: [Tasks]
+      summary: List policy-visible tasks
+      parameters:
+        - {$ref: '#/components/parameters/Archived'}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [open, in_progress, completed]}}
+        - {name: assignedTo, in: query, required: false, schema: {type: integer, minimum: 1}}
+        - {name: dueFrom, in: query, required: false, schema: {type: string, format: date}}
+        - {name: dueTo, in: query, required: false, schema: {type: string, format: date}}
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '201': {description: Created}
+        '422': {$ref: '#/components/responses/Error'}
+  /dashboard:
+    get:
+      tags: [Resources]
+      summary: Read role-aware non-sensitive home metrics
+      responses:
+        '200': {description: Dashboard metrics}
+  /admin/home-settings:
+    get:
+      tags: [Identity]
+      summary: Read administrator-editable household home labels
+      responses:
+        '200': {description: Home label settings with optimistic-lock version}
+        '403': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Identity]
+      summary: Update both household home labels (admin)
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [homeEyebrow, homeTitle, version]
+              properties:
+                homeEyebrow: {type: string, minLength: 1, maxLength: 190}
+                homeTitle: {type: string, minLength: 1, maxLength: 255}
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Home labels updated}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /tasks/members:
+    get:
+      tags: [Tasks]
+      summary: List active household members available to the current user for task assignment
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+  /tasks/{id}/complete:
+    post:
+      tags: [Tasks]
+      summary: Complete a task idempotently
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Completion result}
+        '409': {$ref: '#/components/responses/Error'}
+  /tasks/{id}:
+    put:
+      tags: [Tasks]
+      summary: Update task details with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /tasks/{id}/archive:
+    post:
+      tags: [Tasks]
+      summary: Archive a task
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Archived}
+  /tasks/{id}/restore:
+    post:
+      tags: [Tasks]
+      summary: Restore an archived task
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Restored}
+  /recipes/overview:
+    get:
+      tags: [Recipes]
+      summary: Read recipes, authors, categories, products, images, and ingredient counts
+      responses:
+        '200': {description: Household recipe workspace}
+  /recipes:
+    post:
+      tags: [Recipes]
+      summary: Create a recipe with its ordered ingredients
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/RecipeInput'}}}
+      responses:
+        '201': {description: Recipe created}
+        '422': {$ref: '#/components/responses/Error'}
+  /recipes/{id}:
+    get:
+      tags: [Recipes]
+      summary: Read one recipe with its ordered ingredients
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Recipe detail}
+        '404': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Recipes]
+      summary: Replace recipe metadata and ingredients with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/RecipeInput'}}}
+      responses:
+        '200': {description: Recipe updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /recipes/{id}/archive:
+    post:
+      tags: [Recipes]
+      summary: Reversibly archive a recipe and its active ingredients
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Recipe archived}
+  /recipes/{id}/image/remove:
+    post:
+      tags: [Recipes]
+      summary: Reversibly detach the current recipe image
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Image removed}
+  /inventory/overview:
+    get:
+      tags: [Inventory]
+      summary: Read policy-visible inventory items, categories, members, documents, and images
+      responses:
+        '200': {description: Household inventory workspace}
+  /inventory:
+    post:
+      tags: [Inventory]
+      summary: Create a household inventory item
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/InventoryInput'}}}
+      responses:
+        '201': {description: Inventory item created}
+        '422': {$ref: '#/components/responses/Error'}
+  /inventory/{id}:
+    get:
+      tags: [Inventory]
+      summary: Read one policy-visible inventory item with named relations
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Inventory item detail}
+        '404': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Inventory]
+      summary: Update an inventory item with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/InventoryInput'}}}
+      responses:
+        '200': {description: Inventory item updated}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /inventory/{id}/archive:
+    post:
+      tags: [Inventory]
+      summary: Reversibly archive an inventory item
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Inventory item archived}
+  /inventory/{id}/image/remove:
+    post:
+      tags: [Inventory]
+      summary: Reversibly detach the current inventory image
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Image removed}
+  /notes/overview:
+    get:
+      tags: [Notes]
+      summary: Read policy-visible notes, authors, colors, pin state, and images
+      parameters: [{$ref: '#/components/parameters/Archived'}]
+      responses:
+        '200': {description: Household note workspace}
+  /notes:
+    post:
+      tags: [Notes]
+      summary: Create a personal or household note
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/NoteInput'}}}
+      responses:
+        '201': {description: Note created}
+        '422': {$ref: '#/components/responses/Error'}
+  /notes/{id}:
+    get:
+      tags: [Notes]
+      summary: Read one policy-visible note
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Note detail}
+        '404': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Notes]
+      summary: Update note content, color, and pin state with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/NoteInput'}}}
+      responses:
+        '200': {description: Note updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /notes/{id}/pin:
+    post:
+      tags: [Notes]
+      summary: Pin or unpin a note with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Pin state updated}
+  /notes/{id}/archive:
+    post:
+      tags: [Notes]
+      summary: Reversibly archive a note
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Note archived}
+  /notes/{id}/restore:
+    post:
+      tags: [Notes]
+      summary: Restore an archived note
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Note restored}
+  /notes/{id}/image/remove:
+    post:
+      tags: [Notes]
+      summary: Reversibly detach the current note image
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Image removed}
+  /goals/overview:
+    get:
+      tags: [Goals]
+      summary: Read household goals with owners, trackers and recent progress logs
+      responses:
+        '200': {description: Goal workspace aggregate}
+        '403': {$ref: '#/components/responses/Error'}
+  /goals:
+    post:
+      tags: [Goals]
+      summary: Create a goal and its progress trackers
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GoalInput'}
+      responses:
+        '201': {description: Goal created}
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /goals/{id}:
+    put:
+      tags: [Goals]
+      summary: Update a goal and replace its progress tracker configuration
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GoalInput'}
+      responses:
+        '200': {description: Goal updated}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+    delete:
+      tags: [Goals]
+      summary: Permanently delete a goal, its trackers and progress logs
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Goal deleted}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /goal-trackers/{trackerId}/log:
+    post:
+      tags: [Goals]
+      summary: Create or replace a daily progress observation
+      parameters:
+        - name: trackerId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Progress recorded}
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /documents/overview:
+    get:
+      tags: [Documents]
+      summary: Read the searchable private document archive with file metadata
+      responses:
+        '200': {description: Document archive aggregate}
+        '403': {$ref: '#/components/responses/Error'}
+  /documents:
+    post:
+      tags: [Documents]
+      summary: Create a document with its required private file
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/DocumentInput'}
+      responses:
+        '201': {description: Document and file created}
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /documents/{id}:
+    get:
+      tags: [Documents]
+      summary: Read one document and its private file metadata
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: Document detail}
+        '404': {$ref: '#/components/responses/Error'}
+    post:
+      tags: [Documents]
+      summary: Update document metadata and optionally replace its private file
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: {$ref: '#/components/schemas/DocumentInput'}
+      responses:
+        '200': {description: Document updated}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    delete:
+      tags: [Documents]
+      summary: Permanently delete a document and its private file
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Document and file deleted}
+        '409': {$ref: '#/components/responses/Error'}
+  /{resource}:
+    parameters:
+      - name: resource
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [calendars, calendar-assignments, categories, supermarkets, products, prices, recipe-ingredients,
+            meals, meal-recipes, shopping-lists, shopping-items, relations]
+    get:
+      tags: [Resources]
+      summary: List a configured household resource
+      parameters: [{$ref: '#/components/parameters/Archived'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+        '403': {$ref: '#/components/responses/Error'}
+    post:
+      tags: [Resources]
+      summary: Create a configured household resource
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '201': {description: Created}
+        '422': {$ref: '#/components/responses/Error'}
+  /{resource}/{id}:
+    put:
+      tags: [Resources]
+      summary: Update a configured resource
+      parameters:
+        - {name: resource, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /{resource}/{id}/archive:
+    post:
+      tags: [Resources]
+      summary: Archive a configured resource
+      parameters:
+        - {name: resource, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Archived}
+  /{resource}/{id}/restore:
+    post:
+      tags: [Resources]
+      summary: Restore a configured resource
+      parameters:
+        - {name: resource, in: path, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Restored}
+  /attachments:
+    get:
+      tags: [Attachments]
+      summary: List authorized attachment metadata
+      parameters:
+        - {name: ownerType, in: query, required: true, schema: {type: string}}
+        - {name: ownerId, in: query, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      tags: [Attachments]
+      summary: Upload a private JPEG, PNG, or PDF (10 MiB maximum)
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ownerType, ownerId, file]
+              properties:
+                ownerType: {type: string}
+                ownerId: {type: integer}
+                file: {type: string, format: binary}
+      responses:
+        '201': {description: Stored}
+        '422': {$ref: '#/components/responses/Error'}
+  /attachments/{id}/download:
+    get:
+      tags: [Attachments]
+      summary: Download private content after owner authorization
+      parameters: [{$ref: '#/components/parameters/Id'}]
+      responses:
+        '200': {description: File content}
+        '404': {$ref: '#/components/responses/Error'}
+  /shopping/generate:
+    post:
+      tags: [Operations]
+      summary: Generate shopping items from a recipe or meal with resumable steps
+      parameters:
+        - {$ref: '#/components/parameters/Csrf'}
+        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 8, maxLength: 190}}
+      responses:
+        '201': {description: Generation result}
+        '409': {$ref: '#/components/responses/Error'}
+  /shopping/overview:
+    get:
+      tags: [Shopping]
+      summary: Read the joined shopping list, product catalog, supermarkets, and price history
+      responses:
+        '200': {description: Household shopping workspace}
+  /shopping/items:
+    post:
+      tags: [Shopping]
+      summary: Add one catalog product to a household shopping list
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '201': {description: Item created}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /shopping/items/clear-checked:
+    post:
+      tags: [Shopping]
+      summary: Physically remove all checked items from one household shopping list
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      responses:
+        '200': {description: Checked rows removed}
+        '404': {$ref: '#/components/responses/Error'}
+  /shopping/items/{id}:
+    put:
+      tags: [Shopping]
+      summary: Check, uncheck, or edit quantity and supermarket with optimistic locking
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Item updated}
+        '409': {$ref: '#/components/responses/Error'}
+  /shopping/items/{id}/remove:
+    post:
+      tags: [Shopping]
+      summary: Reversibly remove one shopping item from the active list
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Item removed}
+        '409': {$ref: '#/components/responses/Error'}
+  /shopping/catalog/{resource}/{id}:
+    delete:
+      tags: [Shopping]
+      summary: Physically delete a catalogue entity and repair its household references
+      parameters:
+        - name: resource
+          in: path
+          required: true
+          schema: {type: string, enum: [categories, supermarkets, products, prices]}
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      responses:
+        '200': {description: Resource deleted}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: integer, minimum: 1}}
+    Csrf: {name: X-CSRF-Token, in: header, required: true, schema: {type: string}}
+    Archived: {name: archived, in: query, required: false, schema: {type: integer, enum: [0, 1]}}
+  schemas:
+    User:
+      type: object
+      required: [id, householdId, role, username]
+      properties:
+        id: {type: integer}
+        householdId: {type: integer}
+        role: {type: string, enum: [admin, adult, child]}
+        username: {type: string}
+    Session:
+      type: object
+      required: [authenticated, csrfToken]
+      properties:
+        authenticated: {type: boolean}
+        user: {nullable: true, allOf: [{$ref: '#/components/schemas/User'}]}
+        csrfToken: {type: string}
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            correlationId: {type: string}
+    RecipeInput:
+      type: object
+      required: [title, difficulty, ingredients]
+      properties:
+        title: {type: string, maxLength: 255}
+        category: {type: string, maxLength: 100}
+        description: {type: string, maxLength: 20000}
+        instructions: {type: string, maxLength: 50000}
+        prepTimeMinutes: {type: integer, nullable: true, minimum: 1, maximum: 1440}
+        difficulty: {type: string, enum: [bassa, media, alta]}
+        version: {type: integer, minimum: 1}
+        ingredients:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [name, quantity]
+            properties:
+              productId: {type: integer, nullable: true, minimum: 1}
+              name: {type: string, maxLength: 255}
+              quantity: {type: string, maxLength: 100}
+    InventoryInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, maxLength: 255}
+        category: {type: string, maxLength: 100, default: Altro}
+        location: {type: string, maxLength: 500}
+        ownerId: {type: integer, nullable: true, minimum: 1}
+        documentId: {type: integer, nullable: true, minimum: 1}
+        quantity: {type: number, nullable: true, minimum: 0}
+        unit: {type: string, maxLength: 32}
+        purchaseDate: {type: string, nullable: true, format: date}
+        warrantyExpiry: {type: string, nullable: true, format: date}
+        notes: {type: string, maxLength: 20000}
+        version: {type: integer, minimum: 1}
+    NoteInput:
+      type: object
+      properties:
+        title: {type: string, maxLength: 255}
+        body: {type: string, maxLength: 50000}
+        color: {type: string, pattern: '^#[0-9a-fA-F]{6}$', default: '#1e1e1e'}
+        pinned: {type: boolean, default: false}
+        version: {type: integer, minimum: 1}
+    GoalInput:
+      type: object
+      required: [title, ownerId, status, trackers]
+      properties:
+        title: {type: string, maxLength: 255}
+        description: {type: string, maxLength: 20000}
+        ownerId: {type: integer, minimum: 1}
+        startDate: {type: string, nullable: true, format: date}
+        endDate: {type: string, nullable: true, format: date}
+        status: {type: string, enum: [active, completed, suspended]}
+        version: {type: integer, minimum: 1}
+        trackers:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required: [trackerType, frequency]
+            properties:
+              id: {type: integer, minimum: 1}
+              trackerType: {type: string, enum: [boolean, numeric, percentage]}
+              frequency: {type: string, enum: [daily, weekly]}
+    DocumentInput:
+      type: object
+      required: [title, category]
+      properties:
+        title: {type: string, maxLength: 255}
+        category: {type: string, maxLength: 100, default: Altro}
+        notes: {type: string, maxLength: 20000}
+        version: {type: integer, minimum: 1}
+        file: {type: string, format: binary, description: Required on create; optional replacement on update}
+  responses:
+    Error:
+      description: Canonical API error
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Collection:
+      description: Household-scoped collection
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [items]
+            properties: {items: {type: array, items: {type: object, additionalProperties: true}}}

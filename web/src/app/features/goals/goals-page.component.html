@@ -1,0 +1,217 @@
+<div class="page-heading goal-page-heading">
+  <div><p class="eyebrow">Modulo</p><h1>Obiettivi &amp; Abitudini</h1></div>
+  @if (canManage()) {
+    <button class="primary" type="button" (click)="openCreate()">+ Nuovo obiettivo</button>
+  }
+</div>
+
+<div class="goal-toolbar" aria-label="Filtra obiettivi per persona">
+  @for (member of overview().members; track member.id) {
+    <button type="button" class="member-filter" [class.inactive]="hiddenOwners().has(member.id)"
+      (click)="toggleOwner(member.id)">{{ member.username }}</button>
+  }
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+@if (loading()) {
+  <p class="state" role="status">Caricamento obiettivi…</p>
+} @else {
+  <div class="goal-grid" [class.child-goal-grid]="isChild()">
+    @for (goal of filteredGoals(); track goal.id) {
+      <article class="card goal-card" [class.goal-suspended]="goal.status === 'suspended'"
+        [class.goal-completed]="goal.status === 'completed'" [class.child-goal-card]="isChild()">
+        <header class="goal-card-header">
+          <h2>{{ goal.title }}</h2>
+          @if (goal.can_edit && !isChild()) {
+            <div class="actions goal-card-actions">
+              <button type="button" (click)="openEdit(goal)" [attr.aria-label]="'Modifica ' + goal.title">✏️</button>
+              <button class="danger" type="button" (click)="confirmDelete(goal)"
+                [attr.aria-label]="'Elimina ' + goal.title">🗑️</button>
+            </div>
+          }
+        </header>
+
+        @if (goal.description) { <p class="goal-description">{{ goal.description }}</p> }
+
+        @if (!isChild()) {
+          <div class="goal-period">📅 {{ formatDate(goal.start_date) }} – {{ formatDate(goal.end_date) }}</div>
+          <div class="goal-meta">
+            <span class="goal-status" [attr.data-status]="goal.status">{{ status(goal.status) }}</span>
+            <span>👤 {{ goal.owner_name || 'Senza proprietario' }}</span>
+          </div>
+        }
+
+        @if (isChild()) {
+          <div class="goal-progress child-goal-progress" aria-label="Completamento obiettivo">
+            <div class="goal-progress-fill" [style.width.%]="completion(goal)">{{ completion(goal) }}%</div>
+          </div>
+          <div class="goal-badges">
+            @for (badge of badges(goal); track badge) { <span>{{ badge }}</span> }
+          </div>
+        }
+
+        <div class="goal-trackers">
+          @for (tracker of goal.trackers; track tracker.id) {
+            <section class="goal-tracker">
+              <div class="goal-tracker-heading">
+                <div>
+                  <strong>{{ trackerType(tracker.tracker_type) }}</strong>
+                  <small>{{ frequency(tracker.frequency_code) }} · {{ logValue(tracker) }}</small>
+                </div>
+                @if (goal.can_log) {
+                  <button [class.primary]="isChild()" type="button" (click)="openLog(goal, tracker)">
+                    @if (isChild() && tracker.tracker_type === 'boolean') { ✅ Fatto oggi! }
+                    @else if (isChild()) { + Aggiungi progresso }
+                    @else { Registra }
+                  </button>
+                }
+              </div>
+            </section>
+          } @empty {
+            <p class="goal-no-trackers">Nessun tracker impostato per questo obiettivo.</p>
+          }
+        </div>
+
+        @if (!isChild()) {
+          <footer class="goal-card-footer">
+            <div class="goal-progress" aria-label="Completamento obiettivo">
+              <div class="goal-progress-fill" [style.width.%]="completion(goal)"></div>
+            </div>
+            <small>{{ completion(goal) }}% completato</small>
+          </footer>
+        }
+      </article>
+    } @empty {
+      <div class="card goal-empty-state">
+        @if (overview().goals.length === 0) {
+          <p>{{ isChild() ? 'Nessun obiettivo ancora! Inizia ora 🌟' : 'Non ci sono ancora obiettivi. Creane uno per iniziare.' }}</p>
+        } @else {
+          <p>Nessun obiettivo visibile con i filtri selezionati.</p>
+        }
+      </div>
+    }
+  </div>
+}
+
+@if (editorOpen()) {
+  <div class="goal-modal-backdrop" (mousedown)="editorBackdrop($event)">
+    <section class="card goal-modal" role="dialog" aria-modal="true" aria-labelledby="goal-editor-title">
+      <h2 id="goal-editor-title">{{ editing() ? 'Modifica obiettivo' : 'Nuovo obiettivo' }}</h2>
+      <form [formGroup]="goalForm" (ngSubmit)="save()">
+        <div class="goal-modal-body">
+          <label class="wide">Titolo
+            <input formControlName="title" maxlength="255" placeholder="Cosa vuoi ottenere?">
+          </label>
+          <label class="wide">Descrizione
+            <textarea formControlName="description" rows="4" maxlength="20000" placeholder="Aggiungi dettagli…"></textarea>
+          </label>
+          <label>Data inizio<input type="date" formControlName="startDate"></label>
+          <label>Data fine<input type="date" formControlName="endDate"></label>
+          <label>Proprietario
+            <select formControlName="ownerId">
+              @for (member of overview().members; track member.id) {
+                <option [value]="member.id">{{ member.username }}</option>
+              }
+            </select>
+          </label>
+          <label>Stato
+            <select formControlName="status">
+              <option value="active">Attivo</option>
+              <option value="completed">Completato</option>
+              <option value="suspended">Sospeso</option>
+            </select>
+          </label>
+
+          <section class="goal-tracker-editor wide">
+            <h3>Tracker progressi</h3>
+            <div class="goal-tracker-badges">
+              @for (tracker of trackerDrafts(); track $index; let index = $index) {
+                <span>
+                  {{ trackerType(tracker.type) }} ({{ frequency(tracker.frequency) }})
+                  <button type="button" (click)="removeTracker(index)" aria-label="Rimuovi tracker">×</button>
+                </span>
+              }
+            </div>
+            <div class="goal-tracker-add" [formGroup]="trackerForm">
+              <label>Tipo
+                <select formControlName="type">
+                  <option value="boolean">Sì/No</option>
+                  <option value="quantity">Numerico</option>
+                  <option value="percentage">Percentuale</option>
+                </select>
+              </label>
+              <label>Frequenza
+                <select formControlName="frequency">
+                  <option value="daily">Giornaliero</option>
+                  <option value="weekly">Settimanale</option>
+                </select>
+              </label>
+              <button type="button" (click)="addTracker()" [disabled]="trackerDrafts().length >= 12">+ Tracker</button>
+            </div>
+          </section>
+        </div>
+        @if (error()) { <p class="error goal-modal-error" role="alert">{{ error() }}</p> }
+        <footer class="goal-modal-footer">
+          <button type="button" (click)="closeEditor()" [disabled]="busy()">Annulla</button>
+          <button class="primary" type="submit" [disabled]="goalForm.invalid || busy()">
+            {{ busy() ? 'Salvataggio…' : 'Salva' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (logTarget(); as target) {
+  <div class="goal-modal-backdrop">
+    <section class="card goal-modal goal-log-modal" role="dialog" aria-modal="true" aria-labelledby="goal-log-title">
+      <h2 id="goal-log-title">Registra progresso</h2>
+      <p class="muted">{{ target.goal.title }} · {{ trackerType(target.tracker.tracker_type) }}</p>
+      <form [formGroup]="logForm" (ngSubmit)="saveLog()">
+        <div class="goal-log-form">
+          <label>Data<input type="date" formControlName="date"></label>
+          @if (target.tracker.tracker_type === 'boolean') {
+            <label class="goal-done-control"><input type="checkbox" formControlName="done"> Completato</label>
+          } @else {
+            <label>Valore
+              <input type="number" formControlName="value" step="0.01"
+                [min]="target.tracker.tracker_type === 'percentage' ? 0 : null"
+                [max]="target.tracker.tracker_type === 'percentage' ? 100 : null">
+            </label>
+          }
+          <label class="wide">Note<textarea formControlName="note" rows="2" maxlength="2000"></textarea></label>
+        </div>
+        <div class="goal-log-history">
+          <h3>Cronologia</h3>
+          @for (log of target.tracker.logs; track log.id) {
+            <div><span>{{ formatDate(log.log_date) }}</span><strong>
+              @if (target.tracker.tracker_type === 'boolean') { {{ log.value_boolean ? 'Fatto' : 'Non fatto' }} }
+              @else { {{ historyValue(target.tracker, log.value_number) }} }
+            </strong></div>
+          } @empty { <p class="muted">Nessun progresso registrato.</p> }
+        </div>
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <footer class="goal-modal-footer">
+          <button type="button" (click)="logTarget.set(null)" [disabled]="busy()">Annulla</button>
+          <button class="primary" type="submit" [disabled]="logForm.invalid || busy()">Salva progresso</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (deleteTarget(); as goal) {
+  <div class="goal-modal-backdrop">
+    <section class="card goal-modal goal-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="goal-delete-title">
+      <h2 id="goal-delete-title">Eliminare l’obiettivo?</h2>
+      <p>“{{ goal.title }}” e tutta la cronologia dei suoi tracker saranno eliminati definitivamente.</p>
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <footer class="goal-modal-footer">
+        <button type="button" (click)="deleteTarget.set(null)" [disabled]="busy()">Annulla</button>
+        <button class="danger" type="button" (click)="deleteGoal()" [disabled]="busy()">Elimina definitivamente</button>
+      </footer>
+    </section>
+  </div>
+}

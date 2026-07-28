@@ -1,0 +1,66 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "projects": {
+    "lifehub": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "lh",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.app.json",
+            "index": "src/index.html",
+            "baseHref": "/umbertini/",
+            "outputPath": "dist/lifehub",
+            "assets": [
+              "src/favicon.ico",
+              "src/favicon-16x16.png",
+              "src/favicon-32x32.png",
+              "src/apple-touch-icon.png",
+              "src/manifest.webmanifest",
+              "src/icons"
+            ],
+            "styles": ["src/styles.css"],
+            "serviceWorker": "ngsw-config.json"
+          },
+          "configurations": {
+            "production": {
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false,
+                  "removeSpecialComments": true
+                }
+              },
+              "outputHashing": "all",
+              "sourceMap": false,
+              "budgets": [
+                {"type": "initial", "maximumWarning": "320kB", "maximumError": "375kB"},
+                {"type": "anyComponentStyle", "maximumWarning": "6kB", "maximumError": "10kB"}
+              ]
+            },
+            "development": {"optimization": false, "sourceMap": true}
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "development": {"buildTarget": "lifehub:build:development"},
+            "production": {"buildTarget": "lifehub:build:production"}
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {"tsConfig": "tsconfig.spec.json"}
+        }
+      }
+    }
+  }
+}

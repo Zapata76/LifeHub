@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/@angular/service-worker/config/schema.json",
+  "index": "/umbertini/index.html",
+  "assetGroups": [
+    {
+      "name": "app-shell",
+      "installMode": "prefetch",
+      "resources": {"files": ["/favicon.svg", "/index.html", "/*.css", "/*.js"]}
+    },
+    {
+      "name": "lazy-assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {"files": ["/**"]}
+    }
+  ],
+  "navigationUrls": ["/**", "!/**/*.*", "!/umbertini/api/**"]
+}

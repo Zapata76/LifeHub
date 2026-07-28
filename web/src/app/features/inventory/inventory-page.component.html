@@ -1,0 +1,126 @@
+<div class="page-heading inventory-page-heading">
+  <div><p class="eyebrow">Modulo</p><h1>Inventario casa</h1></div>
+  @if (canManage()) { <button class="primary" type="button" (click)="openCreate()">+ Nuovo oggetto</button> }
+</div>
+
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (success()) { <p class="success" role="status">{{ success() }}</p> }
+
+<div class="inventory-workspace">
+  <aside class="card inventory-sidebar" aria-labelledby="inventory-list-title">
+    <div class="section-heading"><h2 id="inventory-list-title">Oggetti</h2><span class="pill">{{ filteredItems().length }}</span></div>
+    <input class="inventory-search" type="search" placeholder="Nome, posizione, categoria…" (input)="setSearch($event)">
+    <div class="inventory-owner-filters" aria-label="Filtra per proprietario">
+      @for (member of overview()?.members ?? []; track member.id) {
+        <button type="button" class="member-filter" [class.inactive]="hiddenOwners().has(member.id)"
+          (click)="toggleOwner(member.id)">{{ member.username }}</button>
+      }
+    </div>
+    @if (loading()) { <p class="state">Caricamento inventario…</p> }
+    @else {
+      <div class="inventory-list">
+        @for (item of filteredItems(); track item.id) {
+          <button type="button" class="inventory-list-item" [class.active]="selected()?.id === item.id"
+            (click)="select(item.id)">
+            <span class="inventory-list-icon" aria-hidden="true">◇</span>
+            <span><strong>{{ item.name }}</strong><small>📍 {{ item.location || 'Posizione non indicata' }} · {{ item.category_text || 'Altro' }}</small></span>
+          </button>
+        } @empty { <p class="state">Nessun oggetto trovato.</p> }
+      </div>
+    }
+  </aside>
+
+  <main class="card inventory-detail-panel">
+    @if (detailLoading()) { <p class="state">Apertura oggetto…</p> }
+    @else if (selected(); as item) {
+      <header class="inventory-detail-header">
+        <div><p class="eyebrow">{{ item.category_text || 'Altro' }}</p><h2>{{ item.name }}</h2>
+          <div class="inventory-meta">
+            <span>📍 {{ item.location || 'Posizione non indicata' }}</span>
+            @if (item.owner_name) { <span>👤 {{ item.owner_name }}</span> }
+            <span>Quantità: {{ quantityLabel(item) }}</span>
+          </div>
+        </div>
+        @if (item.can_edit) {
+          <div class="actions"><button type="button" (click)="openEdit()">Modifica</button>
+            <button class="danger" type="button" (click)="archive()">Archivia</button></div>
+        }
+      </header>
+
+      @if (item.image_attachment_id) {
+        <div class="inventory-photo"><img [src]="api.attachment(item.image_attachment_id)" [alt]="'Foto di ' + item.name"></div>
+      }
+
+      <section class="inventory-detail-section">
+        <h3>Informazioni</h3>
+        <dl class="inventory-info-grid">
+          <div><dt>Data acquisto</dt><dd>{{ item.purchase_date || 'N/D' }}</dd></div>
+          <div><dt>Scadenza garanzia</dt><dd [class.expired]="isExpired(item.warranty_expiry)">
+            {{ item.warranty_expiry || 'N/D' }} @if (isExpired(item.warranty_expiry)) { <strong>SCADUTA</strong> }</dd></div>
+          <div><dt>Proprietario</dt><dd>{{ item.owner_name || 'Nessuno' }}</dd></div>
+          <div><dt>Quantità</dt><dd>{{ quantityLabel(item) }}</dd></div>
+          @if (item.document_title) {
+            <div><dt>Documento collegato</dt><dd><a routerLink="/moduli/documents">📄 {{ item.document_title }}</a></dd></div>
+          }
+        </dl>
+      </section>
+      @if (item.notes) {
+        <section class="inventory-detail-section"><h3>Note</h3><div class="inventory-notes">{{ item.notes }}</div></section>
+      }
+    } @else {
+      <div class="inventory-empty-detail"><span aria-hidden="true">📦</span><p>Seleziona un oggetto o creane uno nuovo.</p></div>
+    }
+  </main>
+</div>
+
+@if (editorOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+    <section class="shopping-modal card inventory-editor-modal" role="dialog" aria-modal="true"
+      aria-labelledby="inventory-editor-title" (click)="$event.stopPropagation()">
+      <h2 id="inventory-editor-title">{{ editing() ? 'Modifica oggetto' : 'Nuovo oggetto' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="inventory-editor-body">
+          <label class="wide">Nome<input formControlName="name" maxlength="255" placeholder="Es. Trapano a percussione"></label>
+          <label>Categoria<select formControlName="category">
+            @for (category of ['Tecnologia', 'Attrezzi', 'Giochi', 'Documenti', 'Altro']; track category) {
+              <option [value]="category">{{ category }}</option>
+            }
+            @for (category of overview()?.categories ?? []; track category) {
+              @if (!['Tecnologia', 'Attrezzi', 'Giochi', 'Documenti', 'Altro'].includes(category)) {
+                <option [value]="category">{{ category }}</option>
+              }
+            }
+          </select></label>
+          <label>Posizione fisica<input formControlName="location" maxlength="500" placeholder="Es. Armadio corridoio"></label>
+          <label>Proprietario<select formControlName="ownerId"><option value="">Nessuno</option>
+            @for (member of overview()?.members ?? []; track member.id) { <option [value]="member.id">{{ member.username }}</option> }
+          </select></label>
+          <label>Documento collegato<select formControlName="documentId"><option value="">Nessuno</option>
+            @for (document of overview()?.documents ?? []; track document.id) { <option [value]="document.id">{{ document.title }}</option> }
+          </select></label>
+          <label>Quantità<input type="number" min="0" step="0.01" formControlName="quantity"></label>
+          <label>Unità<input formControlName="unit" maxlength="32" placeholder="pz, kg, scatole…"></label>
+          <label>Data acquisto<input type="date" formControlName="purchaseDate"></label>
+          <label>Scadenza garanzia<input type="date" formControlName="warrantyExpiry"></label>
+          <label class="wide">Note<textarea rows="4" formControlName="notes" placeholder="Dettagli, numero di serie, ecc."></textarea></label>
+          <section class="wide inventory-photo-editor">
+            <h3>Foto oggetto</h3>
+            @if (imageSource(editing() ? selected() : null); as photo) {
+              <div class="recipe-photo-preview"><img [src]="photo" alt="Anteprima foto"><button type="button" (click)="removePhoto()">×</button></div>
+            } @else {
+              <div class="recipe-photo-actions"><label class="recipe-upload-button">📁 Galleria
+                <input hidden type="file" accept="image/jpeg,image/png" (change)="selectImage($event)"></label>
+                @if (mobileDevice) { <label class="recipe-upload-button">📷 Fotocamera
+                  <input hidden type="file" accept="image/*" capture="environment" (change)="selectImage($event)"></label> }
+              </div>
+            }
+            <small>JPEG o PNG, massimo 10 MiB.</small>
+          </section>
+        </div>
+        <footer class="shopping-modal-footer"><button class="task-secondary" type="button" (click)="closeEditor()">Annulla</button>
+          <span class="modal-spacer"></span><button class="primary" type="submit" [disabled]="form.invalid || busy()">
+            {{ busy() ? 'Salvataggio…' : 'Salva oggetto' }}</button></footer>
+      </form>
+    </section>
+  </div>
+}

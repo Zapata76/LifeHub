@@ -1,0 +1,156 @@
+<!-- Keeps shopping add/edit forms in modals while preserving fast check-off and filtering. -->
+@if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+<div class="section-heading shopping-list-heading">
+  <div class="shopping-mobile-optional-copy"><p class="eyebrow">Lista condivisa</p><h2>Prodotti da acquistare</h2></div>
+  <div class="actions shopping-list-actions">
+    <button class="danger" type="button" (click)="openClear()" [disabled]="checkedCount() === 0 || busy()">
+      Pulisci <span class="shopping-mobile-optional-copy">({{ checkedCount() }})</span>
+    </button>
+    <button class="primary" type="button" (click)="openAdd()">+ Aggiungi prodotto</button>
+  </div>
+</div>
+
+<section class="shopping-filter" aria-labelledby="market-filter-title">
+  <label id="market-filter-title">Filtra per supermercato
+    <select [value]="marketFilter()" (change)="marketFilter.set(value($event))">
+      <option value="">Tutti i prodotti</option>
+      @for (market of overview()?.supermarkets ?? []; track market.id) {
+        <option [value]="market.id">{{ market.name }}</option>
+      }
+    </select>
+    <small>Gli articoli senza supermercato specifico rimangono visibili.</small>
+  </label>
+</section>
+
+@if (loading()) { <p class="state" role="status">Caricamento lista…</p> }
+@else if (filteredItems().length === 0) { <p class="state">La lista è vuota per questo filtro.</p> }
+@else {
+  <section class="card shopping-checklist" aria-label="Prodotti da acquistare">
+    @for (item of filteredItems(); track item.id) {
+      <article class="shopping-row" [class.checked]="!!item.checked">
+        <input class="shopping-check" type="checkbox" [checked]="!!item.checked"
+          (change)="toggle(item)" [attr.aria-label]="'Segna ' + itemName(item) + ' come acquistato'">
+        <button class="shopping-product shopping-product-edit" type="button" (click)="openEdit(item)">
+          @if (hasImage(item)) {
+            <span class="shopping-list-thumb">
+              <img [src]="api.attachment(item.image_attachment_id!)" [alt]="'Immagine di ' + itemName(item)">
+            </span>
+          }
+          <span class="shopping-product-copy">
+            <strong>{{ itemName(item) }}</strong>
+            @if (item.category_name) { <small>{{ item.category_name }}</small> }
+            @if (item.supermarket_name) { <span class="pill">Solo {{ item.supermarket_name }}</span> }
+          </span>
+        </button>
+        <button class="quantity-badge" type="button" (click)="openEdit(item)"
+          [attr.aria-label]="'Modifica quantità di ' + itemName(item)">{{ item.quantity_raw || '1' }}</button>
+        <button class="remove-icon" type="button" (click)="remove(item)"
+          [disabled]="busy()" [attr.aria-label]="'Rimuovi ' + itemName(item)">×</button>
+      </article>
+    }
+  </section>
+}
+
+@if (clearModalOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeClear()" (keydown.escape)="closeClear()">
+    <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
+      aria-labelledby="shopping-clear-title" (click)="$event.stopPropagation()">
+      <h2 id="shopping-clear-title">Pulisci la lista</h2>
+      <div class="shopping-modal-body confirm-copy wide">
+        <p>Eliminare definitivamente {{ checkedCount() }} {{ checkedCount() === 1 ? 'prodotto spuntato' : 'prodotti spuntati' }}?</p>
+        <small>I prodotti non ancora acquistati resteranno nella lista.</small>
+      </div>
+      <footer class="shopping-modal-footer">
+        <button class="task-secondary" type="button" (click)="closeClear()">Annulla</button>
+        <span class="modal-spacer"></span>
+        <button class="danger" type="button" (click)="clearChecked()" [disabled]="busy()">Pulisci</button>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (addModalOpen()) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeAdd()" (keydown.escape)="closeAdd()">
+    <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="shopping-add-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="shopping-add-title">Aggiungi alla lista</h2>
+      <form [formGroup]="addForm" (ngSubmit)="add()">
+        @if (error()) { <p class="error shopping-modal-error" role="alert">{{ error() }}</p> }
+        <div class="shopping-modal-body shopping-add-form">
+          <label class="product-search">Cerca prodotto
+            <div class="shopping-product-search">
+              <input formControlName="search" placeholder="Nome o categoria" autocomplete="off" role="combobox"
+                aria-controls="shopping-product-results" [attr.aria-expanded]="productResultsOpen()"
+                [attr.aria-activedescendant]="highlightedProductIndex() >= 0 ? 'shopping-product-' + highlightedProductIndex() : null"
+                (input)="searchProducts(value($event))" (focus)="openProductResults()"
+                (keydown)="handleProductSearchKeydown($event)">
+              @if (productResultsOpen()) {
+                <div id="shopping-product-results" class="ingredient-results shopping-product-results" role="listbox">
+                  @if (availableProducts().length === 0) {
+                    <p class="shopping-product-empty">Nessun prodotto trovato.</p>
+                  } @else {
+                    @for (product of availableProducts(); track product.id; let i = $index) {
+                      <button type="button" role="option" [id]="'shopping-product-' + i"
+                        [class.active]="highlightedProductIndex() === i"
+                        [attr.aria-selected]="highlightedProductIndex() === i"
+                        (click)="selectProduct(product)">
+                        <small>{{ product.category_name || 'Prodotto' }}</small>{{ product.name }}
+                      </button>
+                    }
+                  }
+                </div>
+              }
+            </div>
+          </label>
+          <label>Prodotto
+            <select formControlName="productId"><option value="">Seleziona un prodotto</option>
+              @for (product of availableProducts(); track product.id) {
+                <option [value]="product.id">{{ product.category_name ? product.category_name + ' · ' : '' }}{{ product.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Supermercato
+            <select formControlName="supermarketId"><option value="">Qualsiasi supermercato</option>
+              @for (market of overview()?.supermarkets ?? []; track market.id) {
+                <option [value]="market.id">{{ market.name }}</option>
+              }
+            </select>
+          </label>
+          <label>Quantità<input formControlName="quantity" maxlength="80" placeholder="1"></label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeAdd()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="addForm.invalid || busy()">Aggiungi</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (editingItem(); as item) {
+  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEdit()" (keydown.escape)="closeEdit()">
+    <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="shopping-edit-title"
+      (click)="$event.stopPropagation()">
+      <h2 id="shopping-edit-title">Modifica {{ itemName(item) }}</h2>
+      <form [formGroup]="editForm" (ngSubmit)="saveEdit()">
+        <div class="shopping-modal-body">
+          <label>Quantità<input formControlName="quantity" maxlength="80"></label>
+          <label>Supermercato
+            <select formControlName="supermarketId"><option value="">Qualsiasi supermercato</option>
+              @for (market of overview()?.supermarkets ?? []; track market.id) {
+                <option [value]="market.id">{{ market.name }}</option>
+              }
+            </select>
+          </label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeEdit()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="editForm.invalid || busy()">Salva modifiche</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
