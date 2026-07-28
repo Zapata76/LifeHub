@@ -1,6 +1,6 @@
 <?php
 
-/** Handles validated private upload, authorized listing, and authorized download. */
+/** Handles validated private upload and authorized download. */
 
 declare(strict_types=1);
 
@@ -33,18 +33,6 @@ final class AttachmentController
         $this->policy = $policy;
         $this->storage = $storage;
         $this->audit = $audit;
-    }
-
-    public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
-    {
-        $user = $this->user($request);
-        $query = $request->getQueryParams();
-        $type = isset($query['ownerType']) ? (string) $query['ownerType'] : '';
-        $id = isset($query['ownerId']) ? (int) $query['ownerId'] : 0;
-        if (!$this->policy->canUpload($user, $type, $id)) {
-            throw new ApiException(404, 'attachment.owner_not_found', 'Attachment owner not found.');
-        }
-        return JsonResponder::write($response, ['items' => $this->attachments->list($user, $type, $id)]);
     }
 
     public function upload(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

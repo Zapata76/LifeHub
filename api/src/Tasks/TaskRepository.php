@@ -65,6 +65,22 @@ final class TaskRepository
         return is_array($rows) ? $rows : [];
     }
 
+    /** @return list<array{id:int, username:string}> */
+    public function members(UserContext $user): array
+    {
+        $sql = 'SELECT id, username FROM lh_users WHERE household_id = ? AND status = ?';
+        $values = [$user->householdId(), 'active'];
+        if (!Authorization::canManageHousehold($user)) {
+            $sql .= ' AND id = ?';
+            $values[] = $user->id();
+        }
+        $sql .= ' ORDER BY username_key, id';
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($values);
+        $rows = $statement->fetchAll();
+        return is_array($rows) ? $rows : [];
+    }
+
     /** @return array<string, mixed> */
     public function get(UserContext $user, int $id): array
     {

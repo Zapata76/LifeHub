@@ -31,12 +31,4 @@ final class Authorization
         return (int) $task['created_by'] === $user->id()
             || (int) $task['assigned_to'] === $user->id();
     }
-
-    /**
-     * @param array<string, mixed> $task
-     */
-    public static function canWriteTask(UserContext $user, array $task): bool
-    {
-        return self::canReadTask($user, $task);
-    }
 }

@@ -47,7 +47,7 @@ final class Settings
     {
         $defaults = [
             'environment' => 'production',
-            'apiBasePath' => '/umbertini/api',
+            'basePath' => '',
             'siteName' => 'Life Hub',
             'dbHost' => 'localhost',
             'dbPort' => '3306',
@@ -57,9 +57,11 @@ final class Settings
             'sessionName' => 'lifehub',
             'sessionIdleSeconds' => '28800',
             'storagePath' => '',
-            'logPath' => '',
         ];
         $values = [];
+        if (array_key_exists('apiBasePath', $configuration)) {
+            throw new RuntimeException('apiBasePath has been replaced by basePath; remove the trailing /api.');
+        }
         foreach ($defaults as $key => $default) {
             $value = array_key_exists($key, $configuration) ? $configuration[$key] : $default;
             if (!is_scalar($value) && $value !== null) {
@@ -85,13 +87,22 @@ final class Settings
         if (preg_match('/^[A-Za-z0-9_-]{1,64}$/', $values['sessionName']) !== 1) {
             throw new RuntimeException('Session name contains unsupported characters.');
         }
+        if ($values['basePath'] !== '') {
+            $segments = explode('/', ltrim($values['basePath'], '/'));
+            if (
+                preg_match('#^/[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~-]+)*$#', $values['basePath']) !== 1
+                || in_array('.', $segments, true)
+                || in_array('..', $segments, true)
+            ) {
+                throw new RuntimeException(
+                    'Base path must be empty or an absolute URL path without a trailing slash, '
+                    . 'for example /apps/family/lifehub.'
+                );
+            }
+        }
         if ($values['storagePath'] === '' || !self::isAbsolutePath($values['storagePath'])) {
             throw new RuntimeException('Storage path must be configured as an absolute filesystem path.');
         }
-        if ($values['logPath'] !== '' && !self::isAbsolutePath($values['logPath'])) {
-            throw new RuntimeException('Log path must be an absolute filesystem path when configured.');
-        }
-
         return new self($values);
     }
 
@@ -107,6 +118,16 @@ final class Settings
     public function isDebug(): bool
     {
         return in_array($this->values['environment'], ['development', 'test'], true);
+    }
+
+    public function apiPath(): string
+    {
+        return $this->values['basePath'] . '/api';
+    }
+
+    public function webPath(): string
+    {
+        return $this->values['basePath'] === '' ? '/' : $this->values['basePath'] . '/';
     }
 
     private static function isAbsolutePath(string $path): bool

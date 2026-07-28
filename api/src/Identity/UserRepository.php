@@ -70,6 +70,18 @@ final class UserRepository
         return is_array($rows) ? $rows : [];
     }
 
+    /** @return list<array<string, mixed>> */
+    public function calendarAssignments(int $householdId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT user_id, calendar_id FROM lh_user_calendars '
+            . 'WHERE household_id = ? ORDER BY user_id, calendar_id'
+        );
+        $statement->execute([$householdId]);
+        $rows = $statement->fetchAll();
+        return is_array($rows) ? $rows : [];
+    }
+
     public function create(int $householdId, string $username, string $password, string $role): int
     {
         $now = gmdate('Y-m-d H:i:s');

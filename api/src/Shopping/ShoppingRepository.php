@@ -156,7 +156,7 @@ final class ShoppingRepository
         $this->pdo->exec(
             'LOCK TABLES lh_categories WRITE, lh_supermarkets WRITE, lh_products WRITE, '
             . 'lh_prices WRITE, lh_shopping_items WRITE, lh_recipe_ingredients WRITE, '
-            . 'lh_attachments WRITE, lh_entity_relations WRITE'
+            . 'lh_attachments WRITE'
         );
         try {
             $table = $tables[$resource];
@@ -172,7 +172,6 @@ final class ShoppingRepository
             } elseif ($resource === 'supermarkets') {
                 $priceIds = $this->relatedIds('lh_prices', 'supermarket_id', $user->householdId(), $id);
                 $storageKeys = $this->deleteAttachments($user->householdId(), 'price', $priceIds);
-                $this->deleteRelations($user->householdId(), 'price', $priceIds);
                 $statement = $this->pdo->prepare(
                     'DELETE FROM lh_prices WHERE household_id = ? AND supermarket_id = ?'
                 );
@@ -188,7 +187,6 @@ final class ShoppingRepository
                     $this->deleteAttachments($user->householdId(), 'price', $priceIds),
                     $this->deleteAttachments($user->householdId(), 'product', [$id])
                 );
-                $this->deleteRelations($user->householdId(), 'price', $priceIds);
                 $statement = $this->pdo->prepare('DELETE FROM lh_prices WHERE household_id = ? AND product_id = ?');
                 $statement->execute([$user->householdId(), $id]);
                 $statement = $this->pdo->prepare(
@@ -205,14 +203,6 @@ final class ShoppingRepository
                 $storageKeys = $this->deleteAttachments($user->householdId(), 'price', [$id]);
             }
 
-            $entities = [
-                'categories' => 'category',
-                'supermarkets' => 'supermarket',
-                'products' => 'product',
-                'prices' => 'price',
-            ];
-            $entity = $entities[$resource];
-            $this->deleteRelations($user->householdId(), $entity, [$id]);
             $statement = $this->pdo->prepare(
                 'DELETE FROM ' . $table . ' WHERE household_id = ? AND id = ? AND version = ?'
             );
@@ -396,26 +386,5 @@ final class ShoppingRepository
         );
         $statement->execute($parameters);
         return array_values(array_map('strval', is_array($keys) ? $keys : []));
-    }
-
-    /** @param list<int> $entityIds */
-    private function deleteRelations(int $householdId, string $entityType, array $entityIds): void
-    {
-        if ($entityIds === []) {
-            return;
-        }
-        $placeholders = implode(', ', array_fill(0, count($entityIds), '?'));
-        $parameters = array_merge(
-            [$householdId, $entityType],
-            $entityIds,
-            [$entityType],
-            $entityIds
-        );
-        $statement = $this->pdo->prepare(
-            'DELETE FROM lh_entity_relations WHERE household_id = ? AND '
-            . '((source_type = ? AND source_id IN (' . $placeholders . ')) '
-            . 'OR (target_type = ? AND target_id IN (' . $placeholders . ')))'
-        );
-        $statement->execute($parameters);
     }
 }

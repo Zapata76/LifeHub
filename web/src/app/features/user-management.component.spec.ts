@@ -16,9 +16,8 @@ const calendars = [
 ];
 
 function responseFor(url: string) {
-  if (url === 'api/v1/users') return of({ items: users });
+  if (url === 'api/v1/users') return of({ items: users, calendarAssignments: [] });
   if (url === 'api/v1/calendars') return of({ items: calendars });
-  if (url === 'api/v1/calendar-assignments') return of({ items: [] });
   if (url === 'api/v1/admin/home-settings') return of({
     homeEyebrow: 'Oggi in famiglia', homeTitle: 'Simona puzzona', version: 2
   });

@@ -1,10 +1,10 @@
 {
-  "id": "/umbertini/",
+  "id": "./",
   "name": "Life Hub",
   "short_name": "LifeHub",
   "description": "Organizzazione familiare privata e condivisa",
-  "start_url": "/umbertini/",
-  "scope": "/umbertini/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#1e1e1e",

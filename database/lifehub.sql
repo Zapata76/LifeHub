@@ -76,23 +76,6 @@ CREATE TABLE IF NOT EXISTS `lh_documents` (
   KEY `ix_lh_documents_owner` (`household_id`,`owner_id`),
   KEY `ix_lh_documents_search` (`household_id`,`title_search`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-CREATE TABLE IF NOT EXISTS `lh_entity_relations` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `household_id` int(11) NOT NULL,
-  `source_type` varchar(64) NOT NULL,
-  `source_id` bigint(20) NOT NULL,
-  `relation_type` varchar(64) NOT NULL,
-  `target_type` varchar(64) NOT NULL,
-  `target_id` bigint(20) NOT NULL,
-  `position_no` int(11) NOT NULL DEFAULT '0',
-  `created_by` int(11) NOT NULL,
-  `created_at` datetime NOT NULL,
-  `archived_at` datetime DEFAULT NULL,
-  `version` int(11) NOT NULL DEFAULT '1',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_lh_relation` (`household_id`,`source_type`,`source_id`,`relation_type`,`target_type`,`target_id`),
-  KEY `ix_lh_relation_target` (`household_id`,`target_type`,`target_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 CREATE TABLE IF NOT EXISTS `lh_goal_logs` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,

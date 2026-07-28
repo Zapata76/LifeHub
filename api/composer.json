@@ -8,12 +8,9 @@
     "ext-fileinfo": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
-    "ext-openssl": "*",
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
     "ext-session": "*",
-    "monolog/monolog": "^2.10",
-    "slim/csrf": "^1.5",
     "slim/psr7": "~1.6.2",
     "slim/slim": "~4.15.2"
   },

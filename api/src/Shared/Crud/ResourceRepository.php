@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Executes whitelisted household CRUD with child scoping and optimistic locking.
+ * Executes whitelisted household CRUD with optimistic locking.
  */
 
 declare(strict_types=1);
@@ -24,19 +24,12 @@ final class ResourceRepository
     }
 
     /** @return list<array<string, mixed>> */
-    public function list(UserContext $user, bool $archived): array
+    public function list(UserContext $user): array
     {
-        $conditions = ['household_id = ?'];
-        $values = [$user->householdId()];
-        if ($this->definition->archivable()) {
-            $conditions[] = $archived ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
-        }
-        $this->addChildScope($user, $conditions, $values);
         $sql = 'SELECT * FROM ' . $this->definition->table()
-            . ' WHERE ' . implode(' AND ', $conditions)
-            . ' ORDER BY id DESC';
+            . ' WHERE household_id = ? ORDER BY id DESC';
         $statement = $this->pdo->prepare($sql);
-        $statement->execute($values);
+        $statement->execute([$user->householdId()]);
         $rows = $statement->fetchAll();
         return is_array($rows) ? $rows : [];
     }
@@ -44,13 +37,10 @@ final class ResourceRepository
     /** @return array<string, mixed> */
     public function find(UserContext $user, int $id): array
     {
-        $conditions = ['household_id = ?', 'id = ?'];
-        $values = [$user->householdId(), $id];
-        $this->addChildScope($user, $conditions, $values);
         $statement = $this->pdo->prepare(
-            'SELECT * FROM ' . $this->definition->table() . ' WHERE ' . implode(' AND ', $conditions) . ' LIMIT 1'
+            'SELECT * FROM ' . $this->definition->table() . ' WHERE household_id = ? AND id = ? LIMIT 1'
         );
-        $statement->execute($values);
+        $statement->execute([$user->householdId(), $id]);
         $row = $statement->fetch();
         if (!is_array($row)) {
             throw new ApiException(404, $this->definition->entity() . '.not_found', 'Resource not found.');
@@ -64,19 +54,10 @@ final class ResourceRepository
     {
         $now = gmdate('Y-m-d H:i:s');
         $values['household_id'] = $user->householdId();
-        if ($this->definition->hasCreatedBy()) {
-            $values['created_by'] = $user->id();
-        }
+        $values['created_by'] = $user->id();
         $values['created_at'] = $now;
         if ($this->definition->hasUpdatedAt()) {
             $values['updated_at'] = $now;
-        }
-        if ($this->definition->hasUpdatedBy()) {
-            $values['updated_by'] = $user->id();
-        }
-        $ownerField = $this->definition->childOwnerField();
-        if ($user->role() === 'child' && $ownerField !== null) {
-            $values[$ownerField] = $user->id();
         }
         $columns = array_keys($values);
         $statement = $this->pdo->prepare(
@@ -92,15 +73,8 @@ final class ResourceRepository
     public function update(UserContext $user, int $id, int $version, array $values): void
     {
         $this->find($user, $id);
-        $ownerField = $this->definition->childOwnerField();
-        if ($user->role() === 'child' && $ownerField !== null) {
-            $values[$ownerField] = $user->id();
-        }
         if ($this->definition->hasUpdatedAt()) {
             $values['updated_at'] = gmdate('Y-m-d H:i:s');
-        }
-        if ($this->definition->hasUpdatedBy()) {
-            $values['updated_by'] = $user->id();
         }
         $assignments = [];
         foreach (array_keys($values) as $column) {
@@ -109,34 +83,8 @@ final class ResourceRepository
         $statement = $this->pdo->prepare(
             'UPDATE ' . $this->definition->table() . ' SET ' . implode(', ', $assignments)
             . ', version = version + 1 WHERE household_id = ? AND id = ? AND version = ?'
-            . $this->childMutationClause($user)
         );
         $parameters = array_merge(array_values($values), [$user->householdId(), $id, $version]);
-        $this->addChildMutationParameter($user, $parameters);
-        $statement->execute($parameters);
-        if ($statement->rowCount() !== 1) {
-            throw new ApiException(409, 'version.conflict', 'The resource was modified by another request.');
-        }
-    }
-
-    public function setArchived(UserContext $user, int $id, int $version, bool $archived): void
-    {
-        if (!$this->definition->archivable()) {
-            throw new ApiException(405, 'resource.not_archivable', 'This resource cannot be archived.');
-        }
-        $this->find($user, $id);
-        $statement = $this->pdo->prepare(
-            'UPDATE ' . $this->definition->table() . ' SET archived_at = ?, version = version + 1 '
-            . 'WHERE household_id = ? AND id = ? AND version = ?'
-            . $this->childMutationClause($user)
-        );
-        $parameters = [
-            $archived ? gmdate('Y-m-d H:i:s') : null,
-            $user->householdId(),
-            $id,
-            $version,
-        ];
-        $this->addChildMutationParameter($user, $parameters);
         $statement->execute($parameters);
         if ($statement->rowCount() !== 1) {
             throw new ApiException(409, 'version.conflict', 'The resource was modified by another request.');
@@ -176,38 +124,6 @@ final class ResourceRepository
             }
         } finally {
             $this->pdo->exec('UNLOCK TABLES');
-        }
-    }
-
-    /**
-     * @param list<string> $conditions
-     * @param list<int> $values
-     */
-    private function addChildScope(UserContext $user, array &$conditions, array &$values): void
-    {
-        if ($user->role() !== 'child') {
-            return;
-        }
-        $ownerField = $this->definition->childOwnerField();
-        if ($ownerField === null) {
-            return;
-        }
-        $conditions[] = $ownerField . ' = ?';
-        $values[] = $user->id();
-    }
-
-    private function childMutationClause(UserContext $user): string
-    {
-        return $user->role() === 'child' && $this->definition->childOwnerField() !== null
-            ? ' AND ' . $this->definition->childOwnerField() . ' = ?'
-            : '';
-    }
-
-    /** @param list<mixed> $parameters */
-    private function addChildMutationParameter(UserContext $user, array &$parameters): void
-    {
-        if ($user->role() === 'child' && $this->definition->childOwnerField() !== null) {
-            $parameters[] = $user->id();
         }
     }
 }

@@ -45,13 +45,9 @@ use LifeHub\Shared\Persistence\OperationJournal;
 use LifeHub\Shared\Persistence\PdoFactory;
 use LifeHub\Recipes\RecipeController;
 use LifeHub\Recipes\RecipeRepository;
-use LifeHub\Shopping\ShoppingController;
-use LifeHub\Shopping\ShoppingGenerator;
 use LifeHub\Shopping\ShoppingListController;
 use LifeHub\Shopping\ShoppingRepository;
 use LifeHub\Tasks\TaskController;
-use LifeHub\Tasks\TaskMemberController;
-use LifeHub\Tasks\TaskMemberRepository;
 use LifeHub\Tasks\TaskRepository;
 use PDO;
 use Psr\Container\ContainerInterface;
@@ -67,10 +63,7 @@ final class ApplicationFactory
     {
         $pdo = $pdo ?? PdoFactory::create($settings);
         $app = AppFactory::create();
-        $basePath = rtrim($settings->get('apiBasePath'), '/');
-        if ($basePath !== '') {
-            $app->setBasePath($basePath);
-        }
+        $app->setBasePath($settings->apiPath());
         $responses = new ResponseFactory();
         $audit = new AuditLogger($pdo);
 
@@ -99,8 +92,6 @@ final class ApplicationFactory
         $auth = new AuthController(new AuthService($pdo, $users), $users);
         $userController = new UserController($users, $audit);
         $tasks = new TaskController(new TaskRepository($pdo), $audit);
-        $taskMembers = new TaskMemberController(new TaskMemberRepository($pdo));
-        $shopping = new ShoppingController(new ShoppingGenerator($pdo, new OperationJournal($pdo)));
         $storage = new StorageGateway($settings->get('storagePath'));
         $shoppingList = new ShoppingListController(new ShoppingRepository($pdo), $audit, $storage);
         $goals = new GoalController(new GoalRepository($pdo), $audit, $storage);
@@ -129,9 +120,7 @@ final class ApplicationFactory
             $auth,
             $userController,
             $tasks,
-            $taskMembers,
             $attachments,
-            $shopping,
             $shoppingList,
             $goals,
             $documents,
@@ -151,9 +140,7 @@ final class ApplicationFactory
             $group->group('', function (RouteCollectorProxyInterface $protected) use (
                 $userController,
                 $tasks,
-                $taskMembers,
                 $attachments,
-                $shopping,
                 $shoppingList,
                 $goals,
                 $documents,
@@ -180,17 +167,15 @@ final class ApplicationFactory
                 );
 
                 $protected->get('/tasks', [$tasks, 'index']);
-                $protected->get('/tasks/members', [$taskMembers, 'index']);
+                $protected->get('/tasks/members', [$tasks, 'members']);
                 $protected->post('/tasks', [$tasks, 'create']);
                 $protected->put('/tasks/{id:[0-9]+}', [$tasks, 'update']);
                 $protected->post('/tasks/{id:[0-9]+}/complete', [$tasks, 'complete']);
                 $protected->post('/tasks/{id:[0-9]+}/archive', [$tasks, 'archive']);
                 $protected->post('/tasks/{id:[0-9]+}/restore', [$tasks, 'restore']);
 
-                $protected->get('/attachments', [$attachments, 'index']);
                 $protected->post('/attachments', [$attachments, 'upload']);
                 $protected->get('/attachments/{id:[0-9]+}/download', [$attachments, 'download']);
-                $protected->post('/shopping/generate', [$shopping, 'generate']);
                 $protected->get('/shopping/overview', [$shoppingList, 'overview']);
                 $protected->post('/shopping/items', [$shoppingList, 'create']);
                 $protected->post('/shopping/items/clear-checked', [$shoppingList, 'clearChecked']);
@@ -249,10 +234,7 @@ final class ApplicationFactory
                     $protected->get('/' . $path, [$controller, 'index']);
                     $protected->post('/' . $path, [$controller, 'create']);
                     $protected->put('/' . $path . '/{id:[0-9]+}', [$controller, 'update']);
-                    if ($definition->archivable()) {
-                        $protected->post('/' . $path . '/{id:[0-9]+}/archive', [$controller, 'archive']);
-                        $protected->post('/' . $path . '/{id:[0-9]+}/restore', [$controller, 'restore']);
-                    } elseif ($definition->entity() === 'calendar') {
+                    if ($definition->entity() === 'calendar') {
                         $protected->delete('/' . $path . '/{id:[0-9]+}', [$controller, 'delete']);
                     }
                 }
@@ -271,30 +253,7 @@ final class ApplicationFactory
                 ['name', 'external_id'],
                 [],
                 null,
-                null,
-                null,
-                false,
-                false,
-                true,
-                true,
-                true,
-                false
-            ),
-            'calendar-assignments' => new ResourceDefinition(
-                'calendar_assignment',
-                'lh_user_calendars',
-                ['user_id', 'calendar_id'],
-                ['user_id', 'calendar_id'],
-                [],
-                null,
-                null,
-                null,
-                false,
-                false,
-                true,
-                false,
-                false,
-                false
+                null
             ),
             'categories' => new ResourceDefinition(
                 'category',
@@ -304,10 +263,6 @@ final class ApplicationFactory
                 [],
                 'name',
                 'name_key',
-                null,
-                false,
-                false,
-                true,
                 false
             ),
             'supermarkets' => new ResourceDefinition(
@@ -318,10 +273,6 @@ final class ApplicationFactory
                 [],
                 'name',
                 'name_key',
-                null,
-                false,
-                false,
-                true,
                 false
             ),
             'products' => new ResourceDefinition(
@@ -341,70 +292,6 @@ final class ApplicationFactory
                 ['currency' => 'EUR'],
                 null,
                 null,
-                null,
-                false,
-                false,
-                true,
-                false
-            ),
-            'recipe-ingredients' => new ResourceDefinition(
-                'recipe_ingredient',
-                'lh_recipe_ingredients',
-                [
-                    'recipe_id', 'product_id', 'ingredient_name', 'quantity_raw',
-                    'quantity_value', 'unit_code', 'position_no',
-                ],
-                ['recipe_id', 'ingredient_name'],
-                ['position_no' => 0],
-                null,
-                null,
-                null,
-                false,
-                false,
-                false
-            ),
-            'shopping-lists' => new ResourceDefinition(
-                'shopping_list',
-                'lh_shopping_lists',
-                ['name', 'is_primary'],
-                ['name'],
-                ['is_primary' => 0],
-                'name',
-                'name_key',
-                null,
-                false,
-                false,
-                true,
-                false
-            ),
-            'shopping-items' => new ResourceDefinition(
-                'shopping_item',
-                'lh_shopping_items',
-                [
-                    'list_id', 'product_id', 'supermarket_id', 'label',
-                    'quantity_raw', 'checked', 'source_type', 'source_id',
-                ],
-                ['list_id', 'label'],
-                ['checked' => 0],
-                null,
-                null,
-                null,
-                false,
-                true
-            ),
-            'relations' => new ResourceDefinition(
-                'relation',
-                'lh_entity_relations',
-                ['source_type', 'source_id', 'relation_type', 'target_type', 'target_id', 'position_no'],
-                ['source_type', 'source_id', 'relation_type', 'target_type', 'target_id'],
-                ['position_no' => 0],
-                null,
-                null,
-                null,
-                false,
-                false,
-                true,
-                false,
                 false
             ),
         ];

@@ -32,7 +32,10 @@ final class UserController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $this->admin($request);
-        return JsonResponder::write($response, ['items' => $this->users->list($user->householdId())]);
+        return JsonResponder::write($response, [
+            'items' => $this->users->list($user->householdId()),
+            'calendarAssignments' => $this->users->calendarAssignments($user->householdId()),
+        ]);
     }
 
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

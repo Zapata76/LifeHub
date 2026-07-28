@@ -51,6 +51,11 @@ final class TaskController
         );
     }
 
+    public function members(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return JsonResponder::write($response, ['items' => $this->tasks->members($this->user($request))]);
+    }
+
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $this->user($request);

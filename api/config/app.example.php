@@ -14,8 +14,9 @@ $privateRuntime = $applicationRoot . DIRECTORY_SEPARATOR . 'uploads';
 
 return [
     'environment' => 'production',
-    'apiBasePath' => '/umbertini/api',
-    'siteName' => 'Hub Corso Umberto',
+    // Empty installs at the domain root; nested example: /apps/family/lifehub
+    'basePath' => '',
+    'siteName' => 'Life Hub',
 
     'dbHost' => 'localhost',
     'dbPort' => '3306',
@@ -28,5 +29,4 @@ return [
 
     // StorageGateway appends /files to this root automatically.
     'storagePath' => $privateRuntime,
-    'logPath' => $privateRuntime . DIRECTORY_SEPARATOR . 'logs' . DIRECTORY_SEPARATOR . 'application.log',
 ];

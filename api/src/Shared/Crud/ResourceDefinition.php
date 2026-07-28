@@ -19,13 +19,7 @@ final class ResourceDefinition
     /** @var array<string, mixed> */ private $defaults;
     /** @var string|null */ private $searchSource;
     /** @var string|null */ private $searchTarget;
-    /** @var string|null */ private $childOwnerField;
-    /** @var bool */ private $childWritable;
-    /** @var bool */ private $hasUpdatedBy;
-    /** @var bool */ private $hasCreatedBy;
     /** @var bool */ private $hasUpdatedAt;
-    /** @var bool */ private $childReadable;
-    /** @var bool */ private $archivable;
 
     /**
      * @param list<string> $fields
@@ -40,13 +34,7 @@ final class ResourceDefinition
         array $defaults = [],
         ?string $searchSource = null,
         ?string $searchTarget = null,
-        ?string $childOwnerField = null,
-        bool $childWritable = false,
-        bool $hasUpdatedBy = false,
-        bool $hasCreatedBy = true,
-        bool $hasUpdatedAt = true,
-        bool $childReadable = true,
-        bool $archivable = true
+        bool $hasUpdatedAt = true
     ) {
         foreach (array_merge([$table], $fields) as $identifier) {
             if (preg_match('/^[a-z][a-z0-9_]*$/', $identifier) !== 1) {
@@ -60,13 +48,7 @@ final class ResourceDefinition
         $this->defaults = $defaults;
         $this->searchSource = $searchSource;
         $this->searchTarget = $searchTarget;
-        $this->childOwnerField = $childOwnerField;
-        $this->childWritable = $childWritable;
-        $this->hasUpdatedBy = $hasUpdatedBy;
-        $this->hasCreatedBy = $hasCreatedBy;
         $this->hasUpdatedAt = $hasUpdatedAt;
-        $this->childReadable = $childReadable;
-        $this->archivable = $archivable;
     }
 
     public function entity(): string
@@ -97,34 +79,8 @@ final class ResourceDefinition
     {
         return $this->searchTarget;
     }
-    public function childOwnerField(): ?string
-    {
-        return $this->childOwnerField;
-    }
-    public function childWritable(): bool
-    {
-        return $this->childWritable;
-    }
-    public function hasUpdatedBy(): bool
-    {
-        return $this->hasUpdatedBy;
-    }
-    public function hasCreatedBy(): bool
-    {
-        return $this->hasCreatedBy;
-    }
     public function hasUpdatedAt(): bool
     {
         return $this->hasUpdatedAt;
-    }
-
-    public function childReadable(): bool
-    {
-        return $this->childReadable;
-    }
-
-    public function archivable(): bool
-    {
-        return $this->archivable;
     }
 }

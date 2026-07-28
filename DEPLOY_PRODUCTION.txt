@@ -1,0 +1,184 @@
+LIFE HUB - PRODUCTION INSTALLATION AND DEPLOYMENT
+==================================================
+
+This procedure installs Life Hub on an empty database. There are no migration
+or import scripts for previous applications.
+
+
+1. REQUIREMENTS
+---------------
+
+- PHP 7.4.33 with fileinfo, json, mbstring, PDO, pdo_mysql, and session.
+- MySQL compatible with MySQL 5.0 and MyISAM tables.
+- Apache with mod_rewrite and .htaccess file support.
+- Node.js/npm and Composer on the machine used for the build.
+- A target public directory at the domain root or below a configured URL path.
+
+
+2. CONFIGURATION
+----------------
+
+Copy:
+
+  api/config/app.example.php
+
+to a protected path outside the repository, for example:
+
+  C:\secure\lifehub.production.php
+
+Configure at least:
+
+- environment = production
+- basePath
+- siteName
+- dbHost, dbPort, dbName, dbUser, dbPass
+- sessionName
+- sessionIdleSeconds
+- storagePath
+
+basePath identifies the URL path where the application is mounted:
+
+- Use an empty string for the domain root:
+
+    'basePath' => '',
+
+- For a nested installation, provide the complete path beginning with `/` and
+  without a trailing slash:
+
+    'basePath' => '/apps/family/lifehub',
+
+Nested paths may contain any number of segments. Each segment may use letters,
+numbers, periods, underscores, tildes, and hyphens. Do not include a domain,
+query string, fragment, `/api`, repeated slash, `.` segment, or `..` segment.
+
+The web application uses `<basePath>/` and the API is always derived as
+`<basePath>/api`. Therefore the example above exposes the application at
+`/apps/family/lifehub/` and the API at `/apps/family/lifehub/api`.
+
+Recommended storage configuration:
+
+  $applicationRoot = dirname(__DIR__);
+  $privateRuntime = $applicationRoot . DIRECTORY_SEPARATOR . 'uploads';
+
+  'storagePath' => $privateRuntime,
+
+Validate the file:
+
+  .\tools\php7433.ps1 .\api\bin\lifehub config:check `
+    C:\secure\lifehub.production.php
+
+
+3. EMPTY DATABASE
+-----------------
+
+Create a dedicated database with the UTF-8 character set and a user with the
+required privileges limited to the application's tables.
+
+Do not apply the schema to an existing database. The command rejects a target
+that already contains tables with the `lh_` prefix.
+
+Verification:
+
+  .\tools\php7433.ps1 .\api\bin\lifehub db:init:dry-run `
+    C:\secure\lifehub.production.php
+
+Initialization:
+
+  .\tools\php7433.ps1 .\api\bin\lifehub db:init `
+    C:\secure\lifehub.production.php
+
+Create the first administrator:
+
+  .\tools\php7433.ps1 .\api\bin\lifehub admin:create `
+    C:\secure\lifehub.production.php `
+    "Administrator" `
+    "PASSWORD-AT-LEAST-12-CHARACTERS" `
+    "Family" `
+    "Europe/Rome"
+
+The command also creates the household and the primary shopping list. Remove
+the password from the terminal history and change it after the first login.
+
+Checks:
+
+  .\tools\php7433.ps1 .\api\bin\lifehub db:inspect `
+    C:\secure\lifehub.production.php
+
+  .\tools\php7433.ps1 .\api\bin\lifehub integrity `
+    C:\secure\lifehub.production.php
+
+
+4. RELEASE GATE AND BUILD
+-------------------------
+
+From the repository root:
+
+  .\ops\release-readiness.ps1 -WithDatabaseIntegration
+
+Generate the package:
+
+  .\ops\build-release.ps1 `
+    -ConfigurationFile C:\secure\lifehub.production.php
+
+For an empty basePath the output is:
+
+  .release\lifehub
+
+For a nested basePath, the same segments are used below `.release`. For
+example, `/apps/family/lifehub` produces:
+
+  .release\apps\family\lifehub
+
+The build embeds a protected copy of the configuration and does not include
+source credentials, databases, or uploads.
+
+
+5. DEPLOYMENT
+-------------
+
+1. Back up the current installation, if any.
+2. Upload the contents of the generated leaf directory to the public directory
+   represented by basePath. For an empty basePath this is the document root;
+   for `/apps/family/lifehub` it is `<document-root>/apps/family/lifehub`.
+3. Verify that Apache reads the `.htaccess` in that directory.
+4. Create these directories if they do not exist:
+
+     <application-directory>/uploads/files
+
+5. Apply the deploy/storage.htaccess file to the directory.
+6. Grant the PHP user write access only to uploads/files.
+7. Deny direct HTTP access to config, src, vendor, and private uploads.
+
+Do not copy .env files, SQL backups, ZIP archives, credentials, or source
+configuration files to the public directory.
+
+
+6. SMOKE TEST
+-------------
+
+Verify:
+
+- GET `<basePath>/` returns the PWA. Use `/` when basePath is empty.
+- GET `<basePath>/manifest.webmanifest` returns the correct MIME type.
+- GET `<basePath>/api/v1/auth/session` returns JSON.
+- `<basePath>/config/app.php` cannot be downloaded.
+- `<basePath>/uploads/files` cannot be browsed or downloaded directly.
+- The first administrator can log in.
+- Tasks, Shopping, Recipes, and Admin can be opened.
+- A test file can be uploaded and subsequently downloaded with authentication.
+- The PWA and icons can be installed on desktop and mobile devices.
+
+
+7. BACKUP
+---------
+
+Before each application update, back up separately:
+
+- a complete database dump;
+- the `<application-directory>/uploads` directory;
+- the application configuration;
+- the previously deployed application package.
+
+The ops/backup-database.ps1, ops/backup-uploads.ps1, and
+ops/restore-isolated.ps1 scripts can be used to verify backups and restores in
+isolated destinations.

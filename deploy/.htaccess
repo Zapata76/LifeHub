@@ -17,7 +17,7 @@ RewriteEngine On
 </FilesMatch>
 
 RewriteRule ^(?:src|vendor|bin|ops|storage|config|\.runtime)(?:/|$) - [F,L,NC]
-RewriteRule ^uploads/(?:files|logs)(?:/|$) - [F,L,NC]
+RewriteRule ^uploads/files(?:/|$) - [F,L,NC]
 RewriteRule ^api(?:/|$) - [L,NC]
 
 RewriteCond %{REQUEST_FILENAME} !-f

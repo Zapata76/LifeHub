@@ -34,8 +34,7 @@ final class ResourceController
     public function index(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $this->user($request, false);
-        $archived = ($request->getQueryParams()['archived'] ?? '0') === '1';
-        $items = $this->repository->list($user, $archived);
+        $items = $this->repository->list($user);
         if ($user->role() === 'child' && $this->definition->entity() === 'calendar') {
             foreach ($items as &$item) {
                 unset($item['external_id']);
@@ -67,24 +66,6 @@ final class ResourceController
         );
         $this->record($request, $user, 'updated', (int) $args['id']);
         return JsonResponder::write($response, ['updated' => true]);
-    }
-
-    /** @param array<string, string> $args */
-    public function archive(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args
-    ): ResponseInterface {
-        return $this->archiveAction($request, $response, $args, true);
-    }
-
-    /** @param array<string, string> $args */
-    public function restore(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args
-    ): ResponseInterface {
-        return $this->archiveAction($request, $response, $args, false);
     }
 
     /** @param array<string, string> $args */
@@ -136,37 +117,13 @@ final class ResourceController
         return $values;
     }
 
-    /** @param array<string, string> $args */
-    private function archiveAction(
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $args,
-        bool $archived
-    ): ResponseInterface {
-        if (!$this->definition->archivable()) {
-            throw new ApiException(405, 'resource.not_archivable', 'This resource cannot be archived.');
-        }
-        $user = $this->user($request, true);
-        $this->repository->setArchived(
-            $user,
-            (int) $args['id'],
-            (new RequestData($request))->requiredInt('version'),
-            $archived
-        );
-        $this->record($request, $user, $archived ? 'archived' : 'restored', (int) $args['id']);
-        return JsonResponder::write($response, ['updated' => true]);
-    }
-
     private function user(ServerRequestInterface $request, bool $write): UserContext
     {
         $user = $request->getAttribute(UserContext::class);
         if (!$user instanceof UserContext) {
             throw new ApiException(401, 'auth.required', 'Authentication is required.');
         }
-        if (!$write && $user->role() === 'child' && !$this->definition->childReadable()) {
-            throw new ApiException(403, 'authorization.denied', 'This role cannot read the resource.');
-        }
-        if ($write && !Authorization::canManageHousehold($user) && !$this->definition->childWritable()) {
+        if ($write && !Authorization::canManageHousehold($user)) {
             throw new ApiException(403, 'authorization.denied', 'This role cannot modify the resource.');
         }
 

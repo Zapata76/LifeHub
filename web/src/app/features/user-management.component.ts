@@ -19,10 +19,8 @@ interface ManagedUser {
 }
 
 interface CalendarAssignment {
-  id: number;
   user_id: number;
   calendar_id: number;
-  version: number;
 }
 
 interface UserDraft {
@@ -270,12 +268,11 @@ export class UserManagementComponent {
   load(): void {
     this.loading.set(true);
     forkJoin({
-      users: this.http.get<{ items: ManagedUser[] }>('api/v1/users'),
+      users: this.http.get<{ items: ManagedUser[]; calendarAssignments: CalendarAssignment[] }>('api/v1/users'),
       calendars: this.http.get<{ items: CalendarItem[] }>('api/v1/calendars'),
-      assignments: this.http.get<{ items: CalendarAssignment[] }>('api/v1/calendar-assignments'),
       homeSettings: this.http.get<HomeSettings>('api/v1/admin/home-settings')
     }).subscribe({
-      next: ({ users, calendars, assignments, homeSettings }) => {
+      next: ({ users, calendars, homeSettings }) => {
         const normalizedUsers = users.items.map((user) => ({
           ...user, id: Number(user.id), version: Number(user.version)
         }));
@@ -284,12 +281,10 @@ export class UserManagementComponent {
           id: Number(calendar.id),
           version: Number(calendar.version)
         }));
-        const normalizedAssignments = assignments.items.map((assignment) => ({
+        const normalizedAssignments = users.calendarAssignments.map((assignment) => ({
           ...assignment,
-          id: Number(assignment.id),
           user_id: Number(assignment.user_id),
-          calendar_id: Number(assignment.calendar_id),
-          version: Number(assignment.version)
+          calendar_id: Number(assignment.calendar_id)
         }));
         this.users.set(normalizedUsers);
         this.calendars.set(normalizedCalendars);

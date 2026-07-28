@@ -14,7 +14,7 @@
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
             "index": "src/index.html",
-            "baseHref": "/umbertini/",
+            "baseHref": "/",
             "outputPath": "dist/lifehub",
             "assets": [
               "src/favicon.ico",

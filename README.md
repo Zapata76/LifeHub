@@ -1,32 +1,39 @@
 # Life Hub
 
-## Struttura
+## Structure
 
-- `api/`: API modulare PHP 7.4.33, CLI e test.
-- `database/lifehub.sql`: schema completo MySQL 5.0/MyISAM.
-- `web/`: PWA Angular.
-- `ops/`: build, server locale, backup, ripristino e gate di rilascio.
-- `deploy/`: regole Apache e protezione dello storage privato.
-- `tools/`: wrapper per PHP 7.4.33 e Composer.
-- `docs/`: specifica funzionale, architettura, database e operazioni.
+- `api/`: modular PHP 7.4.33 API, CLI, and tests.
+- `database/lifehub.sql`: complete MySQL 5.0/MyISAM schema.
+- `web/`: Angular PWA.
+- `ops/`: build, local server, backup, restore, and release gate scripts.
+- `deploy/`: Apache rules and private storage protection.
+- `tools/`: wrappers for PHP 7.4.33 and Composer.
+- `docs/`: functional specification, architecture, database, and operations.
 
-## Requisiti locali
+## Local requirements
 
-Il runtime PHP autorevole è:
+The authoritative PHP runtime is:
 
 ```text
 C:\tools\php7433\php.exe
 ```
 
-Sono inoltre necessari MySQL, Composer e Node.js/npm.
+MySQL, Composer, and Node.js/npm are also required.
 
-## Configurazione
+## Configuration
 
-Copiare `api/config/app.example.php` in `api/config/app.php`, che è escluso da
-Git, e configurare database, titolo applicazione, sessione, storage e log.
-L'applicazione non usa file `.env` né variabili del web server.
+Copy `api/config/app.example.php` to `api/config/app.php`, which is excluded
+from Git, and configure the URL base path, database, application title,
+session, and storage. The application does not use `.env` files or web server
+environment variables.
 
-Installare le dipendenze bloccate:
+Set `basePath` to `''` when Life Hub is installed at the domain root. For a
+nested installation, use the complete URL path without a trailing slash, for
+example `/apps/family/lifehub`. Each segment may contain letters, numbers,
+periods, underscores, tildes, and hyphens. The API is always exposed below the
+same path at `<basePath>/api`.
+
+Install the locked dependencies:
 
 ```powershell
 .\tools\composer.ps1 install --working-dir=api
@@ -35,70 +42,72 @@ npm ci
 Set-Location ..
 ```
 
-## Prima installazione
+## First installation
 
-Creare un database vuoto con charset UTF-8 e configurarlo in
-`api/config/app.php`. Dalla directory principale del repository verificare e
-applicare lo schema:
+Create an empty database with the UTF-8 character set and configure it in
+`api/config/app.php`. From the repository root, verify and apply the schema:
 
 ```powershell
 .\tools\php7433.ps1 .\api\bin\lifehub db:init:dry-run .\api\config\app.php
 .\tools\php7433.ps1 .\api\bin\lifehub db:init .\api\config\app.php
 ```
 
-`db:init` applica la baseline soltanto a un database vuoto e rifiuta database
-che contengono già tabelle `lh_`.
+`db:init` applies the baseline only to an empty database and rejects databases
+that already contain `lh_` tables.
 
-Creare quindi il primo nucleo familiare, il primo amministratore e la lista
-della spesa primaria:
+Then create the first household, the first administrator, and the primary
+shopping list:
 
 ```powershell
 .\tools\php7433.ps1 .\api\bin\lifehub admin:create `
   .\api\config\app.php `
-  "Amministratore" `
-  "PASSWORD-DI-ALMENO-12-CARATTERI" `
-  "Famiglia" `
+  "Administrator" `
+  "PASSWORD-AT-LEAST-12-CHARACTERS" `
+  "Family" `
   "Europe/Rome"
 ```
 
-La password è un argomento del processo: eseguire il comando in un terminale
-privato, rimuoverlo dalla cronologia e cambiarla dall'interfaccia dopo il primo
-accesso.
+The password is passed as a process argument: run the command in a private
+terminal, remove it from the command history, and change it through the
+interface after the first login.
 
-Verificare l'installazione:
+Verify the installation:
 
 ```powershell
 .\tools\php7433.ps1 .\api\bin\lifehub db:inspect .\api\config\app.php
 .\tools\php7433.ps1 .\api\bin\lifehub integrity .\api\config\app.php
 ```
 
-## Qualità
+## Quality
 
 ```powershell
 .\ops\release-readiness.ps1
 .\ops\release-readiness.ps1 -WithDatabaseIntegration
 ```
 
-La variante con database crea e rimuove soltanto schemi temporanei con prefisso
-`lh_probe_`.
+The database-enabled variant creates and removes only temporary schemas with
+the `lh_probe_` prefix.
 
-## Build e server locale
+## Build and local server
 
 ```powershell
 .\ops\build-release.ps1
 .\ops\serve-local.ps1
 ```
 
-Aprire `http://127.0.0.1:8080/umbertini/`.
+The local server prints the exact application and health-probe URLs derived
+from `basePath`.
 
-La build viene generata nella directory ignorata `.release/umbertini`. Lo
-storage applicativo è `/umbertini/uploads`; i blob privati sono salvati in
-`/umbertini/uploads/files` e i log in `/umbertini/uploads/logs`.
+For a root installation the build is generated in the ignored
+`.release/lifehub` directory. A nested path such as `/apps/family/lifehub`
+produces `.release/apps/family/lifehub`. Private blobs are stored in the
+bundle's protected `uploads/files` directory.
 
-Per il deploy completo seguire [DEPLOY_PRODUZIONE.txt](DEPLOY_PRODUZIONE.txt).
-La documentazione progettuale è indicizzata in [docs/README.md](docs/README.md).
+For complete deployment instructions, see
+[DEPLOY_PRODUCTION.txt](DEPLOY_PRODUCTION.txt). Project documentation is
+indexed in [docs/README.md](docs/README.md).
 
-## Licenza
+## License
 
-Life Hub è software libero e open source distribuito secondo i termini della
+Life Hub is free and open-source software distributed under the terms of the
 [GNU Affero General Public License v3.0](LICENSE).

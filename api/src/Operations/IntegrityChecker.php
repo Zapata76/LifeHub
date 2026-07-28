@@ -28,7 +28,7 @@ final class IntegrityChecker
             'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices', 'lh_recipes',
             'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes', 'lh_shopping_lists',
             'lh_shopping_items', 'lh_documents', 'lh_inventory', 'lh_goals', 'lh_trackers',
-            'lh_goal_logs', 'lh_attachments', 'lh_entity_relations',
+            'lh_goal_logs', 'lh_attachments',
         ];
         $counts = [];
         foreach ($tables as $table) {

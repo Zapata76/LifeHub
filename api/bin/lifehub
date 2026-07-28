@@ -25,7 +25,6 @@ try {
             'extensions' => [
                 'fileinfo' => extension_loaded('fileinfo'),
                 'mbstring' => extension_loaded('mbstring'),
-                'openssl' => extension_loaded('openssl'),
                 'pdo_mysql' => extension_loaded('pdo_mysql'),
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
@@ -36,7 +35,9 @@ try {
         $settings = Settings::fromFile($configurationPath);
         echo json_encode([
             'environment' => $settings->get('environment'),
-            'apiBasePath' => $settings->get('apiBasePath'),
+            'basePath' => $settings->get('basePath'),
+            'webPath' => $settings->webPath(),
+            'apiPath' => $settings->apiPath(),
             'siteName' => $settings->get('siteName'),
             'dbHost' => $settings->get('dbHost'),
             'dbPort' => $settings->get('dbPort'),
@@ -44,7 +45,6 @@ try {
             'sessionName' => $settings->get('sessionName'),
             'sessionIdleSeconds' => $settings->get('sessionIdleSeconds'),
             'storagePath' => $settings->get('storagePath'),
-            'logPath' => $settings->get('logPath'),
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         exit(0);
     }
@@ -89,7 +89,7 @@ try {
             'lh_notes', 'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices',
             'lh_recipes', 'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes',
             'lh_shopping_lists', 'lh_shopping_items', 'lh_documents', 'lh_inventory',
-            'lh_goals', 'lh_trackers', 'lh_goal_logs', 'lh_attachments', 'lh_entity_relations',
+            'lh_goals', 'lh_trackers', 'lh_goal_logs', 'lh_attachments',
         ];
         $counts = [];
         foreach ($tables as $table) {

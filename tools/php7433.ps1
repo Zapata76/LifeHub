@@ -21,7 +21,7 @@ if ($LASTEXITCODE -ne 0 -or $version -ne '7.4.33') {
     throw "Expected PHP 7.4.33, found '$version' at $phpExecutable"
 }
 
-$requiredExtensions = @('curl', 'fileinfo', 'json', 'mbstring', 'mysqli', 'openssl', 'pdo_mysql', 'session')
+$requiredExtensions = @('fileinfo', 'json', 'mbstring', 'pdo_mysql', 'session')
 $moduleOutput = & $phpExecutable -m
 if ($LASTEXITCODE -ne 0) {
     throw 'Unable to read PHP modules.'

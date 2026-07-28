@@ -45,6 +45,11 @@ final class HttpApiTest extends TestCase
             . '(id, household_id, username, username_key, password_hash, role, status, created_at, updated_at) '
             . "VALUES (1, 1, 'admin', 'admin', ?, 'admin', 'active', ?, ?)"
         )->execute([password_hash('integration-password', PASSWORD_BCRYPT), $now, $now]);
+        $pdo->prepare(
+            'INSERT INTO lh_shopping_lists '
+            . '(id, household_id, name, name_key, is_primary, created_by, created_at) '
+            . "VALUES (1, 1, 'Lista della spesa', 'lista della spesa', 1, 1, ?)"
+        )->execute([$now]);
         $_SESSION = [];
     }
 
@@ -258,9 +263,7 @@ final class HttpApiTest extends TestCase
         $product = $this->json($app->handle($this->request('POST', '/v1/products', [
             'name' => 'Tè nero', 'category_id' => $category['id'],
         ], $csrf)))['item'];
-        $list = $this->json($app->handle($this->request('POST', '/v1/shopping-lists', [
-            'name' => 'Famiglia', 'is_primary' => 1,
-        ], $csrf)))['item'];
+        $list = ['id' => 1];
 
         $created = $app->handle($this->request('POST', '/v1/shopping/items', [
             'listId' => $list['id'], 'productId' => $product['id'],
@@ -314,9 +317,7 @@ final class HttpApiTest extends TestCase
         $product = $this->json($app->handle($this->request('POST', '/v1/products', [
             'name' => 'Mele', 'category_id' => $category['id'],
         ], $csrf)))['item'];
-        $list = $this->json($app->handle($this->request('POST', '/v1/shopping-lists', [
-            'name' => 'Spesa fisica', 'is_primary' => 1,
-        ], $csrf)))['item'];
+        $list = ['id' => 1];
         $price = $this->json($app->handle($this->request('POST', '/v1/prices', [
             'product_id' => $product['id'], 'supermarket_id' => $market['id'], 'amount' => 2.49,
         ], $csrf)))['item'];
@@ -817,9 +818,7 @@ final class HttpApiTest extends TestCase
         $product = $this->json($app->handle($this->request('POST', '/v1/products', [
             'name' => 'Spaghetti', 'category_id' => $category['id'],
         ], $csrf)))['item'];
-        $list = $this->json($app->handle($this->request('POST', '/v1/shopping-lists', [
-            'name' => 'Lista principale', 'is_primary' => 1,
-        ], $csrf)))['item'];
+        $list = ['id' => 1];
         $recipeResponse = $app->handle($this->request('POST', '/v1/recipes', [
             'title' => 'Spaghetti al pomodoro', 'category' => 'Primo', 'description' => '',
             'instructions' => 'Cuocere.', 'prepTimeMinutes' => 20, 'difficulty' => 'bassa',
@@ -933,7 +932,7 @@ final class HttpApiTest extends TestCase
         }
         $settings = Settings::fromArray([
             'environment' => 'test',
-            'apiBasePath' => '/',
+            'basePath' => '',
             'siteName' => 'Configured test hub',
             'dbName' => $this->database->name(),
             'dbUser' => 'test-runner',
@@ -949,7 +948,7 @@ final class HttpApiTest extends TestCase
         ?array $body = null,
         string $csrf = ''
     ): ServerRequestInterface {
-        $request = (new ServerRequestFactory())->createServerRequest($method, $path);
+        $request = (new ServerRequestFactory())->createServerRequest($method, '/api' . $path);
         if ($body !== null) {
             $json = json_encode($body, JSON_THROW_ON_ERROR);
             $request = $request->withHeader('Content-Type', 'application/json')
@@ -966,7 +965,8 @@ final class HttpApiTest extends TestCase
         string $csrf,
         ?string $fileName = 'document.png'
     ): ServerRequestInterface {
-        $request = (new ServerRequestFactory())->createServerRequest($method, $path)->withParsedBody($body);
+        $request = (new ServerRequestFactory())->createServerRequest($method, '/api' . $path)
+            ->withParsedBody($body);
         if ($fileName !== null) {
             $content = base64_decode(
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',

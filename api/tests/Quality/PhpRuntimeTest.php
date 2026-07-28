@@ -32,12 +32,9 @@ final class PhpRuntimeTest extends TestCase
     public function requiredExtensions(): array
     {
         return [
-            'curl' => ['curl'],
             'fileinfo' => ['fileinfo'],
             'json' => ['json'],
             'mbstring' => ['mbstring'],
-            'mysqli' => ['mysqli'],
-            'openssl' => ['openssl'],
             'pdo_mysql' => ['pdo_mysql'],
             'session' => ['session'],
         ];

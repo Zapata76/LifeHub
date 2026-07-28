@@ -28,7 +28,7 @@ with `admin:create`.
 | Recipes and meals | `lh_recipes`, `lh_recipe_ingredients`, `lh_meal_plan`, `lh_meal_plan_recipes`, `lh_meal_shopping_exports` |
 | Knowledge | `lh_notes`, `lh_documents`, `lh_inventory` |
 | Goals | `lh_goals`, `lh_trackers`, `lh_goal_logs` |
-| Files and relationships | `lh_attachments`, `lh_entity_relations` |
+| Files | `lh_attachments` |
 | Operations | `lh_operation_runs`, `lh_operation_steps`, `lh_audit_log` |
 
 ## Conventions

@@ -33,7 +33,7 @@ final class SessionMiddleware
             session_name($this->settings->get('sessionName'));
             session_set_cookie_params([
                 'lifetime' => 0,
-                'path' => '/umbertini/',
+                'path' => $this->settings->webPath(),
                 'secure' => $isHttps,
                 'httponly' => true,
                 'samesite' => 'Lax',

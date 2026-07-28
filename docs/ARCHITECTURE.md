@@ -11,7 +11,6 @@ API PHP 7.4.33 / Slim 4
         |
         +-- MySQL with lh_ tables
         +-- private storage at uploads/files
-        +-- application log at uploads/logs/application.log
 ```
 
 The frontend is compiled as a static PWA. The API exposes the `/api/v1`
@@ -57,8 +56,8 @@ exposed to users.
 ## Configuration
 
 Application configuration resides in `api/config/app.php`, which is excluded
-from Git. It contains environment, database, session, site title, storage, and
-logging settings. The version-controlled template is
+from Git. It contains the URL base path, environment, database, session, site
+title, and storage settings. The version-controlled template is
 `api/config/app.example.php`.
 
 ## Build and release
@@ -67,7 +66,7 @@ logging settings. The version-controlled template is
 
 1. validates the configuration;
 2. builds Angular into `web/dist/lifehub`;
-3. prepares `.release/umbertini`;
+3. prepares a release path derived from `basePath`;
 4. copies the API, Apache rules, and configuration;
 5. installs production-only PHP dependencies;
-6. prepares protected storage and log directories.
+6. prepares protected private storage.

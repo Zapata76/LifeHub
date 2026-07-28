@@ -5,7 +5,7 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, switchMap } from 'rxjs';
+import { Observable, map, of, switchMap } from 'rxjs';
 import { ShoppingOverview } from './shopping.models';
 
 interface ResourceItem { id: number; version: number; }
@@ -41,13 +41,13 @@ export class ShoppingApiService {
 
   createProduct(name: string, categoryId: number, image?: File): Observable<void> {
     return this.createResource('products', { name, category_id: categoryId }).pipe(
-      switchMap((item) => image ? this.upload('product', item.id, image) : this.done())
+      switchMap((item) => image ? this.upload('product', item.id, image) : of(undefined))
     );
   }
 
   updateProduct(id: number, version: number, name: string, categoryId: number, image?: File): Observable<void> {
     return this.updateResource('products', id, { name, category_id: categoryId, version }).pipe(
-      switchMap(() => image ? this.upload('product', id, image) : this.done())
+      switchMap(() => image ? this.upload('product', id, image) : of(undefined))
     );
   }
 
@@ -64,7 +64,7 @@ export class ShoppingApiService {
     package_text: string | null; observed_on: string | null;
   }, image?: File): Observable<void> {
     return this.createResource('prices', command).pipe(
-      switchMap((item) => image ? this.upload('price', item.id, image) : this.done())
+      switchMap((item) => image ? this.upload('price', item.id, image) : of(undefined))
     );
   }
 
@@ -91,9 +91,5 @@ export class ShoppingApiService {
     body.append('ownerId', String(ownerId));
     body.append('file', file);
     return this.http.post<{ item: AttachmentItem }>('api/v1/attachments', body).pipe(map(() => undefined));
-  }
-
-  private done(): Observable<void> {
-    return new Observable<void>((subscriber) => { subscriber.next(); subscriber.complete(); });
   }
 }

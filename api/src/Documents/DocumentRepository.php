@@ -148,11 +148,6 @@ final class DocumentRepository
             "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' AND owner_id = ?"
         );
         $attachments->execute([$user->householdId(), $id]);
-        $relations = $this->pdo->prepare(
-            "DELETE FROM lh_entity_relations WHERE household_id = ? AND "
-            . "((source_type = 'document' AND source_id = ?) OR (target_type = 'document' AND target_id = ?))"
-        );
-        $relations->execute([$user->householdId(), $id, $id]);
         return array_values(array_map(function (array $row): string {
             return (string) $row['storage_key'];
         }, $files));

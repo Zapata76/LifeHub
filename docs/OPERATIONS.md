@@ -28,8 +28,10 @@ tests, and the production build. Database tests use temporary schemas with the
 .\ops\serve-local.ps1
 ```
 
-The bundle is written to `.release/umbertini` and served locally at
-`http://127.0.0.1:8080/umbertini/`.
+The bundle location and local URL are derived from `basePath`. The empty
+default produces `.release/lifehub` and is served at
+`http://127.0.0.1:8080/`. A nested path such as `/apps/family/lifehub`
+produces `.release/apps/family/lifehub` and is served at the matching URL.
 
 ## Database backup
 
@@ -48,7 +50,7 @@ The dump, checksum, and metadata are stored in `.runtime/backups`.
 
 ```powershell
 .\ops\backup-uploads.ps1 `
-  -SourceDirectory C:\path\to\umbertini\uploads
+  -SourceDirectory C:\path\to\lifehub\uploads
 ```
 
 The ZIP archive and its hash are stored outside the source directory.
@@ -70,4 +72,4 @@ overwrite the configured database.
 
 The complete procedure, including private storage, permissions, publishing, and
 smoke testing, is documented in
-[DEPLOY_PRODUZIONE.txt](../DEPLOY_PRODUZIONE.txt).
+[DEPLOY_PRODUCTION.txt](../DEPLOY_PRODUCTION.txt).

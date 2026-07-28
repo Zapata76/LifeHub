@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: Same-origin household API. Unsafe requests require the session CSRF token.
 servers:
-  - url: /umbertini/api/v1
+  - url: /api/v1
 tags:
   - name: Identity
   - name: Tasks
@@ -20,7 +20,7 @@ tags:
 paths:
   /health:
     servers:
-      - url: /umbertini/api
+      - url: /api
     get:
       tags: [Operations]
       summary: Read the unversioned deployment health probe
@@ -517,12 +517,10 @@ paths:
         required: true
         schema:
           type: string
-          enum: [calendars, calendar-assignments, categories, supermarkets, products, prices, recipe-ingredients,
-            meals, meal-recipes, shopping-lists, shopping-items, relations]
+          enum: [calendars, categories, supermarkets, products, prices]
     get:
       tags: [Resources]
       summary: List a configured household resource
-      parameters: [{$ref: '#/components/parameters/Archived'}]
       responses:
         '200': {$ref: '#/components/responses/Collection'}
         '403': {$ref: '#/components/responses/Error'}
@@ -544,35 +542,7 @@ paths:
       responses:
         '200': {description: Updated}
         '409': {$ref: '#/components/responses/Error'}
-  /{resource}/{id}/archive:
-    post:
-      tags: [Resources]
-      summary: Archive a configured resource
-      parameters:
-        - {name: resource, in: path, required: true, schema: {type: string}}
-        - {$ref: '#/components/parameters/Id'}
-        - {$ref: '#/components/parameters/Csrf'}
-      responses:
-        '200': {description: Archived}
-  /{resource}/{id}/restore:
-    post:
-      tags: [Resources]
-      summary: Restore a configured resource
-      parameters:
-        - {name: resource, in: path, required: true, schema: {type: string}}
-        - {$ref: '#/components/parameters/Id'}
-        - {$ref: '#/components/parameters/Csrf'}
-      responses:
-        '200': {description: Restored}
   /attachments:
-    get:
-      tags: [Attachments]
-      summary: List authorized attachment metadata
-      parameters:
-        - {name: ownerType, in: query, required: true, schema: {type: string}}
-        - {name: ownerId, in: query, required: true, schema: {type: integer}}
-      responses:
-        '200': {$ref: '#/components/responses/Collection'}
     post:
       tags: [Attachments]
       summary: Upload a private JPEG, PNG, or PDF (10 MiB maximum)
@@ -599,16 +569,6 @@ paths:
       responses:
         '200': {description: File content}
         '404': {$ref: '#/components/responses/Error'}
-  /shopping/generate:
-    post:
-      tags: [Operations]
-      summary: Generate shopping items from a recipe or meal with resumable steps
-      parameters:
-        - {$ref: '#/components/parameters/Csrf'}
-        - {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 8, maxLength: 190}}
-      responses:
-        '201': {description: Generation result}
-        '409': {$ref: '#/components/responses/Error'}
   /shopping/overview:
     get:
       tags: [Shopping]

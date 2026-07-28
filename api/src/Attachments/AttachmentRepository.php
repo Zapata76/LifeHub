@@ -45,17 +45,4 @@ final class AttachmentRepository
         }
         return $row;
     }
-
-    /** @return list<array<string, mixed>> */
-    public function list(UserContext $user, string $ownerType, int $ownerId): array
-    {
-        $statement = $this->pdo->prepare(
-            'SELECT id, owner_type, owner_id, original_name, detected_mime, size_bytes, sha256, '
-            . 'created_by, created_at, archived_at, version FROM lh_attachments '
-            . 'WHERE household_id = ? AND owner_type = ? AND owner_id = ? AND archived_at IS NULL ORDER BY id DESC'
-        );
-        $statement->execute([$user->householdId(), $ownerType, $ownerId]);
-        $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
-    }
 }

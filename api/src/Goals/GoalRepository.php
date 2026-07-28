@@ -124,11 +124,6 @@ final class GoalRepository
             "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'goal' AND owner_id = ?"
         );
         $attachments->execute([$user->householdId(), $id]);
-        $relations = $this->pdo->prepare(
-            "DELETE FROM lh_entity_relations WHERE household_id = ? AND "
-            . "((source_type = 'goal' AND source_id = ?) OR (target_type = 'goal' AND target_id = ?))"
-        );
-        $relations->execute([$user->householdId(), $id, $id]);
         $goal = $this->pdo->prepare(
             'DELETE FROM lh_goals WHERE household_id = ? AND id = ? AND version = ?'
         );
