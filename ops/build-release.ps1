@@ -10,7 +10,7 @@ $configurationPath = [IO.Path]::GetFullPath($ConfigurationFile)
 if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
     throw "Application configuration file is missing: $configurationPath"
 }
-$configurationOutput = & (Join-Path $root 'tools\php7433.ps1') `
+$configurationOutput = & (Join-Path $root 'tools\php859.ps1') `
     (Join-Path $root 'api\bin\lifehub') 'config:check' $configurationPath
 if ($LASTEXITCODE -ne 0) { throw 'Application configuration validation failed.' }
 $configuration = ($configurationOutput -join "`n") | ConvertFrom-Json

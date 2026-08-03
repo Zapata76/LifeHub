@@ -212,6 +212,6 @@ final class DocumentRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 }

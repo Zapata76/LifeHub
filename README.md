@@ -2,12 +2,12 @@
 
 ## Structure
 
-- `api/`: modular PHP 7.4.33 API, CLI, and tests.
+- `api/`: modular PHP 8.5 API, CLI, and tests.
 - `database/lifehub.sql`: complete MySQL 5.0/MyISAM schema.
 - `web/`: Angular PWA.
 - `ops/`: build, local server, backup, restore, and release gate scripts.
 - `deploy/`: Apache rules and private storage protection.
-- `tools/`: wrappers for PHP 7.4.33 and Composer.
+- `tools/`: wrappers for PHP 8.5.9 and Composer.
 - `docs/`: functional specification, architecture, database, and operations.
 
 ## Local requirements
@@ -15,8 +15,10 @@
 The authoritative PHP runtime is:
 
 ```text
-C:\tools\php7433\php.exe
+C:\tools\php859\php.exe
 ```
+
+Production requires PHP 8.5.6 or later within the PHP 8.5 series.
 
 MySQL, Composer, and Node.js/npm are also required.
 
@@ -48,8 +50,8 @@ Create an empty database with the UTF-8 character set and configure it in
 `api/config/app.php`. From the repository root, verify and apply the schema:
 
 ```powershell
-.\tools\php7433.ps1 .\api\bin\lifehub db:init:dry-run .\api\config\app.php
-.\tools\php7433.ps1 .\api\bin\lifehub db:init .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:init:dry-run .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:init .\api\config\app.php
 ```
 
 `db:init` applies the baseline only to an empty database and rejects databases
@@ -59,7 +61,7 @@ Then create the first household, the first administrator, and the primary
 shopping list:
 
 ```powershell
-.\tools\php7433.ps1 .\api\bin\lifehub admin:create `
+.\tools\php859.ps1 .\api\bin\lifehub admin:create `
   .\api\config\app.php `
   "Administrator" `
   "PASSWORD-AT-LEAST-12-CHARACTERS" `
@@ -74,8 +76,8 @@ interface after the first login.
 Verify the installation:
 
 ```powershell
-.\tools\php7433.ps1 .\api\bin\lifehub db:inspect .\api\config\app.php
-.\tools\php7433.ps1 .\api\bin\lifehub integrity .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:inspect .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub integrity .\api\config\app.php
 ```
 
 ## Quality

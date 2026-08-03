@@ -10,8 +10,8 @@ targeted by the project.
 Initialization is allowed only on an empty database:
 
 ```powershell
-.\tools\php7433.ps1 .\api\bin\lifehub db:init:dry-run .\api\config\app.php
-.\tools\php7433.ps1 .\api\bin\lifehub db:init .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:init:dry-run .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:init .\api\config\app.php
 ```
 
 The initial household, administrator, and primary shopping list are created
@@ -46,8 +46,8 @@ with `admin:create`.
 ## Verification
 
 ```powershell
-.\tools\php7433.ps1 .\api\bin\lifehub db:inspect .\api\config\app.php
-.\tools\php7433.ps1 .\api\bin\lifehub integrity .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub db:inspect .\api\config\app.php
+.\tools\php859.ps1 .\api\bin\lifehub integrity .\api\config\app.php
 ```
 
 `integrity` checks for orphaned references, missing files, inconsistencies

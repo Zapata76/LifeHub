@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Runs a PHP command with the exact Life Hub PHP 7.4.33 runtime.
+Runs a PHP command with the exact Life Hub PHP 8.5.9 runtime.
 #>
 
 [CmdletBinding()]
@@ -10,15 +10,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$phpExecutable = 'C:\tools\php7433\php.exe'
+$phpExecutable = 'C:\tools\php859\php.exe'
 
 if (-not (Test-Path -LiteralPath $phpExecutable -PathType Leaf)) {
     throw "Required PHP executable not found: $phpExecutable"
 }
 
 $version = & $phpExecutable -r 'echo PHP_VERSION;'
-if ($LASTEXITCODE -ne 0 -or $version -ne '7.4.33') {
-    throw "Expected PHP 7.4.33, found '$version' at $phpExecutable"
+if ($LASTEXITCODE -ne 0 -or $version -ne '8.5.9') {
+    throw "Expected PHP 8.5.9, found '$version' at $phpExecutable"
 }
 
 $requiredExtensions = @('fileinfo', 'json', 'mbstring', 'pdo_mysql', 'session')

@@ -62,7 +62,7 @@ final class TaskRepository
         );
         $statement->execute($params);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     /** @return list<array{id:int, username:string}> */
@@ -78,7 +78,7 @@ final class TaskRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($values);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     /** @return array<string, mixed> */

@@ -31,7 +31,7 @@ final class ResourceRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute([$user->householdId()]);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     /** @return array<string, mixed> */

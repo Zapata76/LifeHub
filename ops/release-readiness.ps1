@@ -17,7 +17,7 @@ function Invoke-Gate([string]$Name, [scriptblock]$Command) {
 
 Push-Location $api
 try {
-    Invoke-Gate 'runtime' { & (Join-Path $root 'tools\php7433.ps1') 'bin\lifehub' 'runtime:check' }
+    Invoke-Gate 'runtime' { & (Join-Path $root 'tools\php859.ps1') 'bin\lifehub' 'runtime:check' }
     Invoke-Gate 'composer-validate' { & (Join-Path $root 'tools\composer.ps1') 'validate' '--strict' }
     if ($WithDependencyAudit) {
         Write-Warning 'Composer audit contacts the configured package repository and sends dependency metadata.'
@@ -26,15 +26,15 @@ try {
         $results['composer-audit'] = 'NOT_RUN'
     }
     Invoke-Gate 'phpcs' {
-        & (Join-Path $root 'tools\php7433.ps1') 'vendor\squizlabs\php_codesniffer\bin\phpcs' '--standard=phpcs.xml'
+        & (Join-Path $root 'tools\php859.ps1') 'vendor\squizlabs\php_codesniffer\bin\phpcs' '--standard=phpcs.xml'
     }
     Invoke-Gate 'phpstan' {
-        & (Join-Path $root 'tools\php7433.ps1') 'vendor\phpstan\phpstan\phpstan' 'analyse' `
+        & (Join-Path $root 'tools\php859.ps1') 'vendor\phpstan\phpstan\phpstan' 'analyse' `
             '--configuration=phpstan.neon' '--no-progress' '--memory-limit=512M'
     }
     if ($WithDatabaseIntegration) { $env:LIFEHUB_TEST_DB = '1' }
     Invoke-Gate 'phpunit' {
-        & (Join-Path $root 'tools\php7433.ps1') 'vendor\phpunit\phpunit\phpunit' '--configuration=phpunit.xml'
+        & (Join-Path $root 'tools\php859.ps1') 'vendor\phpunit\phpunit\phpunit' '--configuration=phpunit.xml'
     }
 } finally {
     Pop-Location

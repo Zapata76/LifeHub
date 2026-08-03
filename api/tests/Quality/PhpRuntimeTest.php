@@ -12,9 +12,10 @@ use PHPUnit\Framework\TestCase;
 
 final class PhpRuntimeTest extends TestCase
 {
-    public function testExactPhpRuntimeIsUsed(): void
+    public function testSupportedPhpRuntimeIsUsed(): void
     {
-        self::assertSame('7.4.33', PHP_VERSION);
+        self::assertGreaterThanOrEqual(80506, PHP_VERSION_ID);
+        self::assertLessThan(80600, PHP_VERSION_ID);
         self::assertSame('Europe/Rome', date_default_timezone_get());
     }
 

@@ -7,7 +7,7 @@ Browser / Angular PWA
         |
         | HTTPS, JSON, multipart/form-data
         v
-API PHP 7.4.33 / Slim 4
+API PHP 8.5 / Slim 4
         |
         +-- MySQL with lh_ tables
         +-- private storage at uploads/files

@@ -5,15 +5,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$php = 'C:\tools\php7433\php.exe'
+$php = 'C:\tools\php859\php.exe'
 $releaseBase = Join-Path $root '.release'
 $router = Join-Path $PSScriptRoot 'local-router.php'
 
 if (-not (Test-Path -LiteralPath $php -PathType Leaf)) {
-    throw "PHP 7.4.33 was not found at $php."
+    throw "PHP 8.5.9 was not found at $php."
 }
 $configurationPath = [IO.Path]::GetFullPath($ConfigurationFile)
-$configurationOutput = & (Join-Path $root 'tools\php7433.ps1') `
+$configurationOutput = & (Join-Path $root 'tools\php859.ps1') `
     (Join-Path $root 'api\bin\lifehub') 'config:check' $configurationPath
 if ($LASTEXITCODE -ne 0) { throw 'Application configuration validation failed.' }
 $configuration = ($configurationOutput -join "`n") | ConvertFrom-Json

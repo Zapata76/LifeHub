@@ -8,7 +8,8 @@ or import scripts for previous applications.
 1. REQUIREMENTS
 ---------------
 
-- PHP 7.4.33 with fileinfo, json, mbstring, PDO, pdo_mysql, and session.
+- PHP 8.5.6 or later in the 8.5 series with fileinfo, json, mbstring, PDO,
+  pdo_mysql, and session.
 - MySQL compatible with MySQL 5.0 and MyISAM tables.
 - Apache with mod_rewrite and .htaccess file support.
 - Node.js/npm and Composer on the machine used for the build.
@@ -64,7 +65,7 @@ Recommended storage configuration:
 
 Validate the file:
 
-  .\tools\php7433.ps1 .\api\bin\lifehub config:check `
+  .\tools\php859.ps1 .\api\bin\lifehub config:check `
     C:\secure\lifehub.production.php
 
 
@@ -79,17 +80,17 @@ that already contains tables with the `lh_` prefix.
 
 Verification:
 
-  .\tools\php7433.ps1 .\api\bin\lifehub db:init:dry-run `
+  .\tools\php859.ps1 .\api\bin\lifehub db:init:dry-run `
     C:\secure\lifehub.production.php
 
 Initialization:
 
-  .\tools\php7433.ps1 .\api\bin\lifehub db:init `
+  .\tools\php859.ps1 .\api\bin\lifehub db:init `
     C:\secure\lifehub.production.php
 
 Create the first administrator:
 
-  .\tools\php7433.ps1 .\api\bin\lifehub admin:create `
+  .\tools\php859.ps1 .\api\bin\lifehub admin:create `
     C:\secure\lifehub.production.php `
     "Administrator" `
     "PASSWORD-AT-LEAST-12-CHARACTERS" `
@@ -101,10 +102,10 @@ the password from the terminal history and change it after the first login.
 
 Checks:
 
-  .\tools\php7433.ps1 .\api\bin\lifehub db:inspect `
+  .\tools\php859.ps1 .\api\bin\lifehub db:inspect `
     C:\secure\lifehub.production.php
 
-  .\tools\php7433.ps1 .\api\bin\lifehub integrity `
+  .\tools\php859.ps1 .\api\bin\lifehub integrity `
     C:\secure\lifehub.production.php
 
 

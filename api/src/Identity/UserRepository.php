@@ -67,7 +67,7 @@ final class UserRepository
         );
         $statement->execute([$householdId]);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     /** @return list<array<string, mixed>> */
@@ -79,7 +79,7 @@ final class UserRepository
         );
         $statement->execute([$householdId]);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     public function create(int $householdId, string $username, string $password, string $role): int

@@ -258,7 +258,7 @@ final class RecipeRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     private function assertChanged(\PDOStatement $statement): void

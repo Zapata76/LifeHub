@@ -322,7 +322,7 @@ final class ShoppingRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     private function assertChanged(\PDOStatement $statement): void
@@ -360,7 +360,7 @@ final class ShoppingRepository
         );
         $statement->execute([$householdId, $id]);
         $ids = $statement->fetchAll(PDO::FETCH_COLUMN);
-        return is_array($ids) ? array_map('intval', $ids) : [];
+        return array_map('intval', $ids);
     }
 
     /**
@@ -385,6 +385,6 @@ final class ShoppingRepository
             . 'AND owner_id IN (' . $placeholders . ')'
         );
         $statement->execute($parameters);
-        return array_values(array_map('strval', is_array($keys) ? $keys : []));
+        return array_values(array_map('strval', $keys));
     }
 }

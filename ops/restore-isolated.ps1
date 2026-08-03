@@ -17,7 +17,7 @@ $optionWriter = Join-Path $PSScriptRoot 'mysql-client-config.php'
 $optionPath = Join-Path ([IO.Path]::GetTempPath()) ("lifehub-mysql-{0}.cnf" -f [Guid]::NewGuid().ToString('N'))
 $sourceCommand = 'source ' + ($backup -replace '\\', '/')
 try {
-    & (Join-Path $root 'tools\php7433.ps1') $optionWriter $configuration $optionPath | Out-Null
+    & (Join-Path $root 'tools\php859.ps1') $optionWriter $configuration $optionPath | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Unable to read the application database configuration.' }
     & $tool "--defaults-extra-file=$optionPath" '--default-character-set=utf8' `
         "--execute=CREATE DATABASE $TargetDatabase DEFAULT CHARACTER SET utf8"

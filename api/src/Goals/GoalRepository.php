@@ -129,7 +129,7 @@ final class GoalRepository
         );
         $goal->execute([$user->householdId(), $id, $version]);
         $this->assertChanged($goal);
-        return is_array($keys) ? array_values(array_map('strval', $keys)) : [];
+        return array_values(array_map('strval', $keys));
     }
 
     /** @param bool|int|float|string $value */
@@ -271,7 +271,7 @@ final class GoalRepository
         $statement = $this->pdo->prepare('SELECT id FROM lh_trackers WHERE household_id = ? AND goal_id = ?');
         $statement->execute([$householdId, $goalId]);
         $ids = $statement->fetchAll(PDO::FETCH_COLUMN);
-        return is_array($ids) ? array_map('intval', $ids) : [];
+        return array_map('intval', $ids);
     }
 
     /**
@@ -283,7 +283,7 @@ final class GoalRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($parameters);
         $rows = $statement->fetchAll();
-        return is_array($rows) ? $rows : [];
+        return $rows;
     }
 
     private function assertChanged(\PDOStatement $statement): void

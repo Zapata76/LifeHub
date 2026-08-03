@@ -17,7 +17,7 @@ $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 try {
     $databaseOutput = @(
-        & (Join-Path $root 'tools\php7433.ps1') $optionWriter $configuration $optionPath
+        & (Join-Path $root 'tools\php859.ps1') $optionWriter $configuration $optionPath
     )
     if ($LASTEXITCODE -ne 0) { throw 'Unable to read the application database configuration.' }
     $database = ($databaseOutput -join '').Trim()
