@@ -1,13 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { concat, Observable, of } from 'rxjs';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { InventoryApiService } from './inventory-api.service';
 import { InventoryItem, InventoryOverview, InventoryPayload } from './inventory.models';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, ModalBackdropDirective],
   templateUrl: './inventory-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

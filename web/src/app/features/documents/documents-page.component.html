@@ -60,7 +60,8 @@
 </div>
 
 @if (editorOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeEditor()"
+    (keydown.escape)="closeEditor()">
     <section class="shopping-modal card document-editor-modal" role="dialog" aria-modal="true"
       aria-labelledby="document-editor-title" (click)="$event.stopPropagation()">
       <h2 id="document-editor-title">{{ editing() ? 'Modifica documento' : 'Nuovo documento' }}</h2>

@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { DocumentsApiService } from './documents-api.service';
 import { DocumentItem, DocumentOverview, DocumentPayload } from './documents.models';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   templateUrl: './documents-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

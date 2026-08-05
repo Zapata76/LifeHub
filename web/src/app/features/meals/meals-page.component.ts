@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { MealsApiService } from './meals-api.service';
 import { MealPayload, MealRecipe, MealsOverview, MealType, PlannedMeal, ShoppingPreview } from './meals.models';
 
@@ -8,7 +9,7 @@ interface PlannerDay { date: string; dateValue: Date; }
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   templateUrl: './meals-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

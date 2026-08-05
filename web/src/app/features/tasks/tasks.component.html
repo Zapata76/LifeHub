@@ -71,7 +71,8 @@
 </ng-template>
 
 @if (editorOpen()) {
-  <div class="task-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+  <div class="task-modal-backdrop" role="presentation" (mousedown)="editorBackdropMouseDown($event)"
+    (keydown.escape)="closeEditor()">
     <section class="task-modal card" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"
       (click)="$event.stopPropagation()">
       <h2 id="task-modal-title">{{ editing() ? 'Modifica attività' : 'Nuova attività' }}</h2>

@@ -6,6 +6,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SessionStore } from '../../core/session.store';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { ShoppingApiService } from './shopping-api.service';
 import { PriceRecord, ShoppingOverview } from './shopping.models';
 
@@ -20,9 +21,9 @@ interface PriceGroup {
 @Component({
   selector: 'lh-shopping-prices',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './shopping-prices.component.html'
+  templateUrl: './shopping-prices.component.html',
 })
 export class ShoppingPricesComponent {
   readonly api = inject(ShoppingApiService);

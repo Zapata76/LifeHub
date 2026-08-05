@@ -6,6 +6,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SessionStore } from '../../core/session.store';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { ShoppingApiService } from './shopping-api.service';
 import { Product, ShoppingOverview } from './shopping.models';
 
@@ -15,9 +16,9 @@ interface CatalogDeleteTarget { resource: CatalogResource; id: number; version: 
 @Component({
   selector: 'lh-shopping-catalog',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './shopping-catalog.component.html'
+  templateUrl: './shopping-catalog.component.html',
 })
 export class ShoppingCatalogComponent {
   readonly api = inject(ShoppingApiService);

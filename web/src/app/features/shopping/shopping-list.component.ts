@@ -6,15 +6,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { ShoppingApiService } from './shopping-api.service';
 import { Product, ShoppingItem, ShoppingOverview } from './shopping.models';
 
 @Component({
   selector: 'lh-shopping-list',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './shopping-list.component.html'
+  templateUrl: './shopping-list.component.html',
 })
 export class ShoppingListComponent {
   readonly api = inject(ShoppingApiService);

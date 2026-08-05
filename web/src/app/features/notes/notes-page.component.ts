@@ -9,12 +9,13 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { concat, Observable, of } from 'rxjs';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { NoteApiService } from './note-api.service';
 import { NoteItem, NoteOverview, NotePayload } from './note.models';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   templateUrl: './notes-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

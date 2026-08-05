@@ -14,7 +14,7 @@ import { TasksApiService } from './tasks/tasks-api.service';
   standalone: true,
   imports: [ReactiveFormsModule, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './tasks/tasks.component.html'
+  templateUrl: './tasks/tasks.component.html',
 })
 export class TasksComponent {
   private readonly api = inject(TasksApiService);
@@ -75,6 +75,10 @@ export class TasksComponent {
   }
 
   closeEditor(): void { if (!this.busy()) this.editorOpen.set(false); }
+
+  editorBackdropMouseDown(event: MouseEvent): void {
+    if (event.target === event.currentTarget) this.closeEditor();
+  }
 
   save(): void {
     if (this.form.invalid) return;

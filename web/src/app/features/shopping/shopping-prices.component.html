@@ -68,7 +68,7 @@
 </section>
 
 @if (priceModalOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closePriceModal()"
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closePriceModal()"
     (keydown.escape)="closePriceModal()">
     <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="new-price-title"
       (click)="$event.stopPropagation()">
@@ -107,7 +107,8 @@
 }
 
 @if (deleteTarget(); as price) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeDelete()" (keydown.escape)="closeDelete()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeDelete()"
+    (keydown.escape)="closeDelete()">
     <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
       aria-labelledby="price-delete-title" (click)="$event.stopPropagation()">
       <h2 id="price-delete-title">Elimina rilevazione</h2>

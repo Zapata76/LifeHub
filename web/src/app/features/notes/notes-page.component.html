@@ -52,7 +52,8 @@
 }
 
 @if (editorOpen()) {
-  <div class="note-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+  <div class="note-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeEditor()"
+    (keydown.escape)="closeEditor()">
     <section class="note-modal card" role="dialog" aria-modal="true" aria-labelledby="note-editor-title"
       [style.border-top-color]="form.controls.color.value" (click)="$event.stopPropagation()">
       <form [formGroup]="form" (ngSubmit)="save()">

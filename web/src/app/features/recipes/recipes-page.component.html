@@ -100,7 +100,8 @@
 </div>
 
 @if (editorOpen()) {
-  <div class="shopping-modal-backdrop recipe-editor-backdrop" role="presentation" (click)="closeEditor()"
+  <div class="shopping-modal-backdrop recipe-editor-backdrop" role="presentation" lhModalBackdrop
+    (backdropDismissed)="closeEditor()"
     (keydown.escape)="closeEditor()">
     <section class="shopping-modal card recipe-editor-modal" role="dialog" aria-modal="true"
       aria-labelledby="recipe-editor-title" (click)="$event.stopPropagation()">

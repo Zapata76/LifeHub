@@ -80,7 +80,8 @@
 <p class="meal-help"><span>Il segno “spesa” seleziona i pasti da trasformare in articoli.</span><span>I pasti già esportati non vengono duplicati.</span></p>
 
 @if (editorOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEditor()" (keydown.escape)="closeEditor()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeEditor()"
+    (keydown.escape)="closeEditor()">
     <section class="shopping-modal card meal-editor-modal" role="dialog" aria-modal="true" aria-labelledby="meal-editor-title"
       (click)="$event.stopPropagation()">
       <h2 id="meal-editor-title">{{ editing() ? 'Modifica pasto' : 'Pianifica pasto' }}</h2>
@@ -136,7 +137,8 @@
 }
 
 @if (previewOpen() && preview(); as data) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closePreview()" (keydown.escape)="closePreview()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closePreview()"
+    (keydown.escape)="closePreview()">
     <section class="shopping-modal card meal-shopping-modal" role="dialog" aria-modal="true" aria-labelledby="meal-shopping-title"
       (click)="$event.stopPropagation()">
       <h2 id="meal-shopping-title">Anteprima della spesa</h2>

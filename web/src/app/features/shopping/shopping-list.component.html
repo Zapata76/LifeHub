@@ -53,7 +53,8 @@
 }
 
 @if (clearModalOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeClear()" (keydown.escape)="closeClear()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeClear()"
+    (keydown.escape)="closeClear()">
     <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
       aria-labelledby="shopping-clear-title" (click)="$event.stopPropagation()">
       <h2 id="shopping-clear-title">Pulisci la lista</h2>
@@ -71,7 +72,8 @@
 }
 
 @if (addModalOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeAdd()" (keydown.escape)="closeAdd()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeAdd()"
+    (keydown.escape)="closeAdd()">
     <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="shopping-add-title"
       (click)="$event.stopPropagation()">
       <h2 id="shopping-add-title">Aggiungi alla lista</h2>
@@ -130,7 +132,8 @@
 }
 
 @if (editingItem(); as item) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeEdit()" (keydown.escape)="closeEdit()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeEdit()"
+    (keydown.escape)="closeEdit()">
     <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="shopping-edit-title"
       (click)="$event.stopPropagation()">
       <h2 id="shopping-edit-title">Modifica {{ itemName(item) }}</h2>

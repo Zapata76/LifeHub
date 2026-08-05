@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { concat, Observable, of } from 'rxjs';
+import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { RecipesApiService } from './recipes-api.service';
 import {
   RecipeDetail, RecipeIngredientPayload, RecipePayload, RecipeProduct, RecipeSummary, RecipesOverview
@@ -17,7 +18,7 @@ type IngredientForm = FormGroup<{
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ModalBackdropDirective],
   templateUrl: './recipes-page.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })

@@ -1,5 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, EventEmitter, HostListener, Output, signal
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CalendarApiService } from './calendar-api.service';
 import { CalendarItem } from './calendar.models';

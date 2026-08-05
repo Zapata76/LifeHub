@@ -70,7 +70,7 @@
 </section>
 
 @if (productModalOpen()) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeProductModal()"
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeProductModal()"
     (keydown.escape)="closeProductModal()">
     <section class="shopping-modal card" role="dialog" aria-modal="true" aria-labelledby="product-editor-title"
       (click)="$event.stopPropagation()">
@@ -103,7 +103,8 @@
 }
 
 @if (deleteTarget(); as target) {
-  <div class="shopping-modal-backdrop" role="presentation" (click)="closeDelete()" (keydown.escape)="closeDelete()">
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeDelete()"
+    (keydown.escape)="closeDelete()">
     <section class="shopping-modal shopping-confirm-modal card" role="alertdialog" aria-modal="true"
       aria-labelledby="catalog-delete-title" (click)="$event.stopPropagation()">
       <h2 id="catalog-delete-title">Elimina {{ resourceName(target.resource) }}</h2>
