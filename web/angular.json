@@ -22,9 +22,19 @@
               "src/favicon-32x32.png",
               "src/apple-touch-icon.png",
               "src/manifest.webmanifest",
-              "src/icons"
+              "src/icons",
+              {
+                "glob": "styles.css",
+                "input": "src",
+                "output": "/"
+              },
+              {
+                "glob": "**/*.css",
+                "input": "src/styles",
+                "output": "/styles"
+              }
             ],
-            "styles": ["src/styles.css"],
+            "styles": [],
             "serviceWorker": "ngsw-config.json"
           },
           "configurations": {

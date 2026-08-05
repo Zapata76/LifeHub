@@ -5,7 +5,7 @@
     {
       "name": "app-shell",
       "installMode": "prefetch",
-      "resources": {"files": ["/index.html", "/*.css", "/*.js"]}
+      "resources": {"files": ["/index.html", "/*.js", "/styles.css", "/styles/tail.css"]}
     },
     {
       "name": "lazy-assets",

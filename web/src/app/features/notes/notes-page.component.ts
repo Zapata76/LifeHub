@@ -172,6 +172,10 @@ export class NotesPageComponent implements OnDestroy {
   }
 
   isPinned(note: NoteItem): boolean { return Number(note.is_pinned) === 1 || note.is_pinned === true; }
+  noteColorClass(color: string | null | undefined): string {
+    const index = this.colors.indexOf((color || this.colors[0]).toLowerCase());
+    return `note-color-${index < 0 ? 0 : index}`;
+  }
   noteEmpty(): boolean {
     const value = this.form.getRawValue();
     return value.title.trim() === '' && value.body.trim() === '';

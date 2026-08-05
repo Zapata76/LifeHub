@@ -10,6 +10,7 @@ type CalendarView = 'separate' | 'grouped';
 interface CalendarDisplay {
   calendar: CalendarItem;
   color: string;
+  colorClass: string;
   url: SafeResourceUrl;
 }
 
@@ -46,7 +47,7 @@ const CALENDAR_COLORS = [
           <div><p class="eyebrow">Vista unificata</p><h2 id="grouped-calendar-title">Tutti i calendari</h2></div>
           <ul class="calendar-legend" aria-label="Colori dei calendari">
             @for (display of displays(); track display.calendar.id) {
-              <li><span [style.background]="display.color"></span>{{ display.calendar.name }}</li>
+              <li><span class="{{ display.colorClass }}"></span>{{ display.calendar.name }}</li>
             }
           </ul>
         </div>
@@ -55,9 +56,9 @@ const CALENDAR_COLORS = [
     } @else {
       <section class="calendar-cards" aria-label="Calendari separati">
         @for (display of displays(); track display.calendar.id) {
-          <article class="card calendar-card" [style.--calendar-color]="display.color">
+          <article class="card calendar-card {{ display.colorClass }}">
             <header>
-              <div><span class="calendar-color" [style.background]="display.color"></span><h2>{{ display.calendar.name }}</h2></div>
+              <div><span class="calendar-color {{ display.colorClass }}"></span><h2>{{ display.calendar.name }}</h2></div>
               <button class="danger" type="button" [disabled]="busy()" (click)="deleteTarget.set(display.calendar)">
                 Elimina
               </button>
@@ -130,8 +131,9 @@ export class CalendarsPageComponent {
 
   private prepareDisplays(calendars: CalendarItem[]): void {
     const displays = calendars.map((calendar, index) => {
-      const color = CALENDAR_COLORS[index % CALENDAR_COLORS.length];
-      return { calendar, color, url: this.safeUrl([calendar], [color]) };
+      const colorIndex = index % CALENDAR_COLORS.length;
+      const color = CALENDAR_COLORS[colorIndex];
+      return { calendar, color, colorClass: `calendar-theme-${colorIndex}`, url: this.safeUrl([calendar], [color]) };
     });
     this.displays.set(displays);
     this.groupedUrl.set(this.safeUrl(calendars, displays.map((display) => display.color)));

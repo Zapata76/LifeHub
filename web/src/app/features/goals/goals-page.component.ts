@@ -229,6 +229,10 @@ export class GoalsPageComponent {
     return Math.round(total / goal.trackers.length);
   }
 
+  progressClass(goal: GoalItem): string {
+    return `goal-progress-${this.completion(goal)}`;
+  }
+
   badges(goal: GoalItem): string[] {
     const badges: string[] = [];
     const progress = this.completion(goal);

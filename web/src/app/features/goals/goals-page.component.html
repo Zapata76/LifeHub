@@ -45,7 +45,7 @@
 
         @if (isChild()) {
           <div class="goal-progress child-goal-progress" aria-label="Completamento obiettivo">
-            <div class="goal-progress-fill" [style.width.%]="completion(goal)">{{ completion(goal) }}%</div>
+            <div class="goal-progress-fill {{ progressClass(goal) }}">{{ completion(goal) }}%</div>
           </div>
           <div class="goal-badges">
             @for (badge of badges(goal); track badge) { <span>{{ badge }}</span> }
@@ -77,7 +77,7 @@
         @if (!isChild()) {
           <footer class="goal-card-footer">
             <div class="goal-progress" aria-label="Completamento obiettivo">
-              <div class="goal-progress-fill" [style.width.%]="completion(goal)"></div>
+              <div class="goal-progress-fill {{ progressClass(goal) }}"></div>
             </div>
             <small>{{ completion(goal) }}% completato</small>
           </footer>

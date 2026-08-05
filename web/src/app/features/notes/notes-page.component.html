@@ -23,7 +23,7 @@
 @else {
   <section class="notes-grid" [attr.aria-label]="showArchived() ? 'Note archiviate' : 'Note attive'">
     @for (note of filteredNotes(); track note.id) {
-      <article class="note-card card" [style.border-top-color]="note.color_hex || '#1e1e1e'"
+      <article class="note-card card {{ noteColorClass(note.color_hex) }}"
         [class.note-pinned]="isPinned(note)" [class.note-archived]="showArchived()"
         (click)="openEdit(note)" (keydown.enter)="openEdit(note)" tabindex="0">
         @if (note.image_attachment_id) {
@@ -54,8 +54,8 @@
 @if (editorOpen()) {
   <div class="note-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeEditor()"
     (keydown.escape)="closeEditor()">
-    <section class="note-modal card" role="dialog" aria-modal="true" aria-labelledby="note-editor-title"
-      [style.border-top-color]="form.controls.color.value" (click)="$event.stopPropagation()">
+    <section class="note-modal card {{ noteColorClass(form.controls.color.value) }}" role="dialog" aria-modal="true"
+      aria-labelledby="note-editor-title" (click)="$event.stopPropagation()">
       <form [formGroup]="form" (ngSubmit)="save()">
         <div class="note-modal-body">
           <h2 id="note-editor-title" class="visually-hidden">{{ editing() ? 'Modifica nota' : 'Nuova nota' }}</h2>
@@ -79,7 +79,7 @@
         <footer class="note-modal-footer">
           <div class="note-color-picker" aria-label="Colore nota">
             @for (color of colors; track color) {
-              <button type="button" [style.background]="color" [class.selected]="form.controls.color.value === color"
+              <button type="button" class="{{ noteColorClass(color) }}" [class.selected]="form.controls.color.value === color"
                 [attr.aria-label]="'Colore ' + color" (click)="form.controls.color.setValue(color); form.markAsDirty()"></button>
             }
           </div>

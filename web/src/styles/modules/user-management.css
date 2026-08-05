@@ -1,0 +1,26 @@
+.management-heading-actions { display: grid; justify-items: end; gap: .75rem; }
+.management-heading-actions p { margin: 0; }
+.user-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: #020617d9; backdrop-filter: blur(5px); }
+.user-modal { width: min(760px, 100%); max-height: calc(100vh - 2rem); overflow: auto; border-top: 6px solid var(--brand); }
+.user-modal > h2 { color: var(--brand); }
+.user-modal-error { margin: 1rem 0 0; }
+.user-modal-body { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; margin-top: 1rem; }
+.upload-action { min-height: 44px; place-content: center; border: 1px dashed var(--border); border-radius: 12px; padding: .6rem; cursor: pointer; }
+.upload-action input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.management-list, .calendar-list { display: grid; gap: 1rem; margin-bottom: 2rem; }
+.users-admin .management-list { margin: 1.25rem 0 0; }
+.users-admin .management-row { background: linear-gradient(145deg, #1c2940, #131c2c); box-shadow: 0 10px 28px #0003; }
+.management-row { display: grid; grid-template-columns: minmax(150px, .7fr) minmax(260px, 1fr) minmax(220px, 1fr); gap: 1.2rem; padding: 1.25rem; }
+.management-identity { display: flex; align-content: start; align-items: flex-start; flex-wrap: wrap; gap: .5rem; }
+.management-identity h3 { flex-basis: 100%; margin: 0; }
+.management-fields { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: .75rem; }
+.calendar-checks { min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: .75rem; }
+.calendar-checks legend { padding: 0 .35rem; color: var(--muted); font-size: .85rem; }
+.calendar-checks label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: .55rem; margin: .35rem 0; color: var(--text); }
+.calendar-checks input { width: 18px; min-height: 18px; }
+.management-actions { grid-column: 1 / -1; justify-content: flex-end; }
+.disabled-pill { color: var(--danger); }
+.reset-panel { border-color: #fbbf2466; }
+.calendar-admin { margin-top: 2rem; }
+.calendar-list { margin-top: 1.25rem; }
+.calendar-editor { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(260px, 1.6fr) auto; align-items: end; gap: .75rem; padding-top: 1rem; border-top: 1px solid var(--border); }

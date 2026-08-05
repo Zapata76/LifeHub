@@ -1,0 +1,15 @@
+.prose { max-width: 760px; padding: clamp(1.25rem, 5vw, 3rem); }
+.credits-heading { align-items: center; }
+.credits-content { display: grid; gap: 1.25rem; width: min(800px, 100%); margin: auto; }
+.credits-card { padding: clamp(1.25rem, 5vw, 2rem); }
+.profile-header { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; }
+.profile-header h2 { margin: 0; font-size: 1.8rem; }
+.avatar-placeholder { display: grid; place-items: center; flex: 0 0 80px; width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #4f8cff, #2d5eb3); font-size: 2rem; font-weight: 800; }
+.credits-subtitle { margin: .25rem 0 0; color: #60a5fa; font-weight: 650; }
+.credits-bio, .project-credits > p { color: var(--muted); line-height: 1.65; }
+.social-links { display: flex; flex-wrap: wrap; gap: .75rem; }
+.social-button { min-height: 44px; border-radius: 10px; padding: .75rem 1.1rem; color: #fff; font-weight: 750; }
+.social-button.github { background: #333; }
+.social-button.website { background: #4f8cff; }
+.social-button.linkedin { background: #0077b5; }
+.license-info { margin: 1.25rem 0 0; padding-top: 1.25rem; border-top: 1px solid #ffffff14; font-size: .9rem; }

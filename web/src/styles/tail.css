@@ -1,0 +1,119 @@
+@media (max-width: 720px) {
+  .app-header { align-items: center; flex-wrap: wrap; }
+  .app-header nav { order: 3; width: 100%; }
+  .account span { display: none; }
+  main { padding-top: 1rem; }
+  .hero, .page-heading { align-items: start; flex-direction: column; gap: .5rem; }
+  .calendar-page-heading .actions { width: 100%; }
+  .calendar-page-heading .actions button { flex: 1; }
+  .grouped-calendar-header { align-items: flex-start; flex-direction: column; }
+  .calendar-legend { justify-content: flex-start; }
+  .calendar-frame.grouped { min-height: 520px; }
+  .calendar-modal-body { grid-template-columns: 1fr; padding: 1rem; }
+  .calendar-modal-footer { flex-wrap: wrap; padding: .8rem 1rem; }
+  .management-heading-actions { width: 100%; justify-items: stretch; }
+  .user-modal-body { grid-template-columns: 1fr; }
+  .hero .button { width: 100%; text-align: center; }
+  .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .module-card { min-height: 160px; padding: 1rem; }
+  .task, .resource-item { align-items: stretch; flex-direction: column; }
+  .actions button, .resource-item button { flex: 1; }
+  .management-row, .calendar-editor { grid-template-columns: 1fr; }
+  .management-fields { grid-template-columns: 1fr; }
+  .management-actions { grid-column: auto; }
+  .section-heading { align-items: stretch; flex-direction: column; }
+  .catalog-toolbar { align-items: stretch; flex-direction: column; }
+  .catalog-toolbar .primary { width: 100%; }
+  .shopping-tabs { position: sticky; top: 69px; z-index: 10; padding: .4rem; border-radius: 13px; background: #0b1120ee; }
+  .shopping-tabs button { padding: .55rem .35rem; }
+  .shopping-mobile-optional-copy { display: none; }
+  .shopping-add-form, .catalog-admin-grid { grid-template-columns: 1fr; }
+  .shopping-add-form .product-search { grid-column: auto; }
+  .shopping-add-form .add-product { width: 100%; }
+  .shopping-row { grid-template-columns: auto minmax(0, 1fr) auto; gap: .65rem; min-height: 76px; padding: .7rem; }
+  .product-thumb { width: 58px; height: 58px; }
+  .product-thumb.large { width: 100%; height: 190px; }
+  .inline-quantity, .quantity-badge { grid-column: 2; grid-row: 2; width: fit-content; }
+  .remove-icon { grid-column: 3; grid-row: 1 / 3; }
+  .price-product-header { align-items: flex-start; padding: .7rem .8rem; }
+  .price-group-summary { align-items: flex-end; flex-direction: column; gap: .3rem; }
+  .price-observation { grid-template-columns: minmax(78px, .55fr) minmax(0, 1fr) auto; gap: .45rem .65rem; min-height: 0; padding: .65rem .8rem; }
+  .price-observation-date { grid-column: 1 / 3; display: flex; gap: .35rem; }
+  .price-observation-media { grid-column: 3; grid-row: 1 / 3; }
+  .price-observation-actions { grid-column: 1 / -1; padding-top: .45rem; border-top: 1px dashed #ffffff12; }
+  .goal-grid { grid-template-columns: 1fr; }
+  .goal-card { padding: 1rem; }
+  .goal-card-header { align-items: stretch; flex-direction: column; }
+  .goal-card-actions { width: 100%; }
+  .goal-card-actions button { flex: 1; }
+  .goal-meta { align-items: flex-start; flex-direction: column; }
+  .goal-meta > :last-child { margin-left: 0; }
+  .goal-modal-body, .goal-log-form { grid-template-columns: 1fr; padding: 1rem; }
+  .goal-modal-body .wide, .goal-log-form .wide { grid-column: auto; }
+  .goal-tracker-add { grid-template-columns: 1fr; }
+  .goal-modal-footer { flex-wrap: wrap; padding: .8rem 1rem; }
+  .goal-modal-footer button { flex: 1; }
+  .profile-header { flex-direction: column; text-align: center; }
+  .social-links { justify-content: center; }
+  .task-heading { align-items: stretch; }
+  .task-toolbar { justify-content: flex-start; }
+  .kanban-board { grid-template-columns: 1fr; }
+  .kanban-column { min-height: 100px; }
+  .task-form-row { grid-template-columns: 1fr; }
+  .task-modal-footer { flex-wrap: wrap; padding: .8rem 1rem; }
+  .shopping-modal-body { grid-template-columns: 1fr; padding: 1rem; }
+  .shopping-modal-body .wide { grid-column: auto; }
+  .shopping-modal-footer { flex-wrap: wrap; padding: .8rem 1rem; }
+  .recipe-workspace { grid-template-columns: 1fr; }
+  .recipe-sidebar { position: static; min-height: auto; }
+  .recipe-list { max-height: 38vh; }
+  .recipe-detail-panel { min-height: 480px; }
+  .recipe-detail-header { flex-direction: column; }
+  .recipe-form-grid { grid-template-columns: 1fr; }
+  .recipe-form-grid .wide { grid-column: auto; }
+  .recipe-ingredient-head { display: none; }
+  .recipe-ingredient-row { grid-template-columns: 1fr 1fr 42px; }
+  .ingredient-product-search { grid-column: 1 / -1; }
+  .recipe-photo-actions { flex-direction: column; }
+  .inventory-workspace { grid-template-columns: 1fr; }
+  .inventory-sidebar { position: static; min-height: auto; }
+  .inventory-list { max-height: 38vh; }
+  .inventory-detail-panel { min-height: 460px; }
+  .inventory-detail-header { flex-direction: column; }
+  .inventory-editor-body { grid-template-columns: 1fr; padding: 1rem; }
+  .inventory-editor-body .wide { grid-column: auto; }
+  .note-page-heading { align-items: stretch; }
+  .note-page-heading .actions { width: 100%; }
+  .note-toolbar { align-items: stretch; flex-direction: column; }
+  .note-toolbar > input { flex-basis: auto; }
+  .notes-grid { grid-template-columns: 1fr; }
+  .note-card { max-height: none; }
+  .note-modal-body, .note-modal-footer { padding: 1rem; }
+  .note-photo-actions { flex-direction: column; }
+  .note-modal-actions { flex-wrap: wrap; }
+  .meal-page-heading { align-items: stretch; }
+  .meal-page-heading .primary { width: 100%; }
+  .meal-toolbar { grid-template-columns: 1fr 1fr; }
+  .meal-period-navigation { grid-column: 1; }
+  .meal-toolbar > strong { grid-column: 1 / -1; grid-row: 1; }
+  .meal-toolbar > label { grid-column: 2; grid-row: 2; }
+  .meal-toolbar > .meal-segmented { justify-content: stretch; }
+  .meal-toolbar > .meal-segmented button { flex: 1; }
+  .meal-planner, .meal-planner.two-weeks { grid-template-columns: repeat(7, minmax(260px, 82vw)); scroll-snap-type: x mandatory; }
+  .meal-planner.day-view { grid-template-columns: 1fr; }
+  .meal-day { min-height: 0; scroll-snap-align: start; }
+  .meal-help { flex-direction: column; gap: .25rem; }
+  .meal-editor-body { grid-template-columns: 1fr; padding: 1rem; }
+  .meal-editor-fields { grid-template-columns: 1fr 1fr; }
+  .meal-delete-confirm { align-items: stretch; flex-direction: column; width: 100%; }
+  .meal-delete-confirm button { width: 100%; }
+  .meal-shopping-body { padding: 1rem; }
+}
+@media (max-width: 390px) {
+  .card-grid { grid-template-columns: 1fr; }
+  .meal-toolbar { grid-template-columns: 1fr; }
+  .meal-period-navigation, .meal-toolbar > strong, .meal-toolbar > label, .meal-toolbar > .meal-segmented { grid-column: 1; grid-row: auto; }
+  .meal-editor-fields { grid-template-columns: 1fr; }
+  .meal-editor-fields .wide { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
