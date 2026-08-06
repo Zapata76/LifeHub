@@ -44,43 +44,43 @@ export const routes: Routes = [
           .then((module) => module.ShoppingPageComponent)
       },
       {
-        path: 'moduli/meals',
+        path: 'meals',
         ...withFeatureStylesheet('meals'),
         loadComponent: () => import('./features/meals/meals-page.component')
           .then((module) => module.MealsPageComponent)
       },
       {
-        path: 'moduli/recipes',
+        path: 'recipes',
         ...withFeatureStylesheet('recipes'),
         loadComponent: () => import('./features/recipes/recipes-page.component')
           .then((module) => module.RecipesPageComponent)
       },
       {
-        path: 'moduli/inventory',
+        path: 'inventory',
         ...withFeatureStylesheet('inventory'),
         loadComponent: () => import('./features/inventory/inventory-page.component')
           .then((module) => module.InventoryPageComponent)
       },
       {
-        path: 'moduli/notes',
+        path: 'notes',
         ...withFeatureStylesheet('notes'),
         loadComponent: () => import('./features/notes/notes-page.component')
           .then((module) => module.NotesPageComponent)
       },
       {
-        path: 'moduli/documents',
+        path: 'documents',
         ...withFeatureStylesheet('documents'),
         loadComponent: () => import('./features/documents/documents-page.component')
           .then((module) => module.DocumentsPageComponent)
       },
       {
-        path: 'moduli/calendars',
+        path: 'calendars',
         ...withFeatureStylesheet('calendars'),
         loadComponent: () => import('./features/calendars/calendars-page.component')
           .then((module) => module.CalendarsPageComponent)
       },
       {
-        path: 'moduli/goals',
+        path: 'goals',
         ...withFeatureStylesheet('goals'),
         loadComponent: () => import('./features/goals/goals-page.component')
           .then((module) => module.GoalsPageComponent)

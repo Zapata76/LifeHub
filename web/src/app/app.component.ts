@@ -19,7 +19,7 @@ import { SessionStore } from './core/session.store';
         <nav aria-label="Navigazione principale">
           <a routerLink="/tasks" routerLinkActive="active">Attività</a>
           <a routerLink="/shopping" routerLinkActive="active">Spesa</a>
-          <a routerLink="/moduli/recipes" routerLinkActive="active">Ricette</a>
+          <a routerLink="/recipes" routerLinkActive="active">Ricette</a>
         </nav>
         <div class="account">
           <span>{{ store.user()?.username }}</span>

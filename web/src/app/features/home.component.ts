@@ -77,8 +77,6 @@ export class HomeComponent {
   }
 
   moduleLink(key: string): string[] {
-    if (key === 'admin') return ['/admin'];
-    if (key === 'shopping') return ['/shopping'];
-    return ['/moduli', key];
+    return ['/', key];
   }
 }

@@ -60,7 +60,7 @@
           <div><dt>Proprietario</dt><dd>{{ item.owner_name || 'Nessuno' }}</dd></div>
           <div><dt>Quantità</dt><dd>{{ quantityLabel(item) }}</dd></div>
           @if (item.document_title) {
-            <div><dt>Documento collegato</dt><dd><a routerLink="/moduli/documents">📄 {{ item.document_title }}</a></dd></div>
+            <div><dt>Documento collegato</dt><dd><a routerLink="/documents">📄 {{ item.document_title }}</a></dd></div>
           }
         </dl>
       </section>

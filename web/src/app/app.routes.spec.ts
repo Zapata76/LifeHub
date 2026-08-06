@@ -10,12 +10,12 @@ describe('application routes', () => {
 
   it('routes goals to the dedicated module workspace', () => {
     const children = routes.find((route) => route.path === '')?.children ?? [];
-    expect(children.find((route) => route.path === 'moduli/goals')?.loadComponent).toBeTruthy();
+    expect(children.find((route) => route.path === 'goals')?.loadComponent).toBeTruthy();
   });
 
   it('routes documents to the dedicated archive workspace', () => {
     const children = routes.find((route) => route.path === '')?.children ?? [];
-    expect(children.find((route) => route.path === 'moduli/documents')?.loadComponent).toBeTruthy();
+    expect(children.find((route) => route.path === 'documents')?.loadComponent).toBeTruthy();
   });
 
   it('loads the matching external stylesheet for every feature route', () => {
@@ -35,13 +35,13 @@ describe('application routes', () => {
       '(home)': 'home',
       tasks: 'tasks',
       shopping: 'shopping',
-      'moduli/meals': 'meals',
-      'moduli/recipes': 'recipes',
-      'moduli/inventory': 'inventory',
-      'moduli/notes': 'notes',
-      'moduli/documents': 'documents',
-      'moduli/calendars': 'calendars',
-      'moduli/goals': 'goals',
+      meals: 'meals',
+      recipes: 'recipes',
+      inventory: 'inventory',
+      notes: 'notes',
+      documents: 'documents',
+      calendars: 'calendars',
+      goals: 'goals',
       admin: 'user-management'
     });
     expect(featureRoutes.every((route) => route.resolve?.['stylesheet'])).toBe(true);
