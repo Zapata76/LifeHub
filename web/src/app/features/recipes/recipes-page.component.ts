@@ -51,6 +51,7 @@ export class RecipesPageComponent implements OnDestroy {
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     category: new FormControl('', { nonNullable: true }),
     prepTimeMinutes: new FormControl<number | null>(null, [Validators.min(1), Validators.max(1440)]),
+    servings: new FormControl<number | null>(null, [Validators.min(1), Validators.max(100)]),
     difficulty: new FormControl<'bassa' | 'media' | 'alta'>('media', { nonNullable: true }),
     description: new FormControl('', { nonNullable: true }),
     instructions: new FormControl('', { nonNullable: true }),
@@ -121,6 +122,7 @@ export class RecipesPageComponent implements OnDestroy {
       title: recipe.title,
       category: recipe.category_text ?? '',
       prepTimeMinutes: recipe.prep_time_minutes ? Number(recipe.prep_time_minutes) : null,
+      servings: recipe.servings ? Number(recipe.servings) : null,
       difficulty: recipe.difficulty ?? 'media',
       description: recipe.description ?? '',
       instructions: recipe.instructions ?? ''
@@ -195,7 +197,7 @@ export class RecipesPageComponent implements OnDestroy {
     const payload: RecipePayload = {
       title: value.title.trim(), category: value.category.trim(), description: value.description.trim(),
       instructions: value.instructions.trim(), prepTimeMinutes: value.prepTimeMinutes,
-      difficulty: value.difficulty, ingredients,
+      servings: value.servings, difficulty: value.difficulty, ingredients,
       ...(this.editing() && current ? { version: Number(current.version) } : {})
     };
     this.busy.set(true); this.error.set(''); this.success.set('');
@@ -306,7 +308,10 @@ export class RecipesPageComponent implements OnDestroy {
   }
 
   private resetEditor(): void {
-    this.form.reset({ title: '', category: '', prepTimeMinutes: null, difficulty: 'media', description: '', instructions: '' });
+    this.form.reset({
+      title: '', category: '', prepTimeMinutes: null, servings: null,
+      difficulty: 'media', description: '', instructions: ''
+    });
     this.ingredients.clear();
     this.activeIngredient.set(null);
     this.imageFile.set(null);

@@ -82,7 +82,7 @@
       @if (recipe.description) { <p class="recipe-description">{{ recipe.description }}</p> }
 
       <section class="recipe-detail-section">
-        <h3>Ingredienti</h3>
+        <h3>Ingredienti@if (recipe.servings) { per {{ recipe.servings }} persone }</h3>
         <ul class="recipe-ingredients-view">
           @for (ingredient of recipe.ingredients; track ingredient.id) {
             <li><strong>{{ ingredient.quantity_raw || '—' }}</strong><span>{{ ingredient.ingredient_name }}</span></li>
@@ -115,6 +115,7 @@
               @for (item of overview()?.categories ?? []; track item) { <option [value]="item"></option> }
             </datalist>
             <label>Tempo (min)<input type="number" min="1" max="1440" formControlName="prepTimeMinutes"></label>
+            <label>Porzioni (persone)<input type="number" min="1" max="100" step="1" formControlName="servings"></label>
             <label>Difficoltà<select formControlName="difficulty">
               <option value="bassa">Bassa</option><option value="media">Media</option><option value="alta">Alta</option>
             </select></label>

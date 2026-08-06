@@ -106,6 +106,14 @@ final class RecipeController
         if (!in_array($difficulty, ['bassa', 'media', 'alta'], true)) {
             throw new ApiException(422, 'recipe.difficulty_invalid', 'Difficulty is invalid.');
         }
+        $servings = $data->optionalInt('servings');
+        if ($servings !== null && ($servings < 1 || $servings > 100)) {
+            throw new ApiException(
+                422,
+                'recipe.servings_invalid',
+                'Servings must be between 1 and 100 people.'
+            );
+        }
         return [
             'title' => $data->requiredString('title', 255),
             'category' => $data->optionalString('category', 100) ?: '',
@@ -113,6 +121,7 @@ final class RecipeController
             'instructions' => $data->optionalString('instructions', 50000) ?: '',
             'prepTimeMinutes' => $prepTime,
             'difficulty' => $difficulty,
+            'servings' => $servings,
         ];
     }
 

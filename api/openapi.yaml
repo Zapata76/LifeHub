@@ -669,6 +669,7 @@ components:
         description: {type: string, maxLength: 20000}
         instructions: {type: string, maxLength: 50000}
         prepTimeMinutes: {type: integer, nullable: true, minimum: 1, maximum: 1440}
+        servings: {type: integer, nullable: true, minimum: 1, maximum: 100, description: Number of people covered by the ingredient quantities}
         difficulty: {type: string, enum: [bassa, media, alta]}
         version: {type: integer, minimum: 1}
         ingredients:

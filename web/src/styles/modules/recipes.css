@@ -36,7 +36,7 @@
 .recipe-empty-detail span { font-size: 4rem; }
 .recipe-editor-modal { width: min(980px, 100%); }
 .recipe-editor-body { display: grid; gap: 1.25rem; padding: 1.25rem 1.5rem; }
-.recipe-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.recipe-form-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; }
 .recipe-form-grid .wide { grid-column: 1 / -1; }
 .recipe-editor-section { min-width: 0; }
 .recipe-editor-section .section-heading { margin-bottom: .5rem; }

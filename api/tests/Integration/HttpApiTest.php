@@ -527,12 +527,19 @@ final class HttpApiTest extends TestCase
         ], $csrf)))['item'];
         $payload = [
             'title' => 'Spaghetti di casa', 'category' => 'Primo', 'description' => 'Ricetta test',
-            'instructions' => 'Cuocere e condire.', 'prepTimeMinutes' => 20, 'difficulty' => 'bassa',
+            'instructions' => 'Cuocere e condire.', 'prepTimeMinutes' => 20, 'servings' => 4,
+            'difficulty' => 'bassa',
             'ingredients' => [
                 ['productId' => $product['id'], 'name' => '', 'quantity' => '200 g'],
                 ['productId' => null, 'name' => 'Sale', 'quantity' => 'q.b.'],
             ],
         ];
+        $invalidPayload = $payload;
+        $invalidPayload['servings'] = 101;
+        $invalid = $app->handle($this->request('POST', '/v1/recipes', $invalidPayload, $csrf));
+        self::assertSame(422, $invalid->getStatusCode(), (string) $invalid->getBody());
+        self::assertSame('recipe.servings_invalid', $this->json($invalid)['error']['code']);
+
         $created = $app->handle($this->request('POST', '/v1/recipes', $payload, $csrf));
         self::assertSame(201, $created->getStatusCode(), (string) $created->getBody());
         $id = (int) $this->json($created)['id'];
@@ -540,21 +547,25 @@ final class HttpApiTest extends TestCase
         $overview = $this->json($app->handle($this->request('GET', '/v1/recipes/overview')));
         self::assertCount(1, $overview['recipes']);
         self::assertSame(20, (int) $overview['recipes'][0]['prep_time_minutes']);
+        self::assertSame(4, $overview['recipes'][0]['servings']);
         self::assertSame('bassa', $overview['recipes'][0]['difficulty']);
         self::assertSame(2, (int) $overview['recipes'][0]['ingredient_count']);
 
         $detail = $this->json($app->handle($this->request('GET', '/v1/recipes/' . $id)))['item'];
         self::assertCount(2, $detail['ingredients']);
+        self::assertSame(4, $detail['servings']);
         self::assertSame('Spaghetti', $detail['ingredients'][0]['ingredient_name']);
         self::assertTrue($detail['can_edit']);
 
         $payload['title'] = 'Spaghetti aggiornati';
+        $payload['servings'] = 6;
         $payload['version'] = 1;
         $payload['ingredients'] = [['productId' => null, 'name' => 'Pasta', 'quantity' => '250 g']];
         $updated = $app->handle($this->request('PUT', '/v1/recipes/' . $id, $payload, $csrf));
         self::assertSame(200, $updated->getStatusCode(), (string) $updated->getBody());
         $afterUpdate = $this->json($app->handle($this->request('GET', '/v1/recipes/' . $id)))['item'];
         self::assertSame('Spaghetti aggiornati', $afterUpdate['title']);
+        self::assertSame(6, $afterUpdate['servings']);
         self::assertCount(1, $afterUpdate['ingredients']);
 
         $archived = $app->handle($this->request('POST', '/v1/recipes/' . $id . '/archive', [

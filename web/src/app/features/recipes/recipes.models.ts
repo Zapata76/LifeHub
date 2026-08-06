@@ -56,6 +56,7 @@ export interface RecipePayload {
   description: string;
   instructions: string;
   prepTimeMinutes: number | null;
+  servings: number | null;
   difficulty: 'bassa' | 'media' | 'alta';
   ingredients: RecipeIngredientPayload[];
   version?: number;

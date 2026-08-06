@@ -39,6 +39,7 @@ final class RecipeRepository
             [$householdId]
         );
         foreach ($recipes as &$recipe) {
+            $recipe['servings'] = $recipe['servings'] === null ? null : (int) $recipe['servings'];
             $recipe['can_edit'] = Authorization::canManageHousehold($user)
                 || (int) $recipe['created_by'] === $user->id();
         }
@@ -88,6 +89,7 @@ final class RecipeRepository
             throw new ApiException(404, 'recipe.not_found', 'Recipe not found.');
         }
         $recipe = $rows[0];
+        $recipe['servings'] = $recipe['servings'] === null ? null : (int) $recipe['servings'];
         $recipe['ingredients'] = $this->rows(
             'SELECT i.id, i.product_id, i.ingredient_name, i.quantity_raw, i.position_no, '
             . 'p.name AS product_name, c.name AS category_name FROM lh_recipe_ingredients i '
@@ -110,13 +112,14 @@ final class RecipeRepository
         $now = gmdate('Y-m-d H:i:s');
         $statement = $this->pdo->prepare(
             'INSERT INTO lh_recipes (household_id, title, title_search, description, instructions, '
-            . 'category_text, prep_time_minutes, difficulty, created_by, created_at, updated_by, updated_at) '
-            . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            . 'category_text, prep_time_minutes, difficulty, servings, created_by, created_at, updated_by, updated_at) '
+            . 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $statement->execute([
             $user->householdId(), $recipe['title'], $this->searchKey((string) $recipe['title']),
             $recipe['description'], $recipe['instructions'], $recipe['category'],
-            $recipe['prepTimeMinutes'], $recipe['difficulty'], $user->id(), $now, $user->id(), $now,
+            $recipe['prepTimeMinutes'], $recipe['difficulty'], $recipe['servings'],
+            $user->id(), $now, $user->id(), $now,
         ]);
         $id = (int) $this->pdo->lastInsertId();
         $this->replaceIngredients($user, $id, $ingredients, $now);
@@ -134,13 +137,13 @@ final class RecipeRepository
         $now = gmdate('Y-m-d H:i:s');
         $statement = $this->pdo->prepare(
             'UPDATE lh_recipes SET title = ?, title_search = ?, description = ?, instructions = ?, '
-            . 'category_text = ?, prep_time_minutes = ?, difficulty = ?, updated_by = ?, updated_at = ?, '
+            . 'category_text = ?, prep_time_minutes = ?, difficulty = ?, servings = ?, updated_by = ?, updated_at = ?, '
             . 'version = version + 1 WHERE household_id = ? AND id = ? AND version = ? AND archived_at IS NULL'
         );
         $statement->execute([
             $recipe['title'], $this->searchKey((string) $recipe['title']), $recipe['description'],
             $recipe['instructions'], $recipe['category'], $recipe['prepTimeMinutes'], $recipe['difficulty'],
-            $user->id(), $now, $user->householdId(), $id, $version,
+            $recipe['servings'], $user->id(), $now, $user->householdId(), $id, $version,
         ]);
         $this->assertChanged($statement);
         $this->replaceIngredients($user, $id, $ingredients, $now);
