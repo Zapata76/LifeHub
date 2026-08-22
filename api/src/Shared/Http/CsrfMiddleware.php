@@ -31,7 +31,10 @@ final class CsrfMiddleware
             $_SESSION['csrfToken'] = bin2hex(random_bytes(32));
         }
 
-        if (in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        if (
+            in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
+            && !$this->isLogoutRequest($request)
+        ) {
             $provided = $request->getHeaderLine('X-CSRF-Token');
             if ($provided === '' || !hash_equals((string) $_SESSION['csrfToken'], $provided)) {
                 $correlationId = (string) $request->getAttribute('correlationId', 'unavailable');
@@ -46,5 +49,10 @@ final class CsrfMiddleware
         }
 
         return $handler->handle($request);
+    }
+
+    private function isLogoutRequest(ServerRequestInterface $request): bool
+    {
+        return preg_match('#(?:^|/)v1/auth/logout/?$#', $request->getUri()->getPath()) === 1;
     }
 }

@@ -6,12 +6,13 @@ import { provideServiceWorker } from '@angular/service-worker';
 import { AppComponent } from './app/app.component';
 import { routes } from './app/app.routes';
 import { csrfInterceptor } from './app/core/csrf.interceptor';
+import { sessionExpiryInterceptor } from './app/core/session-expiry.interceptor';
 
 const localHost = ['127.0.0.1', 'localhost'].includes(window.location.hostname);
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideHttpClient(withInterceptors([csrfInterceptor])),
+    provideHttpClient(withInterceptors([csrfInterceptor, sessionExpiryInterceptor])),
     provideRouter(routes, withEnabledBlockingInitialNavigation()),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode() && !localHost,

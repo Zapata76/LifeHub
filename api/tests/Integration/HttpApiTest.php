@@ -134,6 +134,24 @@ final class HttpApiTest extends TestCase
         self::assertArrayNotHasKey('sessionVersion', $loginBody['user']);
     }
 
+    public function testLogoutSucceedsWithAnExpiredCsrfToken(): void
+    {
+        $app = $this->app();
+        $session = $this->json($app->handle($this->request('GET', '/v1/auth/session')));
+        $login = $this->json($app->handle($this->request('POST', '/v1/auth/login', [
+            'username' => 'admin', 'password' => 'integration-password',
+        ], (string) $session['csrfToken'])));
+        self::assertTrue($login['authenticated']);
+
+        $logout = $app->handle($this->request('POST', '/v1/auth/logout', [], 'expired-csrf-token'));
+        self::assertSame(200, $logout->getStatusCode(), (string) $logout->getBody());
+        self::assertFalse($this->json($logout)['authenticated']);
+
+        $protected = $app->handle($this->request('GET', '/v1/tasks'));
+        self::assertSame(401, $protected->getStatusCode(), (string) $protected->getBody());
+        self::assertSame('auth.required', $this->json($protected)['error']['code']);
+    }
+
     public function testAdministratorCanManageUsersPasswordsAndCalendars(): void
     {
         $app = $this->app();
