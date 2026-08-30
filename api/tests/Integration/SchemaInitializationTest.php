@@ -71,6 +71,46 @@ final class SchemaInitializationTest extends TestCase
         self::assertSame('Amministratore', $user['username']);
         self::assertSame('admin', $user['role']);
         self::assertTrue(password_verify('password-iniziale-sicura', (string) $user['password_hash']));
+        $categories = $pdo->query('SELECT COUNT(*) FROM lh_inventory_categories');
+        self::assertNotFalse($categories);
+        self::assertSame(5, (int) $categories->fetchColumn());
+        $fallbacks = $pdo->query(
+            'SELECT COUNT(*) FROM lh_inventory_categories WHERE is_fallback = 1 AND name = \'Altro\''
+        );
+        self::assertNotFalse($fallbacks);
+        self::assertSame(1, (int) $fallbacks->fetchColumn());
+
+        $expectedTypes = [
+            'lh_attachments.original_name' => 'varchar(255)',
+            'lh_calendars.external_id' => 'varchar(512)',
+            'lh_inventory.location' => 'varchar(500)',
+            'lh_prices.package_text' => 'varchar(32)',
+            'lh_recipe_ingredients.ingredient_name' => 'varchar(255)',
+            'lh_recipe_ingredients.quantity_raw' => 'varchar(100)',
+            'lh_recipes.category_text' => 'varchar(100)',
+            'lh_shopping_items.label' => 'varchar(255)',
+            'lh_shopping_items.quantity_raw' => 'varchar(80)',
+        ];
+        foreach ($expectedTypes as $qualifiedColumn => $expectedType) {
+            [$table, $column] = explode('.', $qualifiedColumn, 2);
+            $columnStatement = $pdo->query("SHOW COLUMNS FROM `{$table}` LIKE " . $pdo->quote($column));
+            self::assertNotFalse($columnStatement);
+            $definition = $columnStatement->fetch();
+            self::assertIsArray($definition);
+            self::assertSame($expectedType, strtolower((string) $definition['Type']));
+        }
+        $productIndex = $pdo->query("SHOW INDEX FROM lh_products WHERE Key_name = 'uq_lh_products_name'");
+        self::assertNotFalse($productIndex);
+        $productIndexDefinition = $productIndex->fetch();
+        self::assertIsArray($productIndexDefinition);
+        self::assertSame(0, (int) $productIndexDefinition['Non_unique']);
+        $residueTables = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() "
+            . "AND table_name IN ('lh_legacy_payloads', 'lh_legacy_mappings', "
+            . "'lh_entity_relations', 'lh_schema_migrations')"
+        );
+        self::assertNotFalse($residueTables);
+        self::assertSame(0, (int) $residueTables->fetchColumn());
     }
 
     public function testInitializationRefusesAnExistingInstallation(): void

@@ -136,11 +136,22 @@ final class RecipeController
             throw new ApiException(422, 'recipe.ingredients_limit', 'A recipe can contain at most 100 ingredients.');
         }
         $ingredients = [];
+        $productIds = [];
         foreach ($raw as $row) {
             if (!is_array($row)) {
                 throw new ApiException(422, 'recipe.ingredient_invalid', 'Each ingredient must be an object.');
             }
             $productId = $this->nullablePositiveInt($row['productId'] ?? null);
+            if ($productId !== null) {
+                if (isset($productIds[$productId])) {
+                    throw new ApiException(
+                        422,
+                        'recipe.ingredient_duplicate',
+                        'The same product cannot be added to a recipe more than once.'
+                    );
+                }
+                $productIds[$productId] = true;
+            }
             $name = $this->shortString($row['name'] ?? '', 255, 'ingredient name');
             $quantity = $this->shortString($row['quantity'] ?? '', 100, 'ingredient quantity');
             if ($productId === null && $name === '') {

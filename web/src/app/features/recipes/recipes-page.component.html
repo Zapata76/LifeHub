@@ -27,7 +27,7 @@
       <div class="recipe-list">
         @for (recipe of filteredRecipes(); track recipe.id) {
           <button type="button" class="recipe-list-item" [class.active]="selected()?.id === recipe.id"
-            (click)="select(recipe.id)">
+            (click)="select(recipe.id, true)">
             <span class="recipe-list-thumb">
               @if (recipe.image_attachment_id) {
                 <img [src]="api.attachment(recipe.image_attachment_id)" alt="" (error)="useRecipePlaceholder($event)">
@@ -49,7 +49,7 @@
     }
   </aside>
 
-  <main class="card recipe-detail-panel">
+  <main #recipeDetail class="card recipe-detail-panel">
     @if (detailLoading()) { <p class="state">Apertura ricetta…</p> }
     @else if (selected(); as recipe) {
       <header class="recipe-detail-header">
@@ -123,32 +123,25 @@
           </div>
 
           <section class="recipe-editor-section">
-            <div class="section-heading"><h3>Ingredienti</h3><button type="button" (click)="addIngredient()">+ Aggiungi</button></div>
+            <div class="section-heading recipe-ingredient-heading">
+              <h3>Ingredienti <span class="pill">{{ ingredients.length }}</span></h3>
+            </div>
             <div class="recipe-ingredient-editor" formArrayName="ingredients">
-              <div class="recipe-ingredient-head"><span>Prodotto</span><span>Ingrediente libero</span><span>Quantità</span><span></span></div>
               @for (ingredient of ingredients.controls; track ingredient; let i = $index) {
                 <div class="recipe-ingredient-row" [formGroupName]="i">
-                  <div class="ingredient-product-search">
-                    <input type="text" [value]="productLabel(i)" autocomplete="off" placeholder="Cerca prodotto…"
-                      (input)="searchIngredient(i, value($event))" (focus)="activeIngredient.set(i)">
-                    @if (activeIngredient() === i) {
-                      <div class="ingredient-results">
-                        <button type="button" (click)="clearProduct(i)">Nessun prodotto</button>
-                        @for (product of productsFor(i); track product.id) {
-                          <button type="button" (click)="selectProduct(i, product)">
-                            <small>{{ product.category_name || 'Prodotto' }}</small>{{ product.name }}
-                          </button>
-                        }
-                      </div>
-                    }
-                  </div>
-                  <input formControlName="name" maxlength="255" [readOnly]="!!ingredient.controls.productId.value"
-                    [placeholder]="ingredient.controls.productId.value ? 'Dal prodotto' : 'Ingrediente'">
+                  <button class="recipe-ingredient-summary" type="button" (click)="openIngredientWizard(i)">
+                    <small>{{ ingredientCategory(i) }}</small>
+                    <strong>{{ ingredientName(i) }}</strong>
+                  </button>
                   <input formControlName="quantity" maxlength="100" placeholder="es. 200 g">
                   <button class="remove-icon" type="button" (click)="removeIngredient(i)" aria-label="Rimuovi ingrediente">×</button>
                 </div>
               }
+              @if (ingredients.length === 0) {
+                <p class="recipe-ingredient-empty">Nessun ingrediente. Aggiungine uno con la procedura guidata.</p>
+              }
             </div>
+            <button class="recipe-add-ingredient" type="button" (click)="addIngredient()">+ Aggiungi ingrediente</button>
           </section>
 
           <label>Procedimento<textarea class="recipe-instructions-input" rows="7" formControlName="instructions"
@@ -176,6 +169,127 @@
           <span class="modal-spacer"></span>
           <button class="primary" type="submit" [disabled]="form.invalid || busy()">
             {{ busy() ? 'Salvataggio…' : 'Salva ricetta' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (ingredientWizardOpen()) {
+  <div class="shopping-modal-backdrop ingredient-wizard-backdrop" role="presentation" lhModalBackdrop
+    (backdropDismissed)="closeIngredientWizard()"
+    (keydown.escape)="closeIngredientWizard(); $event.stopPropagation()">
+    <section class="shopping-modal card ingredient-wizard" role="dialog" aria-modal="true"
+      aria-labelledby="ingredient-wizard-title" (click)="$event.stopPropagation()">
+      <header class="ingredient-wizard-header">
+        <div>
+          <p class="eyebrow">Ingrediente &middot; 2 passaggi</p>
+          <h2 id="ingredient-wizard-title">
+            {{ ingredientWizardIndex() === null ? 'Aggiungi ingrediente' : 'Modifica ingrediente' }}
+          </h2>
+        </div>
+        <button class="quiet ingredient-wizard-close" type="button" (click)="closeIngredientWizard()"
+          aria-label="Chiudi procedura ingrediente">&times;</button>
+      </header>
+
+      <form [formGroup]="ingredientWizardForm" (ngSubmit)="confirmIngredient()">
+        <div class="ingredient-wizard-body">
+          <section class="ingredient-wizard-step" aria-labelledby="ingredient-step-product">
+            <div class="ingredient-step-heading">
+              <span>1</span>
+              <div><h3 id="ingredient-step-product">Scegli l'ingrediente</h3>
+                <p>Cerca in Anagrafica oppure registra ci&ograve; che manca.</p></div>
+            </div>
+
+            <label>Nome o categoria
+              <div class="ingredient-wizard-product-search" (focusout)="closeIngredientResults($event)">
+                <input formControlName="search" autocomplete="off" role="combobox"
+                  aria-controls="ingredient-wizard-results" [attr.aria-expanded]="ingredientResultsOpen()"
+                  [attr.aria-activedescendant]="highlightedIngredientIndex() >= 0
+                    ? 'ingredient-wizard-product-' + highlightedIngredientIndex() : null"
+                  placeholder="Es. farina, latte, pomodori"
+                  (input)="searchWizardProducts(value($event))" (focus)="openIngredientResults()"
+                  (keydown)="handleIngredientSearchKeydown($event)">
+                @if (ingredientResultsOpen()) {
+                  <div id="ingredient-wizard-results" class="ingredient-results ingredient-wizard-results"
+                    role="listbox">
+                    @for (product of wizardProducts(); track product.id; let resultIndex = $index) {
+                      <button type="button" role="option" [id]="'ingredient-wizard-product-' + resultIndex"
+                        [class.active]="highlightedIngredientIndex() === resultIndex"
+                        [attr.aria-selected]="ingredientProduct()?.id === product.id"
+                        (click)="selectIngredientProduct(product)">
+                        <small>{{ product.category_name || 'Senza categoria' }}</small>{{ product.name }}
+                      </button>
+                    } @empty {
+                      <p class="ingredient-wizard-no-results">Nessun prodotto disponibile con questa ricerca.</p>
+                    }
+                  </div>
+                }
+              </div>
+            </label>
+
+            @if (ingredientMode() === 'product' && ingredientProduct(); as product) {
+              <div class="ingredient-choice selected">
+                <span aria-hidden="true">&#10003;</span>
+                <div><small>{{ product.category_name || 'Prodotto' }}</small><strong>{{ product.name }}</strong></div>
+              </div>
+            } @else if (ingredientSearch().trim()) {
+              <div class="ingredient-choice-actions">
+                <button type="button" (click)="useFreeIngredient()">
+                  <strong>Usa "{{ ingredientSearch().trim() }}"</strong>
+                  <small>Solo in questa ricetta, senza Anagrafica</small>
+                </button>
+                @if (canManageProducts()) {
+                  <button type="button" class="ingredient-create-product" (click)="prepareProductCreation()">
+                    <strong>Crea in Anagrafica</strong>
+                    <small>Disponibile anche in Spesa e nei prossimi menu</small>
+                  </button>
+                }
+              </div>
+            }
+
+            @if (ingredientMode() === 'create') {
+              <div class="ingredient-catalog-fields">
+                <p><strong>Nuovo prodotto:</strong> {{ ingredientSearch().trim() }}</p>
+                <label>Categoria
+                  <select formControlName="categoryId">
+                    <option value="">Senza categoria</option>
+                    @for (category of overview()?.productCategories ?? []; track category.id) {
+                      <option [value]="category.id">{{ category.name }}</option>
+                    }
+                  </select>
+                </label>
+                <small>Il prodotto viene salvato subito anche in Spesa &rarr; Anagrafica.</small>
+              </div>
+            }
+          </section>
+
+          <section class="ingredient-wizard-step" aria-labelledby="ingredient-step-quantity">
+            <div class="ingredient-step-heading">
+              <span>2</span>
+              <div><h3 id="ingredient-step-quantity">Indica la quantit&agrave;</h3>
+                <p>Puoi usare valori liberi come "200 g", "2 cucchiai" o "q.b.".</p></div>
+            </div>
+            <label>Quantit&agrave;
+              <input formControlName="quantity" maxlength="100" placeholder="Es. 200 g">
+            </label>
+          </section>
+
+          @if (ingredientError()) {
+            <p class="error ingredient-wizard-error" role="alert">{{ ingredientError() }}</p>
+          }
+        </div>
+        <footer class="shopping-modal-footer ingredient-wizard-footer">
+          <button class="task-secondary" type="button" (click)="closeIngredientWizard()">Annulla</button>
+          <span class="modal-spacer"></span>
+          @if (ingredientWizardIndex() === null) {
+            <button type="button" (click)="confirmIngredient(true)" [disabled]="!wizardCanSubmit()">
+              {{ ingredientBusy() ? 'Salvataggio.' : 'Aggiungi e continua' }}
+            </button>
+          }
+          <button class="primary" type="submit" [disabled]="!wizardCanSubmit()">
+            {{ ingredientBusy() ? 'Salvataggio.' : (ingredientWizardIndex() === null ? 'Aggiungi' : 'Conferma') }}
           </button>
         </footer>
       </form>

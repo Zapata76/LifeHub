@@ -1,6 +1,6 @@
 <?php
 
-/** Validates document metadata and coordinates private file replacement. */
+/** Validates document metadata and coordinates private multi-file uploads. */
 
 declare(strict_types=1);
 
@@ -19,6 +19,8 @@ use Throwable;
 
 final class DocumentController
 {
+    private const MAX_FILES = 10;
+
     /** @var DocumentRepository */ private $documents;
     /** @var AuditLogger */ private $audit;
     /** @var StorageGateway */ private $storage;
@@ -47,15 +49,11 @@ final class DocumentController
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $this->user($request);
-        $upload = $this->upload($request, true);
-        if ($upload === null) {
-            throw new ApiException(422, 'document.file_required', 'A PDF, JPEG, or PNG file is required.');
-        }
-        $file = $this->storage->store($upload);
+        $files = $this->storeUploads($this->uploads($request, true));
         try {
-            $id = $this->documents->create($user, $this->document(new RequestData($request)), $file);
+            $id = $this->documents->create($user, $this->document(new RequestData($request)), $files);
         } catch (Throwable $exception) {
-            $this->storage->discard($file['storageKey']);
+            $this->discardFiles($files);
             throw $exception;
         }
         $this->record($request, $user, 'document.created', $id);
@@ -67,28 +65,41 @@ final class DocumentController
     {
         $user = $this->user($request);
         $data = new RequestData($request);
-        $upload = $this->upload($request, false);
-        $file = $upload === null ? null : $this->storage->store($upload);
+        $files = $this->storeUploads($this->uploads($request, false));
         try {
-            $oldKeys = $this->documents->update(
+            $this->documents->update(
                 $user,
                 (int) $args['id'],
                 $data->requiredInt('version'),
                 $this->document($data),
-                $file
+                $files
             );
         } catch (Throwable $exception) {
-            if ($file !== null) {
-                $this->storage->discard($file['storageKey']);
-            }
+            $this->discardFiles($files);
             throw $exception;
-        }
-        foreach ($oldKeys as $key) {
-            $this->storage->discard($key);
         }
         $id = (int) $args['id'];
         $this->record($request, $user, 'document.updated', $id);
         return JsonResponder::write($response, ['updated' => true]);
+    }
+
+    /** @param array<string, string> $args */
+    public function deleteAttachment(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $documentId = (int) $args['id'];
+        $storageKey = $this->documents->deleteAttachment(
+            $user,
+            $documentId,
+            (int) $args['attachmentId'],
+            (new RequestData($request))->requiredInt('version')
+        );
+        $this->storage->discard($storageKey);
+        $this->record($request, $user, 'document.attachment_deleted', $documentId);
+        return JsonResponder::write($response, ['deleted' => true]);
     }
 
     /** @param array<string, string> $args */
@@ -114,16 +125,55 @@ final class DocumentController
         ];
     }
 
-    private function upload(ServerRequestInterface $request, bool $required): ?UploadedFileInterface
+    /** @return list<UploadedFileInterface> */
+    private function uploads(ServerRequestInterface $request, bool $required): array
     {
-        $upload = $request->getUploadedFiles()['file'] ?? null;
-        if ($upload instanceof UploadedFileInterface) {
-            return $upload;
+        $uploaded = $request->getUploadedFiles();
+        $candidate = $uploaded['files'] ?? ($uploaded['file'] ?? []);
+        if ($candidate instanceof UploadedFileInterface) {
+            $uploads = [$candidate];
+        } elseif (is_array($candidate)) {
+            $uploads = array_values(array_filter($candidate, function ($upload): bool {
+                return $upload instanceof UploadedFileInterface;
+            }));
+        } else {
+            $uploads = [];
         }
-        if ($required) {
+        if (count($uploads) > self::MAX_FILES) {
+            throw new ApiException(422, 'document.too_many_files', 'A document can contain at most 10 files.');
+        }
+        if ($required && count($uploads) === 0) {
             throw new ApiException(422, 'document.file_required', 'A PDF, JPEG, or PNG file is required.');
         }
-        return null;
+        return $uploads;
+    }
+
+    /**
+     * @param list<UploadedFileInterface> $uploads
+     * @return list<array{storageKey:string,mime:string,size:int,sha256:string,originalName:string}>
+     */
+    private function storeUploads(array $uploads): array
+    {
+        $files = [];
+        try {
+            foreach ($uploads as $upload) {
+                $files[] = $this->storage->store($upload);
+            }
+        } catch (Throwable $exception) {
+            $this->discardFiles($files);
+            throw $exception;
+        }
+        return $files;
+    }
+
+    /**
+     * @param list<array{storageKey:string,mime:string,size:int,sha256:string,originalName:string}> $files
+     */
+    private function discardFiles(array $files): void
+    {
+        foreach ($files as $file) {
+            $this->storage->discard($file['storageKey']);
+        }
     }
 
     private function user(ServerRequestInterface $request): UserContext

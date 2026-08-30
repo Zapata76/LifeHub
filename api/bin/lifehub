@@ -88,7 +88,8 @@ try {
             'lh_households', 'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks',
             'lh_notes', 'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices',
             'lh_recipes', 'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes',
-            'lh_shopping_lists', 'lh_shopping_items', 'lh_documents', 'lh_inventory',
+            'lh_shopping_lists', 'lh_shopping_items', 'lh_documents', 'lh_inventory_categories',
+            'lh_inventory',
             'lh_goals', 'lh_trackers', 'lh_goal_logs', 'lh_attachments',
         ];
         $counts = [];
@@ -113,7 +114,8 @@ try {
 
     fwrite(
         STDERR,
-        "Commands: runtime:check, config:check, db:init:dry-run, db:init, admin:create, db:inspect, integrity\n"
+        "Commands: runtime:check, config:check, db:init:dry-run, db:init, "
+        . "admin:create, db:inspect, integrity\n"
     );
     exit($command === 'help' ? 0 : 2);
 } catch (Throwable $exception) {

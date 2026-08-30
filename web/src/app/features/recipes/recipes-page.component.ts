@@ -3,6 +3,7 @@ import {
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { concat, Observable, of } from 'rxjs';
+import { SessionStore } from '../../core/session.store';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { RecipesApiService } from './recipes-api.service';
 import {
@@ -11,10 +12,11 @@ import {
 
 type IngredientForm = FormGroup<{
   productId: FormControl<string>;
-  productSearch: FormControl<string>;
   name: FormControl<string>;
   quantity: FormControl<string>;
 }>;
+
+type IngredientMode = 'search' | 'product' | 'free' | 'create';
 
 @Component({
   standalone: true,
@@ -24,6 +26,7 @@ type IngredientForm = FormGroup<{
 })
 export class RecipesPageComponent implements OnDestroy {
   readonly api = inject(RecipesApiService);
+  readonly store = inject(SessionStore);
   readonly overview = signal<RecipesOverview | null>(null);
   readonly selected = signal<RecipeDetail | null>(null);
   readonly loading = signal(true);
@@ -36,7 +39,23 @@ export class RecipesPageComponent implements OnDestroy {
   readonly hiddenAuthors = signal<Set<number>>(new Set());
   readonly editorOpen = signal(false);
   readonly editing = signal(false);
-  readonly activeIngredient = signal<number | null>(null);
+  readonly ingredientWizardOpen = signal(false);
+  readonly ingredientWizardIndex = signal<number | null>(null);
+  readonly ingredientMode = signal<IngredientMode>('search');
+  readonly ingredientSearch = signal('');
+  readonly ingredientProduct = signal<RecipeProduct | null>(null);
+  readonly ingredientResultsOpen = signal(false);
+  readonly highlightedIngredientIndex = signal(-1);
+  readonly ingredientBusy = signal(false);
+  readonly ingredientError = signal('');
+  readonly canManageProducts = computed(() =>
+    ['admin', 'adult'].includes(this.store.user()?.role ?? '')
+  );
+  readonly ingredientWizardForm = new FormGroup({
+    search: new FormControl('', { nonNullable: true }),
+    categoryId: new FormControl('', { nonNullable: true }),
+    quantity: new FormControl('', { nonNullable: true })
+  });
   readonly imageFile = signal<File | null>(null);
   readonly imagePreview = signal<string | null>(null);
   readonly removeExistingImage = signal(false);
@@ -46,6 +65,7 @@ export class RecipesPageComponent implements OnDestroy {
   private stream: MediaStream | null = null;
 
   @ViewChild('webcamVideo') webcamVideo?: ElementRef<HTMLVideoElement>;
+  @ViewChild('recipeDetail') recipeDetail?: ElementRef<HTMLElement>;
 
   readonly form = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -91,12 +111,24 @@ export class RecipesPageComponent implements OnDestroy {
     });
   }
 
-  select(id: number): void {
+  select(id: number, scrollToDetail = false): void {
     this.detailLoading.set(true);
     this.error.set('');
     this.api.detail(id).subscribe({
-      next: (recipe) => { this.selected.set(recipe); this.detailLoading.set(false); },
+      next: (recipe) => {
+        this.selected.set(recipe);
+        this.detailLoading.set(false);
+        if (scrollToDetail) this.scrollToDetailOnMobile();
+      },
       error: () => { this.detailLoading.set(false); this.error.set('Impossibile aprire la ricetta.'); }
+    });
+  }
+
+  private scrollToDetailOnMobile(): void {
+    if (typeof window.matchMedia !== 'function' || !window.matchMedia('(max-width: 720px)').matches) return;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.recipeDetail?.nativeElement.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth', block: 'start'
     });
   }
 
@@ -108,7 +140,6 @@ export class RecipesPageComponent implements OnDestroy {
 
   openCreate(): void {
     this.resetEditor();
-    this.ingredients.push(this.newIngredient());
     this.editing.set(false);
     this.editorOpen.set(true);
   }
@@ -134,7 +165,6 @@ export class RecipesPageComponent implements OnDestroy {
         ingredient.quantity_raw ?? ''
       ));
     }
-    if (this.ingredients.length === 0) this.ingredients.push(this.newIngredient());
     this.editorOpen.set(true);
   }
 
@@ -145,43 +175,230 @@ export class RecipesPageComponent implements OnDestroy {
     this.resetEditor();
   }
 
-  addIngredient(): void { this.ingredients.push(this.newIngredient()); }
+  addIngredient(): void { this.openIngredientWizard(); }
 
   removeIngredient(index: number): void {
     this.ingredients.removeAt(index);
-    if (this.ingredients.length === 0) this.addIngredient();
-    this.activeIngredient.set(null);
   }
 
-  searchIngredient(index: number, value: string): void {
-    this.ingredients.at(index).controls.productSearch.setValue(value);
-    this.activeIngredient.set(index);
+  openIngredientWizard(index: number | null = null): void {
+    this.resetIngredientWizard();
+    this.ingredientWizardIndex.set(index);
+    if (index !== null) {
+      const ingredient = this.ingredients.at(index).getRawValue();
+      const product = this.overview()?.products.find(
+        (item) => item.id === Number(ingredient.productId)
+      ) ?? null;
+      const name = product?.name ?? ingredient.name;
+      this.ingredientSearch.set(name);
+      this.ingredientWizardForm.patchValue({
+        search: name,
+        quantity: ingredient.quantity
+      });
+      if (product) {
+        this.ingredientProduct.set(product);
+        this.ingredientMode.set('product');
+      } else if (name) {
+        this.ingredientMode.set('free');
+      }
+    }
+    this.ingredientWizardOpen.set(true);
   }
 
-  productsFor(index: number): RecipeProduct[] {
-    const term = this.ingredients.at(index).controls.productSearch.value.trim().toLocaleLowerCase('it');
-    return (this.overview()?.products ?? []).filter((product) => !term
-      || product.name.toLocaleLowerCase('it').includes(term)
-      || (product.category_name ?? '').toLocaleLowerCase('it').includes(term)).slice(0, 80);
+  closeIngredientWizard(): void {
+    if (this.ingredientBusy()) return;
+    this.ingredientWizardOpen.set(false);
+    this.resetIngredientWizard();
   }
 
-  selectProduct(index: number, product: RecipeProduct): void {
-    this.ingredients.at(index).patchValue({
-      productId: String(product.id), productSearch: '', name: product.name
+  searchWizardProducts(value: string): void {
+    this.ingredientWizardForm.controls.search.setValue(value);
+    this.ingredientSearch.set(value);
+    this.ingredientProduct.set(null);
+    this.ingredientMode.set('search');
+    this.ingredientError.set('');
+    this.ingredientResultsOpen.set(true);
+    this.highlightedIngredientIndex.set(this.wizardProducts().length ? 0 : -1);
+  }
+
+  openIngredientResults(): void {
+    this.ingredientResultsOpen.set(true);
+    this.highlightedIngredientIndex.set(this.wizardProducts().length ? 0 : -1);
+  }
+
+  closeIngredientResults(event: FocusEvent): void {
+    const container = event.currentTarget as HTMLElement | null;
+    const next = event.relatedTarget as Node | null;
+    if (container && next && container.contains(next)) return;
+    this.ingredientResultsOpen.set(false);
+    this.highlightedIngredientIndex.set(-1);
+  }
+
+  wizardProducts(): RecipeProduct[] {
+    const term = this.normalize(this.ingredientSearch());
+    return (this.overview()?.products ?? [])
+      .filter((product) => !this.productAlreadyAdded(product.id))
+      .filter((product) => !term
+        || this.normalize(product.name).includes(term)
+        || this.normalize(product.category_name ?? '').includes(term))
+      .slice(0, 80);
+  }
+
+  selectIngredientProduct(product: RecipeProduct): void {
+    if (this.productAlreadyAdded(product.id)) {
+      this.ingredientError.set('Questo prodotto \u00e8 gi\u00e0 presente nella ricetta.');
+      return;
+    }
+    this.ingredientProduct.set(product);
+    this.ingredientSearch.set(product.name);
+    this.ingredientWizardForm.controls.search.setValue(product.name);
+    this.ingredientMode.set('product');
+    this.ingredientResultsOpen.set(false);
+    this.highlightedIngredientIndex.set(-1);
+    this.ingredientError.set('');
+  }
+
+  useFreeIngredient(): void {
+    const name = this.ingredientSearch().trim();
+    if (!name) {
+      this.ingredientError.set("Scrivi il nome dell'ingrediente.");
+      return;
+    }
+    const product = this.exactCatalogProduct(name);
+    if (product) {
+      this.selectIngredientProduct(product);
+      return;
+    }
+    if (this.ingredientNameAlreadyAdded(name)) {
+      this.ingredientError.set('Questo ingrediente \u00e8 gi\u00e0 presente nella ricetta.');
+      return;
+    }
+    this.ingredientProduct.set(null);
+    this.ingredientMode.set('free');
+    this.ingredientResultsOpen.set(false);
+    this.ingredientError.set('');
+  }
+
+  prepareProductCreation(): void {
+    const name = this.ingredientSearch().trim();
+    if (!name) {
+      this.ingredientError.set('Indica il nome del nuovo prodotto.');
+      return;
+    }
+    const product = this.exactCatalogProduct(name);
+    if (product) {
+      this.selectIngredientProduct(product);
+      this.ingredientError.set('Il prodotto esiste gi\u00e0: \u00e8 stato selezionato.');
+      return;
+    }
+    this.ingredientProduct.set(null);
+    this.ingredientMode.set('create');
+    this.ingredientResultsOpen.set(false);
+    this.ingredientError.set('');
+  }
+
+  handleIngredientSearchKeydown(event: KeyboardEvent): void {
+    const products = this.wizardProducts();
+    if (event.key === 'Escape') {
+      this.ingredientResultsOpen.set(false);
+      this.highlightedIngredientIndex.set(-1);
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return;
+    if (!products.length) return;
+    event.preventDefault();
+    if (!this.ingredientResultsOpen()) this.ingredientResultsOpen.set(true);
+    const current = this.highlightedIngredientIndex();
+    if (event.key === 'ArrowDown') {
+      this.highlightedIngredientIndex.set(current < products.length - 1 ? current + 1 : 0);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      this.highlightedIngredientIndex.set(current > 0 ? current - 1 : products.length - 1);
+      return;
+    }
+    const selectedIndex = current >= 0 ? current : 0;
+    this.selectIngredientProduct(products[selectedIndex]);
+  }
+
+  wizardCanSubmit(): boolean {
+    if (this.ingredientBusy()) return false;
+    const mode = this.ingredientMode();
+    const product = this.ingredientProduct();
+    if (mode === 'product') return !!product && !this.productAlreadyAdded(product.id);
+    const name = this.ingredientSearch().trim();
+    if (!name || this.ingredientNameAlreadyAdded(name)) return false;
+    if (mode === 'create') return this.canManageProducts();
+    return mode === 'free';
+  }
+
+  confirmIngredient(keepOpen = false): void {
+    if (!this.wizardCanSubmit()) {
+      if (!this.ingredientError()) {
+        this.ingredientError.set('Completa la scelta dell\'ingrediente prima di continuare.');
+      }
+      return;
+    }
+    const quantity = this.ingredientWizardForm.controls.quantity.value.trim();
+    const mode = this.ingredientMode();
+    const product = this.ingredientProduct();
+    if (mode === 'product' && product) {
+      this.commitIngredient(product, product.name, quantity, keepOpen);
+      return;
+    }
+    const name = this.ingredientSearch().trim();
+    if (mode === 'free') {
+      this.commitIngredient(null, name, quantity, keepOpen);
+      return;
+    }
+    if (mode !== 'create') return;
+
+    const rawCategoryId = this.ingredientWizardForm.controls.categoryId.value;
+    const categoryId = rawCategoryId ? Number(rawCategoryId) : null;
+    this.ingredientBusy.set(true);
+    this.ingredientError.set('');
+    this.api.createProduct(name, categoryId).subscribe({
+      next: (created) => {
+        const category = this.overview()?.productCategories.find((item) => item.id === categoryId);
+        const productWithCategory: RecipeProduct = {
+          ...created,
+          category_id: created.category_id ?? categoryId,
+          category_name: created.category_name ?? category?.name ?? null
+        };
+        this.overview.update((current) => current ? {
+          ...current,
+          products: [...current.products, productWithCategory]
+            .sort((left, right) => left.name.localeCompare(right.name, 'it'))
+        } : current);
+        this.ingredientBusy.set(false);
+        this.commitIngredient(productWithCategory, productWithCategory.name, quantity, keepOpen);
+      },
+      error: (error: any) => {
+        this.ingredientBusy.set(false);
+        this.ingredientError.set(this.message(
+          error,
+          'Il prodotto non \u00e8 stato creato. Controlla il nome e riprova.'
+        ));
+      }
     });
-    this.activeIngredient.set(null);
   }
 
-  clearProduct(index: number): void {
-    this.ingredients.at(index).patchValue({ productId: '', productSearch: '', name: '' });
-    this.activeIngredient.set(null);
+  ingredientName(index: number): string {
+    const ingredient = this.ingredients.at(index).getRawValue();
+    const product = this.overview()?.products.find(
+      (item) => item.id === Number(ingredient.productId)
+    );
+    return (product?.name ?? ingredient.name) || 'Ingrediente senza nome';
   }
 
-  productLabel(index: number): string {
-    const group = this.ingredients.at(index);
-    if (group.controls.productSearch.value) return group.controls.productSearch.value;
-    const product = this.overview()?.products.find((item) => item.id === Number(group.controls.productId.value));
-    return product ? `${product.category_name ? product.category_name + ' · ' : ''}${product.name}` : '';
+  ingredientCategory(index: number): string {
+    const ingredient = this.ingredients.at(index).getRawValue();
+    const product = this.overview()?.products.find(
+      (item) => item.id === Number(ingredient.productId)
+    );
+    return product
+      ? product.category_name ?? 'Senza categoria'
+      : 'Ingrediente libero';
   }
 
   save(): void {
@@ -283,6 +500,75 @@ export class RecipesPageComponent implements OnDestroy {
   value(event: Event): string { return (event.target as HTMLInputElement).value; }
   ngOnDestroy(): void { this.stopWebcam(); this.revokePreview(); }
 
+  private commitIngredient(
+    product: RecipeProduct | null,
+    name: string,
+    quantity: string,
+    keepOpen: boolean
+  ): void {
+    const ingredient = this.newIngredient(
+      product ? String(product.id) : '',
+      name,
+      quantity
+    );
+    const index = this.ingredientWizardIndex();
+    if (index === null) {
+      this.ingredients.push(ingredient);
+    } else {
+      this.ingredients.setControl(index, ingredient);
+    }
+    if (keepOpen) {
+      this.resetIngredientWizard();
+      this.ingredientWizardOpen.set(true);
+      return;
+    }
+    this.closeIngredientWizard();
+  }
+
+  private resetIngredientWizard(): void {
+    this.ingredientWizardForm.reset({
+      search: '',
+      categoryId: '',
+      quantity: ''
+    });
+    this.ingredientWizardIndex.set(null);
+    this.ingredientMode.set('search');
+    this.ingredientSearch.set('');
+    this.ingredientProduct.set(null);
+    this.ingredientResultsOpen.set(false);
+    this.highlightedIngredientIndex.set(-1);
+    this.ingredientBusy.set(false);
+    this.ingredientError.set('');
+  }
+
+  private productAlreadyAdded(productId: number): boolean {
+    const editingIndex = this.ingredientWizardIndex();
+    return this.ingredients.controls.some((ingredient, index) =>
+      index !== editingIndex
+      && Number(ingredient.controls.productId.value) === productId
+    );
+  }
+
+  private ingredientNameAlreadyAdded(name: string): boolean {
+    const editingIndex = this.ingredientWizardIndex();
+    const normalizedName = this.normalize(name);
+    return this.ingredients.controls.some((ingredient, index) =>
+      index !== editingIndex
+      && this.normalize(ingredient.controls.name.value) === normalizedName
+    );
+  }
+
+  private exactCatalogProduct(name: string): RecipeProduct | null {
+    const normalizedName = this.normalize(name);
+    return this.overview()?.products.find(
+      (product) => this.normalize(product.name) === normalizedName
+    ) ?? null;
+  }
+
+  private normalize(value: string): string {
+    return value.trim().toLocaleLowerCase('it');
+  }
+
   private persistImage(id: number): void {
     const operations: Observable<void>[] = [];
     const uploadedImage = !!this.imageFile();
@@ -301,7 +587,6 @@ export class RecipesPageComponent implements OnDestroy {
   private newIngredient(productId = '', name = '', quantity = ''): IngredientForm {
     return new FormGroup({
       productId: new FormControl(productId, { nonNullable: true }),
-      productSearch: new FormControl('', { nonNullable: true }),
       name: new FormControl(name, { nonNullable: true }),
       quantity: new FormControl(quantity, { nonNullable: true })
     });
@@ -313,7 +598,8 @@ export class RecipesPageComponent implements OnDestroy {
       difficulty: 'media', description: '', instructions: ''
     });
     this.ingredients.clear();
-    this.activeIngredient.set(null);
+    this.ingredientWizardOpen.set(false);
+    this.resetIngredientWizard();
     this.imageFile.set(null);
     this.removeExistingImage.set(false);
     this.revokePreview();

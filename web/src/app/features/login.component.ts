@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/auth.service';
+import { SESSION_EXPIRED_REASON } from '../core/session-expiry.service';
 import { SessionStore } from '../core/session.store';
 
 @Component({
@@ -13,6 +14,9 @@ import { SessionStore } from '../core/session.store';
       <p class="eyebrow">Spazio familiare privato</p>
       <h1 id="login-title">Bentornato</h1>
       <p class="muted">Accedi per ritrovare attività, pasti e progetti di casa.</p>
+      @if (sessionExpired) {
+        <p class="session-expired" role="status">La sessione è scaduta. Accedi nuovamente.</p>
+      }
       <form [formGroup]="form" (ngSubmit)="submit()">
         <label>Nome utente<input autocomplete="username" formControlName="username"></label>
         <label>Password<input type="password" autocomplete="current-password" formControlName="password"></label>
@@ -27,7 +31,9 @@ import { SessionStore } from '../core/session.store';
 export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly store = inject(SessionStore);
+  readonly sessionExpired = this.route.snapshot.queryParamMap.get('reason') === SESSION_EXPIRED_REASON;
   readonly busy = signal(false);
   readonly sessionReady = signal(false);
   readonly error = signal('');

@@ -38,6 +38,17 @@ final class StorageGateway
         if ($size === null || $size < 1 || $size > self::MAX_SIZE) {
             throw new ApiException(422, 'attachment.invalid_size', 'Files must be between 1 byte and 10 MiB.');
         }
+        $originalName = basename((string) $upload->getClientFilename());
+        if (
+            $originalName === '' || !mb_check_encoding($originalName, 'UTF-8')
+            || mb_strlen($originalName, 'UTF-8') > 255
+        ) {
+            throw new ApiException(
+                422,
+                'attachment.invalid_name',
+                'The file name must contain at most 255 characters.'
+            );
+        }
         $key = bin2hex(random_bytes(24)) . '.blob';
         $path = $this->path($key);
         $upload->moveTo($path);
@@ -57,7 +68,7 @@ final class StorageGateway
             'mime' => $mime,
             'size' => $size,
             'sha256' => $checksum,
-            'originalName' => basename((string) $upload->getClientFilename()),
+            'originalName' => $originalName,
         ];
     }
 

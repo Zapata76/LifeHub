@@ -44,12 +44,29 @@ final class AttachmentController
         if (!$this->policy->canUpload($user, $ownerType, $ownerId)) {
             throw new ApiException(404, 'attachment.owner_not_found', 'Attachment owner not found.');
         }
+        if (
+            $ownerType === 'inventory'
+            && $this->attachments->countActive($user, $ownerType, $ownerId) >= 10
+        ) {
+            throw new ApiException(
+                422,
+                'inventory.too_many_images',
+                'An inventory item can contain at most 10 images.'
+            );
+        }
         $upload = $request->getUploadedFiles()['file'] ?? null;
         if (!$upload instanceof UploadedFileInterface) {
             throw new ApiException(422, 'attachment.file_required', 'A file upload is required.');
         }
         $file = $this->storage->store($upload);
         try {
+            if ($ownerType === 'inventory' && strpos($file['mime'], 'image/') !== 0) {
+                throw new ApiException(
+                    422,
+                    'inventory.image_type_invalid',
+                    'Inventory attachments must be JPEG or PNG images.'
+                );
+            }
             $id = $this->attachments->create($user, $ownerType, $ownerId, $file);
         } catch (Throwable $exception) {
             $this->storage->discard($file['storageKey']);

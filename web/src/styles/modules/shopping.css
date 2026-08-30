@@ -1,5 +1,5 @@
 .shopping-heading { margin-bottom: 1.25rem; }
-.shopping-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: 1.25rem; }
+.shopping-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; margin-bottom: 1.25rem; }
 .shopping-tabs button.active { border-color: var(--brand); background: var(--brand); color: #052e2b; font-weight: 800; }
 .shopping-add-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
 .shopping-add-form .product-search { grid-column: 1 / -1; }
@@ -28,24 +28,46 @@
 .product-thumb.empty { background: #0b1220; font-size: 1.5rem; }
 .inline-quantity { font-size: .72rem; }
 .inline-quantity input { min-height: 38px; padding: .45rem .6rem; }
-.remove-icon { display: grid; place-items: center; min-width: 40px; width: 40px; min-height: 40px; padding: 0; border-color: transparent; background: transparent; color: #fb7185; font-size: 1.45rem; }
+.remove-icon, .edit-icon { display: grid; place-items: center; min-width: 40px; width: 40px; min-height: 40px; padding: 0; border-color: transparent; background: transparent; }
+.remove-icon { color: #fb7185; font-size: 1.45rem; }
+.edit-icon { color: var(--brand); font-size: 1.2rem; }
+.remove-icon:hover { border-color: #fb718544; background: #fb718510; }
+.edit-icon:hover { border-color: #34d39944; background: #34d39910; }
 .shopping-confirm-modal { width: min(520px, 100%); border-top-color: var(--danger); }
 .shopping-confirm-modal > h2 { color: #fb7185; }
 .confirm-copy { display: grid; gap: .45rem; }
 .confirm-copy p { margin: 0; font-size: 1.05rem; }
 .shopping-list-actions { flex-wrap: wrap; }
-.catalog-admin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
-.inline-create { grid-template-columns: 1fr auto; align-items: end; }
-.compact-admin-list { max-height: 260px; overflow: auto; margin: 1rem 0 0; padding: 0; list-style: none; }
-.compact-admin-list li { display: flex; justify-content: space-between; align-items: center; min-height: 46px; border-top: 1px solid #ffffff12; }
+.catalog-entity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.catalog-entity-card { position: relative; display: flex; flex-direction: column; min-height: 180px; overflow: hidden; padding: 1.15rem; }
+.catalog-entity-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--brand), #2dd4bf66); }
+.catalog-entity-copy { display: grid; gap: .4rem; min-width: 0; }
+.catalog-entity-copy small { color: var(--brand); font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.catalog-entity-copy h3 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.08rem; }
+.catalog-entity-copy p { margin: 0; color: var(--muted); font-size: .8rem; }
+.catalog-admin-actions { display: flex; justify-content: flex-end; align-items: center; gap: .25rem; margin-top: auto; padding-top: 1rem; border-top: 1px solid #ffffff10; }
+.catalog-empty { grid-column: 1 / -1; }
+.catalog-directory { min-width: 0; }
+.catalog-name-modal { width: min(480px, 100%); }
+.catalog-impact { border: 1px solid #fbbf2444; border-radius: 10px; padding: .75rem; background: #fbbf2410; font-size: .9rem !important; line-height: 1.45; }
+.catalog-impact.danger { border-color: #fb718566; background: #fb718512; color: #fecdd3; }
+.catalog-impact.neutral { border-color: #ffffff1c; background: #ffffff08; color: var(--muted); }
+.product-recipe-impact { display: grid; gap: .55rem; }
+.product-recipe-impact-list { display: grid; gap: .3rem; max-height: 9rem; overflow-y: auto; margin: 0; padding-left: 1.2rem; color: var(--text); }
+.product-recipe-impact-list li::marker { color: #fb7185; }
+.catalog-replacement { display: grid; gap: .45rem; }
 .catalog-list-heading { margin: 2rem 0 1rem; }
 .catalog-list-heading label { width: min(360px, 100%); }
 .catalog-toolbar { display: flex; align-items: end; gap: .75rem; }
 .catalog-toolbar .primary { white-space: nowrap; }
 .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
-.product-card { overflow: hidden; }
-.product-card-body { display: grid; gap: .45rem; padding: 1rem; }
+.product-card { display: flex; flex-direction: column; overflow: hidden; }
+.product-card-body { display: flex; flex: 1; flex-direction: column; gap: .55rem; padding: 1rem; }
 .product-card-body h3 { margin: 0; }
+.product-card-body > .actions { margin-top: auto; }
+.product-list-membership { display: flex; align-items: center; min-height: 40px; }
+.product-list-status { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid #34d39955; border-radius: 999px; padding: .35rem .65rem; background: #34d39912; color: #6ee7b7; font-size: .75rem; font-weight: 800; }
+.product-list-add { width: 100%; min-height: 40px; padding: .5rem .7rem; font-size: .8rem; }
 .price-groups { display: grid; gap: .75rem; }
 .price-product-group { overflow: hidden; }
 .price-product-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 1rem; border-bottom: 1px solid #ffffff14; background: #ffffff08; }
@@ -60,7 +82,17 @@
 .price-observation-amount strong { font-size: 1.15rem; }
 .price-observation-market, .price-observation-date { display: grid; gap: .15rem; min-width: 0; }
 .price-observation-market strong, .price-observation-market small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.price-observation-market .price-unit-value { color: var(--brand); font-weight: 800; }
 .price-observation-date { font-size: .8rem; }
 .price-observation-media { display: flex; justify-content: center; align-items: center; min-width: 0; }
 .price-photo { width: 48px; height: 42px; border: 1px solid var(--border); border-radius: 7px; object-fit: cover; }
 .price-observation-actions { display: flex; justify-content: flex-end; gap: .4rem; }
+.price-package-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.price-package-field legend { margin-bottom: .4rem; font-weight: 700; }
+.price-package-field legend small { color: var(--muted); font-weight: 500; }
+.price-package-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(100px, .7fr); gap: .5rem; }
+.price-package-controls label { display: grid; gap: .3rem; color: var(--muted); font-size: .75rem; }
+.price-package-controls input, .price-package-controls select { width: 100%; }
+.price-package-help, .price-package-error { display: block; margin-top: .35rem; font-size: .72rem; line-height: 1.35; }
+.price-package-help { color: var(--muted); }
+.price-package-error { color: #fda4af; }

@@ -44,6 +44,15 @@ final class ShoppingRepository
                 [$householdId]
             ),
             'products' => $this->products($householdId),
+            'product_recipe_usages' => $this->rows(
+                'SELECT DISTINCT i.product_id, r.id AS recipe_id, r.title AS recipe_title '
+                . 'FROM lh_recipe_ingredients i INNER JOIN lh_recipes r '
+                . 'ON r.household_id = i.household_id AND r.id = i.recipe_id '
+                . 'WHERE i.household_id = ? AND i.product_id IS NOT NULL '
+                . 'AND i.archived_at IS NULL AND r.archived_at IS NULL '
+                . 'ORDER BY i.product_id, r.title, r.id',
+                [$householdId]
+            ),
             'prices' => $this->prices($householdId),
         ];
     }
@@ -141,8 +150,13 @@ final class ShoppingRepository
      *
      * @return list<string> Storage keys that must be discarded after the database mutation.
      */
-    public function deleteCatalog(UserContext $user, string $resource, int $id, int $version): array
-    {
+    public function deleteCatalog(
+        UserContext $user,
+        string $resource,
+        int $id,
+        int $version,
+        ?int $replacementCategoryId = null
+    ): array {
         $tables = [
             'categories' => 'lh_categories',
             'supermarkets' => 'lh_supermarkets',
@@ -151,6 +165,16 @@ final class ShoppingRepository
         ];
         if (!isset($tables[$resource])) {
             throw new ApiException(404, 'shopping.resource_not_found', 'Shopping resource not found.');
+        }
+        if ($resource !== 'categories' && $replacementCategoryId !== null) {
+            throw new ApiException(
+                422,
+                'shopping.replacement_not_allowed',
+                'A replacement category is only valid when deleting a category.'
+            );
+        }
+        if ($resource === 'categories' && $replacementCategoryId === $id) {
+            throw new ApiException(422, 'shopping.replacement_invalid', 'The replacement category must differ.');
         }
 
         $this->pdo->exec(
@@ -164,11 +188,19 @@ final class ShoppingRepository
             $storageKeys = [];
 
             if ($resource === 'categories') {
+                if ($replacementCategoryId !== null) {
+                    $this->assertActive(
+                        'lh_categories',
+                        $user->householdId(),
+                        $replacementCategoryId,
+                        'shopping.replacement_category_not_found'
+                    );
+                }
                 $statement = $this->pdo->prepare(
-                    'UPDATE lh_products SET category_id = NULL, version = version + 1 '
+                    'UPDATE lh_products SET category_id = ?, version = version + 1 '
                     . 'WHERE household_id = ? AND category_id = ?'
                 );
-                $statement->execute([$user->householdId(), $id]);
+                $statement->execute([$replacementCategoryId, $user->householdId(), $id]);
             } elseif ($resource === 'supermarkets') {
                 $priceIds = $this->relatedIds('lh_prices', 'supermarket_id', $user->householdId(), $id);
                 $storageKeys = $this->deleteAttachments($user->householdId(), 'price', $priceIds);

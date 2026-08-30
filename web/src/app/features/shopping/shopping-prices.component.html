@@ -41,6 +41,9 @@
                 <div class="price-observation-market" role="cell">
                   <strong>{{ price.supermarket_name }}</strong>
                   <small>{{ price.package_text || 'Formato non indicato' }}</small>
+                  @if (unitPriceLabel(price); as unitPrice) {
+                    <small class="price-unit-value">{{ unitPrice }}</small>
+                  }
                 </div>
                 <div class="price-observation-date" role="cell">
                   <span>{{ formatDate(price.observed_on || price.created_at) }}</span>
@@ -75,12 +78,32 @@
       <h2 id="new-price-title">Registra un prezzo</h2>
       <form [formGroup]="form" (ngSubmit)="save()">
         <div class="shopping-modal-body">
-          <label>Prodotto
-            <select formControlName="productId"><option value="">Seleziona</option>
-              @for (product of overview()?.products ?? []; track product.id) {
-                <option [value]="product.id">{{ product.name }}</option>
+          <label>Cerca prodotto
+            <div class="shopping-product-search" (focusout)="closeProductResults($event)">
+              <input formControlName="productSearch" placeholder="Nome o categoria" autocomplete="off"
+                role="combobox" aria-controls="price-product-results"
+                [attr.aria-expanded]="productResultsOpen()"
+                [attr.aria-activedescendant]="highlightedProductIndex() >= 0
+                  ? 'price-product-' + highlightedProductIndex() : null"
+                (input)="searchProducts(value($event))" (focus)="openProductResults()"
+                (keydown)="handleProductSearchKeydown($event)">
+              @if (productResultsOpen()) {
+                <div id="price-product-results" class="ingredient-results shopping-product-results" role="listbox">
+                  @if (availableProducts().length === 0) {
+                    <p class="shopping-product-empty">Nessun prodotto trovato.</p>
+                  } @else {
+                    @for (product of availableProducts(); track product.id; let i = $index) {
+                      <button type="button" role="option" [id]="'price-product-' + i"
+                        [class.active]="highlightedProductIndex() === i"
+                        [attr.aria-selected]="highlightedProductIndex() === i"
+                        (click)="selectProduct(product)">
+                        <small>{{ product.category_name || 'Prodotto' }}</small>{{ product.name }}
+                      </button>
+                    }
+                  }
+                </div>
               }
-            </select>
+            </div>
           </label>
           <label>Supermercato
             <select formControlName="supermarketId"><option value="">Seleziona</option>
@@ -90,7 +113,23 @@
             </select>
           </label>
           <label>Prezzo (€)<input type="number" min="0.01" step="0.01" formControlName="amount"></label>
-          <label>Formato<input formControlName="packageText" maxlength="255" placeholder="es. 500 g"></label>
+          <fieldset class="price-package-field">
+            <legend>Formato <small>(facoltativo)</small></legend>
+            <div class="price-package-controls">
+              <label>Quantità<input type="number" min="0.01" step="0.01" inputmode="decimal"
+                formControlName="packageAmount" placeholder="es. 500"></label>
+              <label>Unità<select formControlName="packageUnit">
+                <option value="">Seleziona</option>
+                <option value="g">g</option><option value="kg">kg</option>
+                <option value="ml">ml</option><option value="cl">cl</option>
+                <option value="l">l</option><option value="pz">pz</option>
+              </select></label>
+            </div>
+            <small class="price-package-help">Compila entrambi i campi per calcolare il prezzo al kg, al litro o al pezzo.</small>
+            @if (form.hasError('incompletePackage')) {
+              <small class="price-package-error">Indica sia la quantità sia l’unità di misura.</small>
+            }
+          </fieldset>
           <label>Data rilevazione<input type="date" formControlName="observedOn"></label>
           <label>Foto etichetta o scontrino
             <input type="file" accept="image/jpeg,image/png" (change)="selectImage($event)">

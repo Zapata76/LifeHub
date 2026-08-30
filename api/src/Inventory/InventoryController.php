@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace LifeHub\Inventory;
 
+use LifeHub\Attachments\StorageGateway;
 use LifeHub\Shared\Audit\AuditLogger;
 use LifeHub\Shared\Auth\UserContext;
 use LifeHub\Shared\Http\ApiException;
@@ -20,16 +21,20 @@ final class InventoryController
 {
     /** @var InventoryRepository */ private $inventory;
     /** @var AuditLogger */ private $audit;
+    /** @var StorageGateway */ private $storage;
 
-    public function __construct(InventoryRepository $inventory, AuditLogger $audit)
+    public function __construct(InventoryRepository $inventory, AuditLogger $audit, StorageGateway $storage)
     {
         $this->inventory = $inventory;
         $this->audit = $audit;
+        $this->storage = $storage;
     }
 
     public function overview(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return JsonResponder::write($response, $this->inventory->overview($this->user($request)));
+        $query = $request->getQueryParams();
+        $archived = isset($query['archived']) && (string) $query['archived'] === '1';
+        return JsonResponder::write($response, $this->inventory->overview($this->user($request), $archived));
     }
 
     /** @param array<string, string> $args */
@@ -72,6 +77,19 @@ final class InventoryController
     }
 
     /** @param array<string, string> $args */
+    public function restore(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $id = (int) $args['id'];
+        $this->inventory->restore($user, $id, (new RequestData($request))->requiredInt('version'));
+        $this->record($request, $user, 'inventory.restored', $id);
+        return JsonResponder::write($response, ['restored' => true]);
+    }
+
+    /** @param array<string, string> $args */
     public function removeImage(
         ServerRequestInterface $request,
         ResponseInterface $response,
@@ -84,6 +102,90 @@ final class InventoryController
         return JsonResponder::write($response, ['removed' => true]);
     }
 
+    /** @param array<string, string> $args */
+    public function deleteImage(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $id = (int) $args['id'];
+        $storageKey = $this->inventory->deleteImage(
+            $user,
+            $id,
+            (int) $args['imageId'],
+            (new RequestData($request))->requiredInt('version')
+        );
+        $this->storage->discard($storageKey);
+        $this->record($request, $user, 'inventory.image_deleted', $id);
+        return JsonResponder::write($response, ['deleted' => true]);
+    }
+
+    /** @param array<string, string> $args */
+    public function delete(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $id = (int) $args['id'];
+        $storageKeys = $this->inventory->delete(
+            $user,
+            $id,
+            (new RequestData($request))->requiredInt('version')
+        );
+        foreach ($storageKeys as $storageKey) {
+            $this->storage->discard($storageKey);
+        }
+        $this->record($request, $user, 'inventory.deleted', $id);
+        return JsonResponder::write($response, ['deleted' => true]);
+    }
+
+    public function createCategory(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $user = $this->user($request);
+        $name = (new RequestData($request))->requiredString('name', 100);
+        $id = $this->inventory->createCategory($user, $name);
+        $this->recordCategory($request, $user, 'inventory_category.created', $id);
+        return JsonResponder::write($response, ['id' => $id], 201);
+    }
+
+    /** @param array<string, string> $args */
+    public function updateCategory(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $data = new RequestData($request);
+        $id = (int) $args['categoryId'];
+        $this->inventory->updateCategory(
+            $user,
+            $id,
+            $data->requiredInt('version'),
+            $data->requiredString('name', 100)
+        );
+        $this->recordCategory($request, $user, 'inventory_category.updated', $id);
+        return JsonResponder::write($response, ['updated' => true]);
+    }
+
+    /** @param array<string, string> $args */
+    public function deleteCategory(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $id = (int) $args['categoryId'];
+        $moved = $this->inventory->deleteCategory(
+            $user,
+            $id,
+            (new RequestData($request))->requiredInt('version')
+        );
+        $this->recordCategory($request, $user, 'inventory_category.deleted', $id);
+        return JsonResponder::write($response, ['deleted' => true, 'movedItems' => $moved]);
+    }
+
     /** @return array<string, mixed> */
     private function item(RequestData $data): array
     {
@@ -94,7 +196,7 @@ final class InventoryController
         }
         return [
             'name' => $data->requiredString('name', 255),
-            'category' => $data->optionalString('category', 100) ?: 'Altro',
+            'categoryId' => $this->positiveOrNull($data->requiredInt('categoryId'), 'categoryId'),
             'location' => $data->optionalString('location', 500) ?: '',
             'ownerId' => $this->positiveOrNull($data->optionalInt('ownerId'), 'ownerId'),
             'documentId' => $this->positiveOrNull($data->optionalInt('documentId'), 'documentId'),
@@ -156,6 +258,21 @@ final class InventoryController
             $user,
             $event,
             'inventory',
+            $id,
+            (string) $request->getAttribute('correlationId', 'unavailable')
+        );
+    }
+
+    private function recordCategory(
+        ServerRequestInterface $request,
+        UserContext $user,
+        string $event,
+        int $id
+    ): void {
+        $this->audit->record(
+            $user,
+            $event,
+            'inventory_category',
             $id,
             (string) $request->getAttribute('correlationId', 'unavailable')
         );

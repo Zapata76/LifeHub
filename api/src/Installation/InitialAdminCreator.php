@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace LifeHub\Installation;
 
 use DateTimeZone;
+use LifeHub\Inventory\InventoryCategoryDefaults;
 use LifeHub\Shared\Text\SearchKey;
 use PDO;
 use RuntimeException;
@@ -56,7 +57,10 @@ final class InitialAdminCreator
         $householdId = 0;
         $userId = 0;
         $shoppingListId = 0;
-        $this->pdo->exec('LOCK TABLES lh_households WRITE, lh_users WRITE, lh_shopping_lists WRITE');
+        $this->pdo->exec(
+            'LOCK TABLES lh_households WRITE, lh_users WRITE, lh_shopping_lists WRITE, '
+            . 'lh_inventory_categories WRITE'
+        );
         try {
             $householdCount = $this->pdo->query('SELECT COUNT(*) FROM lh_households');
             $userCount = $this->pdo->query('SELECT COUNT(*) FROM lh_users');
@@ -84,6 +88,8 @@ final class InitialAdminCreator
             $user->execute([$householdId, $username, SearchKey::from($username), $hash, $now, $now]);
             $userId = (int) $this->pdo->lastInsertId();
 
+            InventoryCategoryDefaults::seed($this->pdo, $householdId, $userId, $now);
+
             $shoppingList = $this->pdo->prepare(
                 'INSERT INTO lh_shopping_lists '
                 . '(household_id, name, name_key, is_primary, created_by, created_at) '
@@ -99,6 +105,9 @@ final class InitialAdminCreator
             ]);
             $shoppingListId = (int) $this->pdo->lastInsertId();
         } catch (Throwable $exception) {
+            if ($householdId !== 0) {
+                $this->pdo->exec('DELETE FROM lh_inventory_categories WHERE household_id = ' . $householdId);
+            }
             if ($userId !== 0) {
                 $this->pdo->exec('DELETE FROM lh_users WHERE id = ' . $userId);
             }

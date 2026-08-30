@@ -1,24 +1,17 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
-import { SessionStore } from './session.store';
+import { SessionExpiryService } from './session-expiry.service';
 
 const expiredSessionCodes = new Set(['auth.required', 'auth.revoked']);
 
 export const sessionExpiryInterceptor: HttpInterceptorFn = (request, next) => {
-  const session = inject(SessionStore);
-  const router = inject(Router);
+  const sessionExpiry = inject(SessionExpiryService);
 
   return next(request).pipe(
     catchError((error: unknown) => {
       if (isExpiredSessionError(error)) {
-        const redirectRequired = session.authenticated();
-        session.clear();
-
-        if (redirectRequired) {
-          void router.navigate(['/login'], { replaceUrl: true });
-        }
+        sessionExpiry.handle();
       }
 
       return throwError(() => error);

@@ -16,6 +16,7 @@ const overview: ShoppingOverview = {
     { id: 11, category_id: 2, name: 'Ricotta salata', category_name: 'Formaggi e latticini',
       image_attachment_id: null, version: 1 }
   ],
+  product_recipe_usages: [],
   prices: []
 };
 
@@ -42,6 +43,9 @@ describe('ShoppingListComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('.shopping-list-thumb')).toHaveLength(1);
     expect(fixture.nativeElement.querySelector('.shopping-product .shopping-list-thumb')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('.product-thumb.empty')).toBeNull();
+    const productImage = fixture.nativeElement.querySelector('.shopping-list-thumb img') as HTMLImageElement;
+    expect(productImage.getAttribute('loading')).toBe('lazy');
+    expect(productImage.getAttribute('decoding')).toBe('async');
     const clearButton = Array.from(fixture.nativeElement.querySelectorAll('button'))
       .find((button) => (button as HTMLButtonElement).textContent?.includes('Pulisci')) as HTMLButtonElement;
     clearButton.click(); fixture.detectChanges();
@@ -67,12 +71,14 @@ describe('ShoppingListComponent', () => {
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
 
+    expect(fixture.componentInstance.availableProducts().map((product) => product.name))
+      .toEqual(['Ricotta salata', 'Salsiccia']);
     const results = Array.from(fixture.nativeElement.querySelectorAll('.shopping-product-results button')) as HTMLButtonElement[];
     expect(results.map((button) => button.textContent)).toEqual(expect.arrayContaining([
       expect.stringContaining('Salsiccia'), expect.stringContaining('Ricotta salata')
     ]));
 
-    results[0].click();
+    results.find((button) => button.textContent?.includes('Salsiccia'))?.click();
     fixture.detectChanges();
     expect(fixture.componentInstance.addForm.controls.productId.value).toBe('10');
     expect(fixture.componentInstance.productResultsOpen()).toBe(false);

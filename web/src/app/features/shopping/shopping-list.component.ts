@@ -7,6 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
+import { matchingProducts } from './product-search';
 import { ShoppingApiService } from './shopping-api.service';
 import { Product, ShoppingItem, ShoppingOverview } from './shopping.models';
 
@@ -41,10 +42,7 @@ export class ShoppingListComponent {
     quantity: new FormControl('1', { nonNullable: true, validators: [Validators.required] })
   });
   readonly availableProducts = computed(() => {
-    const term = this.search().trim().toLocaleLowerCase('it');
-    return (this.overview()?.products ?? []).filter((product) => !term
-      || product.name.toLocaleLowerCase('it').includes(term)
-      || (product.category_name ?? '').toLocaleLowerCase('it').includes(term)).slice(0, 80);
+    return matchingProducts(this.overview()?.products ?? [], this.search());
   });
   readonly filteredItems = computed(() => {
     const market = Number(this.marketFilter());
@@ -87,6 +85,14 @@ export class ShoppingListComponent {
 
   openProductResults(): void {
     this.productResultsOpen.set(this.search().trim().length > 0);
+  }
+
+  closeProductResults(event: FocusEvent): void {
+    const container = event.currentTarget as HTMLElement | null;
+    const next = event.relatedTarget as Node | null;
+    if (container && next && container.contains(next)) return;
+    this.productResultsOpen.set(false);
+    this.highlightedProductIndex.set(-1);
   }
 
   selectProduct(product: Product): void {

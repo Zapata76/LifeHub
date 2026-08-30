@@ -7,8 +7,8 @@ import { InventoryItem, InventoryOverview, InventoryPayload } from './inventory.
 export class InventoryApiService {
   private readonly http = inject(HttpClient);
 
-  overview(): Observable<InventoryOverview> {
-    return this.http.get<InventoryOverview>('api/v1/inventory/overview');
+  overview(archived = false): Observable<InventoryOverview> {
+    return this.http.get<InventoryOverview>(`api/v1/inventory/overview?archived=${archived ? 1 : 0}`);
   }
 
   detail(id: number): Observable<InventoryItem> {
@@ -27,8 +27,35 @@ export class InventoryApiService {
     return this.http.post(`api/v1/inventory/${id}/archive`, { version }).pipe(map(() => undefined));
   }
 
+  restore(id: number, version: number): Observable<void> {
+    return this.http.post(`api/v1/inventory/${id}/restore`, { version }).pipe(map(() => undefined));
+  }
+
+  deleteItem(id: number, version: number): Observable<void> {
+    return this.http.delete(`api/v1/inventory/${id}`, { body: { version } }).pipe(map(() => undefined));
+  }
+
+  createCategory(name: string): Observable<number> {
+    return this.http.post<{ id: number }>('api/v1/inventory/categories', { name }).pipe(map(({ id }) => id));
+  }
+
+  updateCategory(id: number, version: number, name: string): Observable<void> {
+    return this.http.put(`api/v1/inventory/categories/${id}`, { name, version }).pipe(map(() => undefined));
+  }
+
+  deleteCategory(id: number, version: number): Observable<number> {
+    return this.http.delete<{ deleted: boolean; movedItems: number }>(`api/v1/inventory/categories/${id}`, {
+      body: { version }
+    }).pipe(map(({ movedItems }) => movedItems));
+  }
+
   removeImage(id: number): Observable<void> {
     return this.http.post(`api/v1/inventory/${id}/image/remove`, {}).pipe(map(() => undefined));
+  }
+
+  deleteImage(id: number, imageId: number, version: number): Observable<void> {
+    return this.http.delete(`api/v1/inventory/${id}/images/${imageId}`, { body: { version } })
+      .pipe(map(() => undefined));
   }
 
   uploadImage(id: number, file: File): Observable<void> {

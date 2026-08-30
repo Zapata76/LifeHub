@@ -27,6 +27,12 @@ export class RecipesApiService {
     return this.http.post(`api/v1/recipes/${id}/archive`, { version }).pipe(map(() => undefined));
   }
 
+  createProduct(name: string, categoryId: number | null): Observable<RecipesOverview['products'][number]> {
+    return this.http.post<{ item: RecipesOverview['products'][number] }>('api/v1/products', {
+      name, category_id: categoryId
+    }).pipe(map(({ item }) => item));
+  }
+
   removeImage(id: number): Observable<void> {
     return this.http.post(`api/v1/recipes/${id}/image/remove`, {}).pipe(map(() => undefined));
   }

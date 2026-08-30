@@ -116,11 +116,13 @@ final class ShoppingListController
         }
         $resource = (string) $args['resource'];
         $id = (int) $args['id'];
+        $data = new RequestData($request);
         $keys = $this->shopping->deleteCatalog(
             $user,
             $resource,
             $id,
-            (new RequestData($request))->requiredInt('version')
+            $data->requiredInt('version'),
+            $this->positiveOrNull($data->optionalInt('replacementCategoryId'), 'replacementCategoryId')
         );
         foreach ($keys as $key) {
             $this->storage->discard($key);

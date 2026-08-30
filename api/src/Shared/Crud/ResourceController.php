@@ -92,7 +92,16 @@ final class ResourceController
         foreach ($this->definition->fields() as $field) {
             $value = $data->value($field);
             if ($value !== null) {
-                if (!is_scalar($value)) {
+                $stringLimit = $this->definition->stringLimit($field);
+                if ($stringLimit !== null) {
+                    if (!is_string($value)) {
+                        throw new ApiException(422, 'validation.string', sprintf('%s must be a string.', $field));
+                    }
+                    $value = trim($value);
+                    if (mb_strlen($value, 'UTF-8') > $stringLimit) {
+                        throw new ApiException(422, 'validation.length', sprintf('%s is too long.', $field));
+                    }
+                } elseif (!is_scalar($value)) {
                     throw new ApiException(422, 'validation.scalar', sprintf('%s must be scalar.', $field));
                 }
                 $values[$field] = $value;

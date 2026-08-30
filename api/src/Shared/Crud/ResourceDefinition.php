@@ -20,11 +20,13 @@ final class ResourceDefinition
     /** @var string|null */ private $searchSource;
     /** @var string|null */ private $searchTarget;
     /** @var bool */ private $hasUpdatedAt;
+    /** @var array<string, int> */ private $stringLimits;
 
     /**
      * @param list<string> $fields
      * @param list<string> $required
      * @param array<string, mixed> $defaults
+     * @param array<string, int> $stringLimits
      */
     public function __construct(
         string $entity,
@@ -34,11 +36,17 @@ final class ResourceDefinition
         array $defaults = [],
         ?string $searchSource = null,
         ?string $searchTarget = null,
-        bool $hasUpdatedAt = true
+        bool $hasUpdatedAt = true,
+        array $stringLimits = []
     ) {
         foreach (array_merge([$table], $fields) as $identifier) {
             if (preg_match('/^[a-z][a-z0-9_]*$/', $identifier) !== 1) {
                 throw new InvalidArgumentException('Unsafe resource identifier.');
+            }
+        }
+        foreach ($stringLimits as $field => $limit) {
+            if (!in_array($field, $fields, true) || !is_int($limit) || $limit < 1) {
+                throw new InvalidArgumentException('Invalid resource string limit.');
             }
         }
         $this->entity = $entity;
@@ -49,6 +57,7 @@ final class ResourceDefinition
         $this->searchSource = $searchSource;
         $this->searchTarget = $searchTarget;
         $this->hasUpdatedAt = $hasUpdatedAt;
+        $this->stringLimits = $stringLimits;
     }
 
     public function entity(): string
@@ -82,5 +91,9 @@ final class ResourceDefinition
     public function hasUpdatedAt(): bool
     {
         return $this->hasUpdatedAt;
+    }
+    public function stringLimit(string $field): ?int
+    {
+        return $this->stringLimits[$field] ?? null;
     }
 }

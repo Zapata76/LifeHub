@@ -7,7 +7,7 @@ RewriteEngine On
     Header always set Referrer-Policy "same-origin"
     Header always set X-Frame-Options "SAMEORIGIN"
     Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
-    Header always set Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src https://calendar.google.com; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; worker-src 'self'"
+    Header always set Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src 'self' https://calendar.google.com; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'"
 </IfModule>
 
 <FilesMatch "\.webmanifest$">

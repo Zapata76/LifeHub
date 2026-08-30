@@ -26,7 +26,7 @@ with `admin:create`.
 | Activities | `lh_tasks` |
 | Shopping | `lh_categories`, `lh_supermarkets`, `lh_products`, `lh_prices`, `lh_shopping_lists`, `lh_shopping_items` |
 | Recipes and meals | `lh_recipes`, `lh_recipe_ingredients`, `lh_meal_plan`, `lh_meal_plan_recipes`, `lh_meal_shopping_exports` |
-| Knowledge | `lh_notes`, `lh_documents`, `lh_inventory` |
+| Knowledge | `lh_notes`, `lh_documents`, `lh_inventory_categories`, `lh_inventory` |
 | Goals | `lh_goals`, `lh_trackers`, `lh_goal_logs` |
 | Files | `lh_attachments` |
 | Operations | `lh_operation_runs`, `lh_operation_steps`, `lh_audit_log` |
@@ -38,10 +38,18 @@ with `admin:create`.
 - `version` columns implement optimistic concurrency control.
 - `*_search` and `*_key` fields contain normalized values used for searching
   and uniqueness constraints.
+- Product names are unique per household through
+  `uq_lh_products_name (household_id, name_key)`.
+- Short structured text (file names, calendar IDs, package formats,
+  ingredient labels and quantities) is bounded consistently in the API and
+  schema; free-form descriptions remain BLOB fields.
 - Dates persisted by the API are stored in UTC; presentation uses the
   configured time zone.
 - Files are stored in private storage; the database retains metadata, hashes,
   and ownership links.
+- Legacy import payloads, ID mappings, relation projections, migration
+  history, MD5 passwords, and denormalized product categories are not part of
+  the baseline schema.
 
 ## Verification
 

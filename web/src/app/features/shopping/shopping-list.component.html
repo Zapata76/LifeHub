@@ -34,7 +34,8 @@
         <button class="shopping-product shopping-product-edit" type="button" (click)="openEdit(item)">
           @if (hasImage(item)) {
             <span class="shopping-list-thumb">
-              <img [src]="api.attachment(item.image_attachment_id!)" [alt]="'Immagine di ' + itemName(item)">
+              <img loading="lazy" decoding="async" [src]="api.attachment(item.image_attachment_id!)"
+                [alt]="'Immagine di ' + itemName(item)">
             </span>
           }
           <span class="shopping-product-copy">
@@ -81,7 +82,7 @@
         @if (error()) { <p class="error shopping-modal-error" role="alert">{{ error() }}</p> }
         <div class="shopping-modal-body shopping-add-form">
           <label class="product-search">Cerca prodotto
-            <div class="shopping-product-search">
+            <div class="shopping-product-search" (focusout)="closeProductResults($event)">
               <input formControlName="search" placeholder="Nome o categoria" autocomplete="off" role="combobox"
                 aria-controls="shopping-product-results" [attr.aria-expanded]="productResultsOpen()"
                 [attr.aria-activedescendant]="highlightedProductIndex() >= 0 ? 'shopping-product-' + highlightedProductIndex() : null"

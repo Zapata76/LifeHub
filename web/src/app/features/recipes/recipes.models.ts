@@ -31,16 +31,19 @@ export interface RecipeDetail extends RecipeSummary {
 
 export interface RecipeProduct {
   id: number;
+  category_id: number | null;
   name: string;
   category_name: string | null;
 }
 
 export interface RecipeMember { id: number; username: string; }
+export interface RecipeProductCategory { id: number; name: string; }
 
 export interface RecipesOverview {
   recipes: RecipeSummary[];
   categories: string[];
   products: RecipeProduct[];
+  productCategories: RecipeProductCategory[];
   members: RecipeMember[];
 }
 

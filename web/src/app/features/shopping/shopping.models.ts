@@ -13,6 +13,12 @@ export interface Product {
   version: number;
 }
 
+export interface ProductRecipeUsage {
+  product_id: number;
+  recipe_id: number;
+  recipe_title: string;
+}
+
 export interface ShoppingItem {
   id: number;
   list_id: number;
@@ -51,5 +57,6 @@ export interface ShoppingOverview {
   categories: Category[];
   supermarkets: Supermarket[];
   products: Product[];
+  product_recipe_usages: ProductRecipeUsage[];
   prices: PriceRecord[];
 }

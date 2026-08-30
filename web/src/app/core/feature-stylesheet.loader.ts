@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { ResolveFn } from '@angular/router';
 
 export const FEATURE_STYLESHEET_DATA_KEY = 'featureStylesheet';
+// Bump when a feature stylesheet changes because these bundles have stable filenames.
+const featureStylesheetVersion = '20260830-6';
 
 const featureStylesheetRanks = {
   documents: 10,
@@ -43,7 +45,9 @@ export class FeatureStylesheetLoader {
     const rank = featureStylesheetRanks[name];
     link.id = id;
     link.rel = 'stylesheet';
-    link.href = new URL(`styles/modules/${name}.css`, this.document.baseURI).href;
+    const href = new URL(`styles/modules/${name}.css`, this.document.baseURI);
+    href.searchParams.set('v', featureStylesheetVersion);
+    link.href = href.href;
     link.dataset['lifehubStyleRank'] = String(rank);
 
     const load = new Promise<void>((resolve, reject) => {

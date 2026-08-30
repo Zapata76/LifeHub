@@ -15,6 +15,8 @@ use Throwable;
 
 final class DocumentRepository
 {
+    private const MAX_ATTACHMENTS = 10;
+
     /** @var PDO */ private $pdo;
 
     public function __construct(PDO $pdo)
@@ -50,9 +52,9 @@ final class DocumentRepository
 
     /**
      * @param array<string, string> $document
-     * @param array{storageKey:string,mime:string,size:int,sha256:string,originalName:string} $file
+     * @param list<array{storageKey:string,mime:string,size:int,sha256:string,originalName:string}> $files
      */
-    public function create(UserContext $user, array $document, array $file): int
+    public function create(UserContext $user, array $document, array $files): int
     {
         $this->assertManager($user);
         $now = gmdate('Y-m-d H:i:s');
@@ -66,8 +68,14 @@ final class DocumentRepository
         ]);
         $id = (int) $this->pdo->lastInsertId();
         try {
-            $this->insertAttachment($user, $id, $file, $now);
+            foreach ($files as $file) {
+                $this->insertAttachment($user, $id, $file, $now);
+            }
         } catch (Throwable $exception) {
+            $attachments = $this->pdo->prepare(
+                "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' AND owner_id = ?"
+            );
+            $attachments->execute([$user->householdId(), $id]);
             $cleanup = $this->pdo->prepare('DELETE FROM lh_documents WHERE household_id = ? AND id = ?');
             $cleanup->execute([$user->householdId(), $id]);
             throw $exception;
@@ -77,16 +85,30 @@ final class DocumentRepository
 
     /**
      * @param array<string, string> $document
-     * @param array{storageKey:string,mime:string,size:int,sha256:string,originalName:string}|null $file
-     * @return list<string> old storage keys that can be removed after a successful replacement
+     * @param list<array{storageKey:string,mime:string,size:int,sha256:string,originalName:string}> $files
      */
-    public function update(UserContext $user, int $id, int $version, array $document, ?array $file): array
+    public function update(UserContext $user, int $id, int $version, array $document, array $files): void
     {
         $this->assertManager($user);
-        $this->detail($user, $id);
-        $newAttachmentId = null;
-        if ($file !== null) {
-            $newAttachmentId = $this->insertAttachment($user, $id, $file, gmdate('Y-m-d H:i:s'));
+        $current = $this->detail($user, $id);
+        $attachments = $current['attachments'];
+        $attachmentCount = is_array($attachments) ? count($attachments) : 0;
+        if ($attachmentCount + count($files) > self::MAX_ATTACHMENTS) {
+            throw new ApiException(422, 'document.too_many_files', 'A document can contain at most 10 files.');
+        }
+        $newAttachmentIds = [];
+        try {
+            foreach ($files as $file) {
+                $newAttachmentIds[] = $this->insertAttachment(
+                    $user,
+                    $id,
+                    $file,
+                    gmdate('Y-m-d H:i:s')
+                );
+            }
+        } catch (Throwable $exception) {
+            $this->deleteAttachmentIds($user, $newAttachmentIds);
+            throw $exception;
         }
         $statement = $this->pdo->prepare(
             'UPDATE lh_documents SET title = ?, title_search = ?, description = ?, category_text = ?, '
@@ -98,28 +120,52 @@ final class DocumentRepository
             gmdate('Y-m-d H:i:s'), $user->householdId(), $id, $version,
         ]);
         if ($statement->rowCount() !== 1) {
-            if ($newAttachmentId !== null) {
-                $cleanup = $this->pdo->prepare('DELETE FROM lh_attachments WHERE household_id = ? AND id = ?');
-                $cleanup->execute([$user->householdId(), $newAttachmentId]);
-            }
+            $this->deleteAttachmentIds($user, $newAttachmentIds);
             throw new ApiException(409, 'version.conflict', 'The document changed; reload and retry.');
         }
-        if ($newAttachmentId === null) {
-            return [];
+    }
+
+    public function deleteAttachment(UserContext $user, int $id, int $attachmentId, int $version): string
+    {
+        $this->assertManager($user);
+        $this->detail($user, $id);
+        $this->pdo->beginTransaction();
+        try {
+            $attachment = $this->pdo->prepare(
+                'SELECT storage_key FROM lh_attachments WHERE household_id = ? '
+                . "AND owner_type = 'document' AND owner_id = ? AND id = ? AND archived_at IS NULL"
+            );
+            $attachment->execute([$user->householdId(), $id, $attachmentId]);
+            $storageKey = $attachment->fetchColumn();
+            if (!is_string($storageKey)) {
+                throw new ApiException(404, 'document.attachment_not_found', 'Document file not found.');
+            }
+
+            $document = $this->pdo->prepare(
+                'UPDATE lh_documents SET updated_at = ?, version = version + 1 '
+                . 'WHERE household_id = ? AND id = ? AND version = ? AND archived_at IS NULL'
+            );
+            $document->execute([gmdate('Y-m-d H:i:s'), $user->householdId(), $id, $version]);
+            if ($document->rowCount() !== 1) {
+                throw new ApiException(409, 'version.conflict', 'The document changed; reload and retry.');
+            }
+
+            $delete = $this->pdo->prepare(
+                "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' "
+                . 'AND owner_id = ? AND id = ?'
+            );
+            $delete->execute([$user->householdId(), $id, $attachmentId]);
+            if ($delete->rowCount() !== 1) {
+                throw new ApiException(409, 'version.conflict', 'The document file changed; reload and retry.');
+            }
+            $this->pdo->commit();
+            return $storageKey;
+        } catch (Throwable $exception) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
         }
-        $old = $this->rows(
-            "SELECT storage_key FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' "
-            . 'AND owner_id = ? AND id <> ?',
-            [$user->householdId(), $id, $newAttachmentId]
-        );
-        $delete = $this->pdo->prepare(
-            "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' AND owner_id = ? "
-            . 'AND id <> ?'
-        );
-        $delete->execute([$user->householdId(), $id, $newAttachmentId]);
-        return array_values(array_map(function (array $row): string {
-            return (string) $row['storage_key'];
-        }, $old));
     }
 
     /** @return list<string> */
@@ -157,24 +203,66 @@ final class DocumentRepository
     private function documents(UserContext $user, ?int $id = null): array
     {
         $sql = 'SELECT d.id, d.title, d.description, d.category_text, d.visibility, d.owner_id, '
-            . 'd.created_by, d.created_at, d.updated_at, d.version, u.username AS owner_name, '
-            . 'a.id AS attachment_id, a.original_name AS attachment_name, a.detected_mime AS attachment_mime, '
-            . 'a.size_bytes AS attachment_size FROM lh_documents d '
+            . 'd.created_by, d.created_at, d.updated_at, d.version, u.username AS owner_name '
+            . 'FROM lh_documents d '
             . 'LEFT JOIN lh_users u ON u.household_id = d.household_id AND u.id = d.owner_id '
-            . "LEFT JOIN lh_attachments a ON a.id = (SELECT MAX(ax.id) FROM lh_attachments ax WHERE "
-            . "ax.household_id = d.household_id AND ax.owner_type = 'document' AND ax.owner_id = d.id "
-            . 'AND ax.archived_at IS NULL) WHERE d.household_id = ? AND d.archived_at IS NULL';
+            . 'WHERE d.household_id = ? AND d.archived_at IS NULL';
         $values = [$user->householdId()];
         if ($id !== null) {
             $sql .= ' AND d.id = ?';
             $values[] = $id;
         }
         $documents = $this->rows($sql . ' ORDER BY d.created_at DESC, d.id DESC', $values);
+
+        $attachmentsByDocument = [];
+        foreach ($this->attachments($user, $id) as $attachment) {
+            $documentId = (int) $attachment['owner_id'];
+            $attachmentsByDocument[$documentId][] = [
+                'id' => (int) $attachment['id'],
+                'name' => (string) $attachment['original_name'],
+                'mime' => (string) $attachment['detected_mime'],
+                'size' => (int) $attachment['size_bytes'],
+            ];
+        }
         foreach ($documents as &$document) {
+            $attachments = $attachmentsByDocument[(int) $document['id']] ?? [];
+            $latest = count($attachments) > 0 ? $attachments[count($attachments) - 1] : null;
+            $document['attachments'] = $attachments;
+            $document['attachment_id'] = $latest === null ? null : $latest['id'];
+            $document['attachment_name'] = $latest === null ? null : $latest['name'];
+            $document['attachment_mime'] = $latest === null ? null : $latest['mime'];
+            $document['attachment_size'] = $latest === null ? null : $latest['size'];
             $document['can_edit'] = true;
         }
         unset($document);
         return $documents;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function attachments(UserContext $user, ?int $documentId): array
+    {
+        $sql = 'SELECT id, owner_id, original_name, detected_mime, size_bytes FROM lh_attachments '
+            . "WHERE household_id = ? AND owner_type = 'document' AND archived_at IS NULL";
+        $values = [$user->householdId()];
+        if ($documentId !== null) {
+            $sql .= ' AND owner_id = ?';
+            $values[] = $documentId;
+        }
+        return $this->rows($sql . ' ORDER BY owner_id, created_at, id', $values);
+    }
+
+    /** @param list<int> $ids */
+    private function deleteAttachmentIds(UserContext $user, array $ids): void
+    {
+        if (count($ids) === 0) {
+            return;
+        }
+        $statement = $this->pdo->prepare(
+            "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' AND id = ?"
+        );
+        foreach ($ids as $id) {
+            $statement->execute([$user->householdId(), $id]);
+        }
     }
 
     /** @param array{storageKey:string,mime:string,size:int,sha256:string,originalName:string} $file */

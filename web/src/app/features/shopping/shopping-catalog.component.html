@@ -2,37 +2,85 @@
 @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
 @if (success()) { <p class="success" role="status">{{ success() }}</p> }
 
-@if (canManage()) {
-  <div class="catalog-admin-grid">
-    <section class="card editor" aria-labelledby="categories-title">
-      <h2 id="categories-title">Categorie</h2>
-      <form [formGroup]="categoryForm" (ngSubmit)="createCategory()" class="inline-create">
-        <label>Nuova categoria<input formControlName="name" maxlength="190"></label>
-        <button class="primary" type="submit" [disabled]="categoryForm.invalid || busy()">Aggiungi</button>
-      </form>
-      <ul class="compact-admin-list">
-        @for (category of overview()?.categories ?? []; track category.id) {
-          <li><span>{{ category.name }}</span><button class="remove-icon" type="button"
-            (click)="requestDelete('categories', category)" aria-label="Elimina categoria">×</button></li>
+@if (section === 'categories') {
+  <section class="catalog-directory" aria-labelledby="categories-title">
+    <div class="section-heading catalog-list-heading">
+      <div><p class="eyebrow">Anagrafica</p><h2 id="categories-title">Categorie ({{ categories().length }})</h2></div>
+      <div class="catalog-toolbar">
+        @if (canManage()) {
+          <button class="primary" type="button" (click)="openCatalogCreate('categories')">+ Nuova categoria</button>
         }
-      </ul>
-    </section>
-    <section class="card editor" aria-labelledby="markets-title">
-      <h2 id="markets-title">Supermercati</h2>
-      <form [formGroup]="marketForm" (ngSubmit)="createMarket()" class="inline-create">
-        <label>Nuovo supermercato<input formControlName="name" maxlength="190"></label>
-        <button class="primary" type="submit" [disabled]="marketForm.invalid || busy()">Aggiungi</button>
-      </form>
-      <ul class="compact-admin-list">
-        @for (market of overview()?.supermarkets ?? []; track market.id) {
-          <li><span>{{ market.name }}</span><button class="remove-icon" type="button"
-            (click)="requestDelete('supermarkets', market)" aria-label="Elimina supermercato">×</button></li>
+        <label>Cerca<input type="search" placeholder="Nome categoria" (input)="setFilter($event)"></label>
+      </div>
+    </div>
+    @if (loading()) { <p class="state" role="status">Caricamento categorie&hellip;</p> }
+    @else {
+      <div class="catalog-entity-grid">
+        @for (category of categories(); track category.id) {
+          <article class="card catalog-entity-card">
+            <div class="catalog-entity-copy">
+              <small>Categoria</small>
+              <h3>{{ category.name }}</h3>
+              @let productCount = categoryProductCount(category.id);
+              <p>{{ productCount }} {{ productCount === 1 ? 'prodotto collegato' : 'prodotti collegati' }}</p>
+            </div>
+            @if (canManage()) {
+              <div class="catalog-admin-actions">
+                <button class="edit-icon" type="button" (click)="requestRename('categories', category)"
+                  aria-label="Modifica categoria" title="Modifica categoria">&#9998;</button>
+                <button class="remove-icon" type="button" (click)="requestDelete('categories', category)"
+                  aria-label="Elimina categoria" title="Elimina categoria">&times;</button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <p class="state catalog-empty">Nessuna categoria trovata.</p>
         }
-      </ul>
-    </section>
-  </div>
+      </div>
+    }
+  </section>
 }
 
+@if (section === 'supermarkets') {
+  <section class="catalog-directory" aria-labelledby="markets-title">
+    <div class="section-heading catalog-list-heading">
+      <div><p class="eyebrow">Anagrafica</p><h2 id="markets-title">Supermercati ({{ supermarkets().length }})</h2></div>
+      <div class="catalog-toolbar">
+        @if (canManage()) {
+          <button class="primary" type="button" (click)="openCatalogCreate('supermarkets')">+ Nuovo supermercato</button>
+        }
+        <label>Cerca<input type="search" placeholder="Nome supermercato" (input)="setFilter($event)"></label>
+      </div>
+    </div>
+    @if (loading()) { <p class="state" role="status">Caricamento supermercati&hellip;</p> }
+    @else {
+      <div class="catalog-entity-grid">
+        @for (market of supermarkets(); track market.id) {
+          <article class="card catalog-entity-card">
+            <div class="catalog-entity-copy">
+              <small>Supermercato</small>
+              <h3>{{ market.name }}</h3>
+              @let priceCount = supermarketPriceCount(market.id);
+              <p>{{ priceCount }} {{ priceCount === 1 ? 'rilevazione di prezzo' : 'rilevazioni di prezzo' }}</p>
+            </div>
+            @if (canManage()) {
+              <div class="catalog-admin-actions">
+                <button class="edit-icon" type="button" (click)="requestRename('supermarkets', market)"
+                  aria-label="Modifica supermercato" title="Modifica supermercato">&#9998;</button>
+                <button class="remove-icon" type="button" (click)="requestDelete('supermarkets', market)"
+                  aria-label="Elimina supermercato" title="Elimina supermercato">&times;</button>
+              </div>
+            }
+          </article>
+        } @empty {
+          <p class="state catalog-empty">Nessun supermercato trovato.</p>
+        }
+      </div>
+    }
+  </section>
+}
+
+@if (section === 'products') {
 <section aria-labelledby="products-title">
   <div class="section-heading catalog-list-heading">
     <div><p class="eyebrow">Anagrafica</p><h2 id="products-title">Prodotti ({{ products().length }})</h2></div>
@@ -50,12 +98,23 @@
         <article class="card product-card">
           <div class="product-thumb large" [class.product-placeholder]="!hasImage(product)">
             @if (hasImage(product)) {
-              <img [src]="api.attachment(product.image_attachment_id!)" [alt]="'Immagine di ' + product.name">
+              <img loading="lazy" decoding="async" [src]="api.attachment(product.image_attachment_id!)"
+                [alt]="'Immagine di ' + product.name">
             } @else { <img src="icons/5a.png" alt="Immagine prodotto non disponibile"> }
           </div>
           <div class="product-card-body">
             <small>{{ product.category_name || 'Senza categoria' }}</small>
             <h3>{{ product.name }}</h3>
+            <div class="product-list-membership">
+              @if (isProductInList(product.id)) {
+                <span class="product-list-status"><span aria-hidden="true">&#10003;</span> Attualmente in lista</span>
+              } @else {
+                <button class="primary product-list-add" type="button" (click)="addToList(product)"
+                  [disabled]="busy()" [attr.aria-label]="'Aggiungi ' + product.name + ' alla lista'">
+                  {{ addingProductId() === product.id ? 'Aggiunta...' : 'Aggiungi alla lista' }}
+                </button>
+              }
+            </div>
             @if (canManage()) {
               <div class="actions">
                 <button type="button" (click)="edit(product)">Modifica</button>
@@ -69,6 +128,7 @@
   }
 </section>
 
+}
 @if (productModalOpen()) {
   <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeProductModal()"
     (keydown.escape)="closeProductModal()">
@@ -89,13 +149,60 @@
           <label class="wide">Immagine
             <input type="file" [accept]="canCapturePhoto ? 'image/*' : 'image/jpeg,image/png'"
               [attr.capture]="canCapturePhoto ? 'environment' : null" (change)="selectImage($event)">
-            <small>{{ canCapturePhoto ? 'Scatta una foto o scegline una esistente.' : 'Carica un file JPEG o PNG.' }} Massimo 10 MiB.</small>
+            <small>{{ canCapturePhoto ? 'Scatta una foto o scegline una esistente.' : 'Carica un file JPEG o PNG.' }}
+              Ottimizzazione automatica: lato lungo massimo 960 px, JPEG compresso.</small>
           </label>
         </div>
         <footer class="shopping-modal-footer">
           <button class="task-secondary" type="button" (click)="closeProductModal()">Annulla</button>
           <span class="modal-spacer"></span>
-          <button class="primary" type="submit" [disabled]="productForm.invalid || busy()">Salva prodotto</button>
+          <button class="primary" type="submit" [disabled]="productForm.invalid || busy()">
+            {{ busy() ? 'Ottimizzazione e salvataggio…' : 'Salva prodotto' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (createTarget(); as target) {
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeCatalogCreate()"
+    (keydown.escape)="closeCatalogCreate()">
+    <section class="shopping-modal card catalog-name-modal" role="dialog" aria-modal="true"
+      aria-labelledby="catalog-create-title" (click)="$event.stopPropagation()">
+      <h2 id="catalog-create-title">
+        {{ target === 'categories' ? 'Nuova categoria' : 'Nuovo supermercato' }}
+      </h2>
+      <form [formGroup]="catalogCreateForm" (ngSubmit)="createCatalog()">
+        <div class="shopping-modal-body">
+          <label>Nome<input formControlName="name" maxlength="190" autocomplete="off"></label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeCatalogCreate()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="catalogCreateForm.invalid || busy()">Aggiungi</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (renameTarget(); as target) {
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closeRename()"
+    (keydown.escape)="closeRename()">
+    <section class="shopping-modal card catalog-name-modal" role="dialog" aria-modal="true"
+      aria-labelledby="catalog-rename-title" (click)="$event.stopPropagation()">
+      <h2 id="catalog-rename-title">
+        Rinomina {{ target.resource === 'categories' ? 'categoria' : 'supermercato' }}
+      </h2>
+      <form [formGroup]="catalogNameForm" (ngSubmit)="saveRename()">
+        <div class="shopping-modal-body">
+          <label>Nome<input formControlName="name" maxlength="190" autocomplete="off"></label>
+        </div>
+        <footer class="shopping-modal-footer">
+          <button class="task-secondary" type="button" (click)="closeRename()">Annulla</button>
+          <span class="modal-spacer"></span>
+          <button class="primary" type="submit" [disabled]="catalogNameForm.invalid || busy()">Salva nome</button>
         </footer>
       </form>
     </section>
@@ -110,7 +217,71 @@
       <h2 id="catalog-delete-title">Elimina {{ resourceName(target.resource) }}</h2>
       <div class="shopping-modal-body confirm-copy wide">
         <p>Eliminare definitivamente “{{ target.label }}”?</p>
-        <small>L’operazione non può essere annullata. Gli eventuali riferimenti collegati saranno aggiornati.</small>
+        @if (target.resource === 'categories') {
+          @let productCount = categoryProductCount(target.id);
+          @if (productCount === 0) {
+            <p class="catalog-impact neutral">Nessun prodotto &egrave; collegato a questa categoria.</p>
+          } @else {
+            <p class="catalog-impact">
+              @if (productCount === 1) {
+                <strong>1 prodotto collegato</strong> verr&agrave; spostato nella destinazione scelta.
+              } @else {
+                <strong>{{ productCount }} prodotti collegati</strong> verranno spostati nella destinazione scelta.
+              }
+            </p>
+            <div class="catalog-replacement" [formGroup]="categoryDeletionForm">
+              <label>Destinazione prodotti
+                <select formControlName="replacementCategoryId">
+                  <option value="">Senza categoria</option>
+                  @for (category of replacementCategories(target.id); track category.id) {
+                    <option [value]="category.id">{{ category.name }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+          }
+          <small>La categoria sar&agrave; eliminata definitivamente.</small>
+        } @else if (target.resource === 'supermarkets') {
+          @let priceCount = supermarketPriceCount(target.id);
+          @let itemCount = supermarketItemCount(target.id);
+          <p class="catalog-impact danger">
+            @if (priceCount === 1) {
+              <strong>1 rilevazione di prezzo sar&agrave; eliminata definitivamente.</strong>
+            } @else {
+              <strong>{{ priceCount }} rilevazioni di prezzo saranno eliminate definitivamente.</strong>
+            }
+          </p>
+          @if (itemCount > 0) {
+            <p class="catalog-impact neutral">
+              @if (itemCount === 1) {
+                <strong>1 riga della spesa</strong> diventer&agrave; “Qualsiasi supermercato”.
+              } @else {
+                <strong>{{ itemCount }} righe della spesa</strong> diventeranno “Qualsiasi supermercato”.
+              }
+            </p>
+          }
+          <small>Il supermercato e le rilevazioni indicate non potranno essere recuperati.</small>
+        } @else {
+          @let recipes = recipesForProduct(target.id);
+          @if (recipes.length === 0) {
+            <p class="catalog-impact neutral">Il prodotto non &egrave; collegato ad alcuna ricetta attiva.</p>
+          } @else {
+            <div class="catalog-impact danger product-recipe-impact">
+              @if (recipes.length === 1) {
+                <strong>Il collegamento al prodotto verr&agrave; rimosso da questa ricetta:</strong>
+              } @else {
+                <strong>Il collegamento al prodotto verr&agrave; rimosso da {{ recipes.length }} ricette:</strong>
+              }
+              <ul class="product-recipe-impact-list">
+                @for (recipe of recipes; track recipe.recipe_id) {
+                  <li>{{ recipe.recipe_title }}</li>
+                }
+              </ul>
+            </div>
+          }
+          <small class="wide">Le righe ingrediente resteranno nelle ricette come testo libero. Il prodotto sar&agrave; scollegato
+            dalla lista della spesa; rilevazioni di prezzo e immagini saranno eliminate definitivamente.</small>
+        }
       </div>
       <footer class="shopping-modal-footer">
         <button class="task-secondary" type="button" (click)="closeDelete()">Annulla</button>

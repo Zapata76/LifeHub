@@ -59,10 +59,15 @@ final class RecipeRepository
                 )
             )),
             'products' => $this->rows(
-                'SELECT p.id, p.name, c.name AS category_name FROM lh_products p '
+                'SELECT p.id, p.category_id, p.name, c.name AS category_name FROM lh_products p '
                 . 'LEFT JOIN lh_categories c ON c.household_id = p.household_id AND c.id = p.category_id '
                 . 'WHERE p.household_id = ? AND p.archived_at IS NULL '
                 . 'ORDER BY COALESCE(c.name_key, p.name_key), p.name_key',
+                [$householdId]
+            ),
+            'productCategories' => $this->rows(
+                'SELECT id, name FROM lh_categories WHERE household_id = ? AND archived_at IS NULL '
+                . 'ORDER BY name_key, id',
                 [$householdId]
             ),
             'members' => $this->rows(

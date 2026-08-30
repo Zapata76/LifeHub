@@ -5,7 +5,8 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, map, of, switchMap } from 'rxjs';
+import { Observable, from, map, of, switchMap } from 'rxjs';
+import { ProductImageOptimizer } from './product-image-optimizer.service';
 import { ShoppingOverview } from './shopping.models';
 
 interface ResourceItem { id: number; version: number; }
@@ -14,6 +15,7 @@ interface AttachmentItem { id: number; version: number; }
 @Injectable({ providedIn: 'root' })
 export class ShoppingApiService {
   private readonly http = inject(HttpClient);
+  private readonly productImages = inject(ProductImageOptimizer);
 
   overview(): Observable<ShoppingOverview> {
     return this.http.get<ShoppingOverview>('api/v1/shopping/overview');
@@ -41,13 +43,13 @@ export class ShoppingApiService {
 
   createProduct(name: string, categoryId: number, image?: File): Observable<void> {
     return this.createResource('products', { name, category_id: categoryId }).pipe(
-      switchMap((item) => image ? this.upload('product', item.id, image) : of(undefined))
+      switchMap((item) => image ? this.uploadProductImage(item.id, image) : of(undefined))
     );
   }
 
   updateProduct(id: number, version: number, name: string, categoryId: number, image?: File): Observable<void> {
     return this.updateResource('products', id, { name, category_id: categoryId, version }).pipe(
-      switchMap(() => image ? this.upload('product', id, image) : of(undefined))
+      switchMap(() => image ? this.uploadProductImage(id, image) : of(undefined))
     );
   }
 
@@ -55,8 +57,16 @@ export class ShoppingApiService {
     return this.createResource('categories', { name }).pipe(map(() => undefined));
   }
 
+  updateCategory(id: number, version: number, name: string): Observable<void> {
+    return this.updateResource('categories', id, { name, version });
+  }
+
   createSupermarket(name: string): Observable<void> {
     return this.createResource('supermarkets', { name }).pipe(map(() => undefined));
+  }
+
+  updateSupermarket(id: number, version: number, name: string): Observable<void> {
+    return this.updateResource('supermarkets', id, { name, version });
   }
 
   createPrice(command: {
@@ -68,9 +78,16 @@ export class ShoppingApiService {
     );
   }
 
-  deleteCatalog(resource: 'products' | 'prices' | 'categories' | 'supermarkets', id: number, version: number): Observable<void> {
-    return this.http.delete(`api/v1/shopping/catalog/${resource}/${id}`, { body: { version } })
-      .pipe(map(() => undefined));
+  deleteCatalog(
+    resource: 'products' | 'prices' | 'categories' | 'supermarkets',
+    id: number,
+    version: number,
+    replacementCategoryId?: number | null
+  ): Observable<void> {
+    const body = replacementCategoryId === undefined
+      ? { version }
+      : { version, replacementCategoryId };
+    return this.http.delete(`api/v1/shopping/catalog/${resource}/${id}`, { body }).pipe(map(() => undefined));
   }
 
   attachment(id: number): string {
@@ -83,6 +100,12 @@ export class ShoppingApiService {
 
   private updateResource(resource: string, id: number, values: object): Observable<void> {
     return this.http.put(`api/v1/${resource}/${id}`, values).pipe(map(() => undefined));
+  }
+
+  private uploadProductImage(ownerId: number, file: File): Observable<void> {
+    return from(this.productImages.optimize(file)).pipe(
+      switchMap((optimized) => this.upload('product', ownerId, optimized))
+    );
   }
 
   private upload(ownerType: string, ownerId: number, file: File): Observable<void> {

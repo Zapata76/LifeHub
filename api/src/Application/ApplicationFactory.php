@@ -97,7 +97,7 @@ final class ApplicationFactory
         $goals = new GoalController(new GoalRepository($pdo), $audit, $storage);
         $documents = new DocumentController(new DocumentRepository($pdo), $audit, $storage);
         $recipes = new RecipeController(new RecipeRepository($pdo), $audit);
-        $inventory = new InventoryController(new InventoryRepository($pdo), $audit);
+        $inventory = new InventoryController(new InventoryRepository($pdo), $audit, $storage);
         $notes = new NoteController(new NoteRepository($pdo), $audit);
         $meals = new MealController(new MealRepository($pdo, new OperationJournal($pdo)), $audit);
         $homeSettingsRepository = new HomeSettingsRepository($pdo);
@@ -194,6 +194,10 @@ final class ApplicationFactory
                 $protected->get('/documents/{id:[0-9]+}', [$documents, 'detail']);
                 $protected->post('/documents', [$documents, 'create']);
                 $protected->post('/documents/{id:[0-9]+}', [$documents, 'update']);
+                $protected->delete(
+                    '/documents/{id:[0-9]+}/attachments/{attachmentId:[0-9]+}',
+                    [$documents, 'deleteAttachment']
+                );
                 $protected->delete('/documents/{id:[0-9]+}', [$documents, 'delete']);
                 $protected->get('/recipes/overview', [$recipes, 'overview']);
                 $protected->get('/recipes/{id:[0-9]+}', [$recipes, 'detail']);
@@ -202,11 +206,26 @@ final class ApplicationFactory
                 $protected->post('/recipes/{id:[0-9]+}/archive', [$recipes, 'archive']);
                 $protected->post('/recipes/{id:[0-9]+}/image/remove', [$recipes, 'removeImage']);
                 $protected->get('/inventory/overview', [$inventory, 'overview']);
+                $protected->post('/inventory/categories', [$inventory, 'createCategory']);
+                $protected->put(
+                    '/inventory/categories/{categoryId:[0-9]+}',
+                    [$inventory, 'updateCategory']
+                );
+                $protected->delete(
+                    '/inventory/categories/{categoryId:[0-9]+}',
+                    [$inventory, 'deleteCategory']
+                );
                 $protected->get('/inventory/{id:[0-9]+}', [$inventory, 'detail']);
                 $protected->post('/inventory', [$inventory, 'create']);
                 $protected->put('/inventory/{id:[0-9]+}', [$inventory, 'update']);
                 $protected->post('/inventory/{id:[0-9]+}/archive', [$inventory, 'archive']);
+                $protected->post('/inventory/{id:[0-9]+}/restore', [$inventory, 'restore']);
+                $protected->delete('/inventory/{id:[0-9]+}', [$inventory, 'delete']);
                 $protected->post('/inventory/{id:[0-9]+}/image/remove', [$inventory, 'removeImage']);
+                $protected->delete(
+                    '/inventory/{id:[0-9]+}/images/{imageId:[0-9]+}',
+                    [$inventory, 'deleteImage']
+                );
                 $protected->get('/notes/overview', [$notes, 'overview']);
                 $protected->get('/notes/{id:[0-9]+}', [$notes, 'detail']);
                 $protected->post('/notes', [$notes, 'create']);
@@ -253,7 +272,9 @@ final class ApplicationFactory
                 ['name', 'external_id'],
                 [],
                 null,
-                null
+                null,
+                true,
+                ['name' => 255, 'external_id' => 512]
             ),
             'categories' => new ResourceDefinition(
                 'category',
@@ -263,7 +284,8 @@ final class ApplicationFactory
                 [],
                 'name',
                 'name_key',
-                false
+                false,
+                ['name' => 190]
             ),
             'supermarkets' => new ResourceDefinition(
                 'supermarket',
@@ -273,7 +295,8 @@ final class ApplicationFactory
                 [],
                 'name',
                 'name_key',
-                false
+                false,
+                ['name' => 190]
             ),
             'products' => new ResourceDefinition(
                 'product',
@@ -282,7 +305,9 @@ final class ApplicationFactory
                 ['name'],
                 [],
                 'name',
-                'name_key'
+                'name_key',
+                true,
+                ['name' => 255]
             ),
             'prices' => new ResourceDefinition(
                 'price',
@@ -292,7 +317,8 @@ final class ApplicationFactory
                 ['currency' => 'EUR'],
                 null,
                 null,
-                false
+                false,
+                ['currency' => 3, 'package_text' => 32, 'observed_on' => 10]
             ),
         ];
     }

@@ -3,14 +3,20 @@
  * Image bytes remain behind the private attachment API.
  */
 
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, Input, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SessionStore } from '../../core/session.store';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { ShoppingApiService } from './shopping-api.service';
-import { Product, ShoppingOverview } from './shopping.models';
+import { Product, ProductRecipeUsage, ShoppingOverview } from './shopping.models';
 
+type CatalogSection = 'products' | 'categories' | 'supermarkets';
 type CatalogResource = 'products' | 'categories' | 'supermarkets';
+type EditableCatalogResource = 'categories' | 'supermarkets';
+interface CatalogRenameTarget {
+  resource: EditableCatalogResource; id: number; version: number; label: string;
+}
 interface CatalogDeleteTarget { resource: CatalogResource; id: number; version: number; label: string; }
 
 @Component({
@@ -23,6 +29,7 @@ interface CatalogDeleteTarget { resource: CatalogResource; id: number; version: 
 export class ShoppingCatalogComponent {
   readonly api = inject(ShoppingApiService);
   readonly store = inject(SessionStore);
+  @Input() section: CatalogSection = 'products';
   readonly overview = signal<ShoppingOverview | null>(null);
   readonly loading = signal(true);
   readonly busy = signal(false);
@@ -33,16 +40,22 @@ export class ShoppingCatalogComponent {
   readonly editId = signal<number | null>(null);
   readonly image = signal<File | undefined>(undefined);
   readonly deleteTarget = signal<CatalogDeleteTarget | null>(null);
+  readonly renameTarget = signal<CatalogRenameTarget | null>(null);
+  readonly createTarget = signal<EditableCatalogResource | null>(null);
   readonly canCapturePhoto = this.detectCameraCapture();
+  readonly addingProductId = signal<number | null>(null);
   readonly productForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     categoryId: new FormControl('', { nonNullable: true, validators: [Validators.required] })
   });
-  readonly categoryForm = new FormGroup({
+  readonly catalogCreateForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] })
   });
-  readonly marketForm = new FormGroup({
+  readonly catalogNameForm = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] })
+  });
+  readonly categoryDeletionForm = new FormGroup({
+    replacementCategoryId: new FormControl('', { nonNullable: true })
   });
   readonly products = computed(() => {
     const term = this.filter().trim().toLocaleLowerCase('it');
@@ -50,15 +63,28 @@ export class ShoppingCatalogComponent {
       || product.name.toLocaleLowerCase('it').includes(term)
       || (product.category_name ?? '').toLocaleLowerCase('it').includes(term));
   });
+  readonly categories = computed(() => {
+    const term = this.filter().trim().toLocaleLowerCase('it');
+    return (this.overview()?.categories ?? [])
+      .filter((category) => !term || category.name.toLocaleLowerCase('it').includes(term));
+  });
+  readonly supermarkets = computed(() => {
+    const term = this.filter().trim().toLocaleLowerCase('it');
+    return (this.overview()?.supermarkets ?? [])
+      .filter((market) => !term || market.name.toLocaleLowerCase('it').includes(term));
+  });
   readonly canManage = computed(() => ['admin', 'adult'].includes(this.store.user()?.role ?? ''));
 
   constructor() { this.load(); }
 
   load(message = ''): void {
     this.loading.set(true);
+    this.addingProductId.set(null);
     this.api.overview().subscribe({
       next: (overview) => {
         this.overview.set(overview); this.loading.set(false); this.busy.set(false);
+        this.addingProductId.set(null);
+        this.error.set('');
         this.success.set(message);
       },
       error: () => { this.error.set('Impossibile caricare l’anagrafica.'); this.loading.set(false); this.busy.set(false); }
@@ -101,44 +127,182 @@ export class ShoppingCatalogComponent {
     this.resetProductEditor();
   }
 
+  isProductInList(productId: number): boolean {
+    return (this.overview()?.items ?? []).some((item) => Number(item.product_id) === productId);
+  }
+
+  addToList(product: Product): void {
+    const data = this.overview();
+    if (!data || this.busy() || this.isProductInList(product.id)) return;
+    this.clearMessages();
+    const list = data.lists.find((candidate) => Number(candidate.is_primary) === 1) ?? data.lists[0];
+    if (!list) {
+      this.error.set('Nessuna lista della spesa attiva.');
+      return;
+    }
+    this.busy.set(true);
+    this.addingProductId.set(product.id);
+    this.api.addItem({
+      listId: list.id,
+      productId: product.id,
+      supermarketId: null,
+      quantity: '1'
+    }).subscribe({
+      next: () => this.load(product.name + ' aggiunto alla lista.'),
+      error: (response: HttpErrorResponse) => {
+        if (response.status === 409 && response.error?.error?.code === 'shopping.duplicate') {
+          this.load(product.name + ' \u00e8 gi\u00e0 presente nella lista.');
+          return;
+        }
+        this.addingProductId.set(null);
+        this.failed('Il prodotto non \u00e8 stato aggiunto alla lista.');
+      }
+    });
+  }
+
+  openCatalogCreate(resource: EditableCatalogResource): void {
+    this.clearMessages();
+    this.catalogCreateForm.reset({ name: '' });
+    this.createTarget.set(resource);
+  }
+
+  closeCatalogCreate(): void {
+    if (this.busy()) return;
+    this.createTarget.set(null);
+    this.catalogCreateForm.reset({ name: '' });
+  }
+
+  createCatalog(): void {
+    const target = this.createTarget();
+    if (!target) return;
+    if (target === 'categories') {
+      this.createCategory();
+      return;
+    }
+    this.createMarket();
+  }
+
   createCategory(): void {
-    if (this.categoryForm.invalid) return;
+    if (this.catalogCreateForm.invalid) return;
     this.busy.set(true); this.clearMessages();
-    this.api.createCategory(this.categoryForm.controls.name.value.trim()).subscribe({
-      next: () => { this.categoryForm.reset({ name: '' }); this.load('Categoria aggiunta.'); },
+    this.api.createCategory(this.catalogCreateForm.controls.name.value.trim()).subscribe({
+      next: () => {
+        this.createTarget.set(null);
+        this.catalogCreateForm.reset({ name: '' });
+        this.load('Categoria aggiunta.');
+      },
       error: () => this.failed('La categoria non è stata aggiunta.')
     });
   }
 
   createMarket(): void {
-    if (this.marketForm.invalid) return;
+    if (this.catalogCreateForm.invalid) return;
     this.busy.set(true); this.clearMessages();
-    this.api.createSupermarket(this.marketForm.controls.name.value.trim()).subscribe({
-      next: () => { this.marketForm.reset({ name: '' }); this.load('Supermercato aggiunto.'); },
+    this.api.createSupermarket(this.catalogCreateForm.controls.name.value.trim()).subscribe({
+      next: () => {
+        this.createTarget.set(null);
+        this.catalogCreateForm.reset({ name: '' });
+        this.load('Supermercato aggiunto.');
+      },
       error: () => this.failed('Il supermercato non è stato aggiunto.')
     });
   }
 
-  deleteResource(resource: CatalogResource, item: { id: number; version: number }): void {
+  requestRename(
+    resource: EditableCatalogResource,
+    item: { id: number; version: number; name: string }
+  ): void {
+    this.clearMessages();
+    this.renameTarget.set({ resource, id: item.id, version: item.version, label: item.name });
+    this.catalogNameForm.setValue({ name: item.name });
+  }
+
+  closeRename(): void {
+    if (this.busy()) return;
+    this.renameTarget.set(null);
+    this.catalogNameForm.reset({ name: '' });
+  }
+
+  saveRename(): void {
+    const target = this.renameTarget();
+    if (!target || this.catalogNameForm.invalid) return;
+    const name = this.catalogNameForm.controls.name.value.trim();
+    this.busy.set(true);
+    this.clearMessages();
+    const request = target.resource === 'categories'
+      ? this.api.updateCategory(target.id, target.version, name)
+      : this.api.updateSupermarket(target.id, target.version, name);
+    request.subscribe({
+      next: () => {
+        this.renameTarget.set(null);
+        this.catalogNameForm.reset({ name: '' });
+        this.load(target.resource === 'categories' ? 'Categoria rinominata.' : 'Supermercato rinominato.');
+      },
+      error: () => this.failed('Il nome non \u00e8 stato aggiornato. Ricarica e riprova.')
+    });
+  }
+
+  deleteResource(
+    resource: CatalogResource,
+    item: { id: number; version: number },
+    replacementCategoryId?: number | null
+  ): void {
     this.busy.set(true); this.clearMessages();
-    this.api.deleteCatalog(resource, item.id, item.version).subscribe({
+    const request = replacementCategoryId === undefined
+      ? this.api.deleteCatalog(resource, item.id, item.version)
+      : this.api.deleteCatalog(resource, item.id, item.version, replacementCategoryId);
+    request.subscribe({
       next: () => this.load('Elemento eliminato definitivamente.'),
-      error: () => this.failed('L’elemento è stato modificato: ricarica e riprova.')
+      error: () => this.failed('L\u2019elemento \u00e8 stato modificato: ricarica e riprova.')
     });
   }
 
   requestDelete(resource: CatalogResource, item: { id: number; version: number; name: string }): void {
     this.clearMessages();
+    this.categoryDeletionForm.reset({ replacementCategoryId: '' });
     this.deleteTarget.set({ resource, id: item.id, version: item.version, label: item.name });
   }
 
-  closeDelete(): void { if (!this.busy()) this.deleteTarget.set(null); }
+  closeDelete(): void {
+    if (this.busy()) return;
+    this.deleteTarget.set(null);
+    this.categoryDeletionForm.reset({ replacementCategoryId: '' });
+  }
 
   confirmDelete(): void {
     const target = this.deleteTarget();
     if (!target) return;
+    const replacementValue = this.categoryDeletionForm.controls.replacementCategoryId.value;
+    const replacementCategoryId = target.resource === 'categories'
+      ? (replacementValue ? Number(replacementValue) : null)
+      : undefined;
     this.deleteTarget.set(null);
-    this.deleteResource(target.resource, target);
+    this.deleteResource(target.resource, target, replacementCategoryId);
+  }
+
+  categoryProductCount(categoryId: number): number {
+    return (this.overview()?.products ?? [])
+      .filter((product) => Number(product.category_id) === categoryId).length;
+  }
+
+  supermarketPriceCount(supermarketId: number): number {
+    return (this.overview()?.prices ?? [])
+      .filter((price) => Number(price.supermarket_id) === supermarketId).length;
+  }
+
+  supermarketItemCount(supermarketId: number): number {
+    return (this.overview()?.items ?? [])
+      .filter((item) => Number(item.supermarket_id) === supermarketId).length;
+  }
+
+  recipesForProduct(productId: number): ProductRecipeUsage[] {
+    return (this.overview()?.product_recipe_usages ?? [])
+      .filter((usage) => Number(usage.product_id) === productId);
+  }
+
+  replacementCategories(categoryId: number) {
+    return (this.overview()?.categories ?? [])
+      .filter((category) => Number(category.id) !== categoryId);
   }
 
   selectImage(event: Event): void {

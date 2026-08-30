@@ -270,8 +270,67 @@ paths:
     get:
       tags: [Inventory]
       summary: Read policy-visible inventory items, categories, members, documents, and images
+      parameters: [{$ref: '#/components/parameters/Archived'}]
       responses:
         '200': {description: Household inventory workspace}
+  /inventory/categories:
+    post:
+      tags: [Inventory]
+      summary: Create a configurable household inventory category
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 100}
+      responses:
+        '201': {description: Inventory category created}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /inventory/categories/{categoryId}:
+    put:
+      tags: [Inventory]
+      summary: Rename a configurable inventory category
+      parameters:
+        - {name: categoryId, in: path, required: true, schema: {type: integer, minimum: 1}}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, version]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 100}
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Inventory category renamed}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+    delete:
+      tags: [Inventory]
+      summary: Delete a category and move its active and archived items to the fallback category
+      parameters:
+        - {name: categoryId, in: path, required: true, schema: {type: integer, minimum: 1}}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Category deleted; response includes movedItems impact count}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
   /inventory:
     post:
       tags: [Inventory]
@@ -304,6 +363,24 @@ paths:
         '200': {description: Inventory item updated}
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
+    delete:
+      tags: [Inventory]
+      summary: Permanently delete an inventory item and all its images
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Inventory item deleted}
+        '409': {$ref: '#/components/responses/Error'}
   /inventory/{id}/archive:
     post:
       tags: [Inventory]
@@ -313,6 +390,25 @@ paths:
         - {$ref: '#/components/parameters/Csrf'}
       responses:
         '200': {description: Inventory item archived}
+  /inventory/{id}/restore:
+    post:
+      tags: [Inventory]
+      summary: Restore an archived inventory item
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Inventory item restored}
+        '409': {$ref: '#/components/responses/Error'}
   /inventory/{id}/image/remove:
     post:
       tags: [Inventory]
@@ -322,6 +418,30 @@ paths:
         - {$ref: '#/components/parameters/Csrf'}
       responses:
         '200': {description: Image removed}
+  /inventory/{id}/images/{imageId}:
+    delete:
+      tags: [Inventory]
+      summary: Permanently delete one inventory image
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - name: imageId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Image deleted}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
   /notes/overview:
     get:
       tags: [Notes]
@@ -460,14 +580,14 @@ paths:
   /documents/overview:
     get:
       tags: [Documents]
-      summary: Read the searchable private document archive with file metadata
+      summary: Read the searchable private document archive with all file metadata
       responses:
         '200': {description: Document archive aggregate}
         '403': {$ref: '#/components/responses/Error'}
   /documents:
     post:
       tags: [Documents]
-      summary: Create a document with its required private file
+      summary: Create a document with one or more required private files
       parameters: [{$ref: '#/components/parameters/Csrf'}]
       requestBody:
         required: true
@@ -481,14 +601,14 @@ paths:
   /documents/{id}:
     get:
       tags: [Documents]
-      summary: Read one document and its private file metadata
+      summary: Read one document and all its private file metadata
       parameters: [{$ref: '#/components/parameters/Id'}]
       responses:
         '200': {description: Document detail}
         '404': {$ref: '#/components/responses/Error'}
     post:
       tags: [Documents]
-      summary: Update document metadata and optionally replace its private file
+      summary: Update document metadata and optionally append private files
       parameters:
         - {$ref: '#/components/parameters/Id'}
         - {$ref: '#/components/parameters/Csrf'}
@@ -503,12 +623,36 @@ paths:
         '422': {$ref: '#/components/responses/Error'}
     delete:
       tags: [Documents]
-      summary: Permanently delete a document and its private file
+      summary: Permanently delete a document and all its private files
       parameters:
         - {$ref: '#/components/parameters/Id'}
         - {$ref: '#/components/parameters/Csrf'}
       responses:
         '200': {description: Document and file deleted}
+        '409': {$ref: '#/components/responses/Error'}
+  /documents/{id}/attachments/{attachmentId}:
+    delete:
+      tags: [Documents]
+      summary: Permanently delete one private file from a document
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - name: attachmentId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - {$ref: '#/components/parameters/Csrf'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Document file deleted}
+        '404': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
   /{resource}:
     parameters:
@@ -564,8 +708,13 @@ paths:
   /attachments/{id}/download:
     get:
       tags: [Attachments]
-      summary: Download private content after owner authorization
-      parameters: [{$ref: '#/components/parameters/Id'}]
+      summary: Download or preview private content after owner authorization
+      parameters:
+        - {$ref: '#/components/parameters/Id'}
+        - name: inline
+          in: query
+          required: false
+          schema: {type: boolean, default: false}
       responses:
         '200': {description: File content}
         '404': {$ref: '#/components/responses/Error'}
@@ -684,10 +833,10 @@ components:
               quantity: {type: string, maxLength: 100}
     InventoryInput:
       type: object
-      required: [name]
+      required: [name, categoryId]
       properties:
         name: {type: string, maxLength: 255}
-        category: {type: string, maxLength: 100, default: Altro}
+        categoryId: {type: integer, minimum: 1, description: Household inventory category identifier}
         location: {type: string, maxLength: 500}
         ownerId: {type: integer, nullable: true, minimum: 1}
         documentId: {type: integer, nullable: true, minimum: 1}
@@ -734,7 +883,17 @@ components:
         category: {type: string, maxLength: 100, default: Altro}
         notes: {type: string, maxLength: 20000}
         version: {type: integer, minimum: 1}
-        file: {type: string, format: binary, description: Required on create; optional replacement on update}
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: {type: string, format: binary}
+          description: At least one file is required on create; files supplied on update are appended
+        file:
+          type: string
+          format: binary
+          deprecated: true
+          description: Legacy single-file field retained for backward compatibility
   responses:
     Error:
       description: Canonical API error

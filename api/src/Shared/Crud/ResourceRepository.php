@@ -11,6 +11,7 @@ namespace LifeHub\Shared\Crud;
 use LifeHub\Shared\Auth\UserContext;
 use LifeHub\Shared\Http\ApiException;
 use PDO;
+use PDOException;
 
 final class ResourceRepository
 {
@@ -64,7 +65,11 @@ final class ResourceRepository
             'INSERT INTO ' . $this->definition->table() . ' (' . implode(', ', $columns) . ') VALUES ('
             . implode(', ', array_fill(0, count($columns), '?')) . ')'
         );
-        $statement->execute(array_values($values));
+        try {
+            $statement->execute(array_values($values));
+        } catch (PDOException $exception) {
+            $this->rethrowConstraintViolation($exception);
+        }
 
         return (int) $this->pdo->lastInsertId();
     }
@@ -85,7 +90,11 @@ final class ResourceRepository
             . ', version = version + 1 WHERE household_id = ? AND id = ? AND version = ?'
         );
         $parameters = array_merge(array_values($values), [$user->householdId(), $id, $version]);
-        $statement->execute($parameters);
+        try {
+            $statement->execute($parameters);
+        } catch (PDOException $exception) {
+            $this->rethrowConstraintViolation($exception);
+        }
         if ($statement->rowCount() !== 1) {
             throw new ApiException(409, 'version.conflict', 'The resource was modified by another request.');
         }
@@ -125,5 +134,17 @@ final class ResourceRepository
         } finally {
             $this->pdo->exec('UNLOCK TABLES');
         }
+    }
+
+    private function rethrowConstraintViolation(PDOException $exception): void
+    {
+        if ((string) $exception->getCode() === '23000') {
+            throw new ApiException(
+                409,
+                $this->definition->entity() . '.duplicate',
+                ucfirst($this->definition->entity()) . ' already exists.'
+            );
+        }
+        throw $exception;
     }
 }

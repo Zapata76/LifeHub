@@ -15,30 +15,38 @@ export class DocumentsApiService {
     return this.http.get<{ item: DocumentItem }>(`api/v1/documents/${id}`).pipe(map(({ item }) => item));
   }
 
-  create(payload: DocumentPayload, file: File): Observable<number> {
-    return this.http.post<{ id: number }>('api/v1/documents', this.body(payload, file))
+  create(payload: DocumentPayload, files: readonly File[]): Observable<number> {
+    return this.http.post<{ id: number }>('api/v1/documents', this.body(payload, files))
       .pipe(map(({ id }) => Number(id)));
   }
 
-  update(id: number, payload: DocumentPayload, file: File | null): Observable<void> {
-    return this.http.post(`api/v1/documents/${id}`, this.body(payload, file)).pipe(map(() => undefined));
+  update(id: number, payload: DocumentPayload, files: readonly File[]): Observable<void> {
+    return this.http.post(`api/v1/documents/${id}`, this.body(payload, files)).pipe(map(() => undefined));
   }
 
   delete(id: number, version: number): Observable<void> {
     return this.http.delete(`api/v1/documents/${id}`, { body: { version } }).pipe(map(() => undefined));
   }
 
+  deleteAttachment(documentId: number, attachmentId: number, version: number): Observable<void> {
+    return this.http.delete(`api/v1/documents/${documentId}/attachments/${attachmentId}`, {
+      body: { version }
+    }).pipe(map(() => undefined));
+  }
+
   attachment(id: number, inline = false): string {
     return `api/v1/attachments/${id}/download${inline ? '?inline=1' : ''}`;
   }
 
-  private body(payload: DocumentPayload, file: File | null): FormData {
+  private body(payload: DocumentPayload, files: readonly File[]): FormData {
     const body = new FormData();
     body.append('title', payload.title);
     body.append('category', payload.category);
     body.append('notes', payload.notes);
     if (payload.version !== undefined) body.append('version', String(payload.version));
-    if (file) body.append('file', file, file.name);
+    for (const file of files) {
+      body.append('files[]', file, file.name);
+    }
     return body;
   }
 }

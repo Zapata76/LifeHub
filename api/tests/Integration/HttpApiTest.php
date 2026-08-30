@@ -10,6 +10,7 @@ namespace LifeHub\Tests\Integration;
 
 use LifeHub\Application\ApplicationFactory;
 use LifeHub\Installation\SchemaInitializer;
+use LifeHub\Inventory\InventoryCategoryDefaults;
 use LifeHub\Shared\Config\Settings;
 use LifeHub\Tests\Support\TemporaryDatabase;
 use LifeHub\Tests\Support\TemporaryStorage;
@@ -45,6 +46,7 @@ final class HttpApiTest extends TestCase
             . '(id, household_id, username, username_key, password_hash, role, status, created_at, updated_at) '
             . "VALUES (1, 1, 'admin', 'admin', ?, 'admin', 'active', ?, ?)"
         )->execute([password_hash('integration-password', PASSWORD_BCRYPT), $now, $now]);
+        InventoryCategoryDefaults::seed($pdo, 1, 1, $now);
         $pdo->prepare(
             'INSERT INTO lh_shopping_lists '
             . '(id, household_id, name, name_key, is_primary, created_by, created_at) '
@@ -329,13 +331,71 @@ final class HttpApiTest extends TestCase
         $category = $this->json($app->handle($this->request('POST', '/v1/categories', [
             'name' => 'Ortofrutta',
         ], $csrf)))['item'];
+        $replacementCategory = $this->json($app->handle($this->request('POST', '/v1/categories', [
+            'name' => 'Freschi',
+        ], $csrf)))['item'];
         $market = $this->json($app->handle($this->request('POST', '/v1/supermarkets', [
             'name' => 'Mercato fisico',
         ], $csrf)))['item'];
+        $renamedCategory = $app->handle($this->request(
+            'PUT',
+            '/v1/categories/' . $category['id'],
+            ['name' => 'Orto e frutta', 'version' => $category['version']],
+            $csrf
+        ));
+        self::assertSame(200, $renamedCategory->getStatusCode(), (string) $renamedCategory->getBody());
+        $category['version'] = 2;
+        $renamedMarket = $app->handle($this->request(
+            'PUT',
+            '/v1/supermarkets/' . $market['id'],
+            ['name' => 'Mercato Centrale', 'version' => $market['version']],
+            $csrf
+        ));
+        self::assertSame(200, $renamedMarket->getStatusCode(), (string) $renamedMarket->getBody());
+        $market['version'] = 2;
         $product = $this->json($app->handle($this->request('POST', '/v1/products', [
             'name' => 'Mele', 'category_id' => $category['id'],
         ], $csrf)))['item'];
+        $duplicateProduct = $app->handle($this->request('POST', '/v1/products', [
+            'name' => '  mele  ', 'category_id' => $replacementCategory['id'],
+        ], $csrf));
+        self::assertSame(409, $duplicateProduct->getStatusCode(), (string) $duplicateProduct->getBody());
+        self::assertSame('product.duplicate', $this->json($duplicateProduct)['error']['code']);
+        $longProduct = $app->handle($this->request('POST', '/v1/products', [
+            'name' => str_repeat('x', 256), 'category_id' => $category['id'],
+        ], $csrf));
+        self::assertSame(422, $longProduct->getStatusCode(), (string) $longProduct->getBody());
+        self::assertSame('validation.length', $this->json($longProduct)['error']['code']);
+        $recipeResponse = $app->handle($this->request('POST', '/v1/recipes', [
+            'title' => 'Crostata di mele', 'category' => 'Dolce', 'description' => '',
+            'instructions' => 'Cuocere.', 'prepTimeMinutes' => 40, 'difficulty' => 'media',
+            'ingredients' => [
+                ['productId' => $product['id'], 'name' => 'Mele', 'quantity' => '3'],
+            ],
+        ], $csrf));
+        self::assertSame(201, $recipeResponse->getStatusCode(), (string) $recipeResponse->getBody());
+        $recipeId = (int) $this->json($recipeResponse)['id'];
+        $catalogueOverview = $this->json($app->handle($this->request('GET', '/v1/shopping/overview')));
+        self::assertCount(1, $catalogueOverview['product_recipe_usages']);
+        self::assertSame(
+            (int) $product['id'],
+            (int) $catalogueOverview['product_recipe_usages'][0]['product_id']
+        );
+        self::assertSame(
+            $recipeId,
+            (int) $catalogueOverview['product_recipe_usages'][0]['recipe_id']
+        );
+        self::assertSame(
+            'Crostata di mele',
+            $catalogueOverview['product_recipe_usages'][0]['recipe_title']
+        );
         $list = ['id' => 1];
+        $longPackage = $app->handle($this->request('POST', '/v1/prices', [
+            'product_id' => $product['id'], 'supermarket_id' => $market['id'], 'amount' => 2.49,
+            'package_text' => str_repeat('x', 33),
+        ], $csrf));
+        self::assertSame(422, $longPackage->getStatusCode(), (string) $longPackage->getBody());
+        self::assertSame('validation.length', $this->json($longPackage)['error']['code']);
         $price = $this->json($app->handle($this->request('POST', '/v1/prices', [
             'product_id' => $product['id'], 'supermarket_id' => $market['id'], 'amount' => 2.49,
         ], $csrf)))['item'];
@@ -414,21 +474,58 @@ final class HttpApiTest extends TestCase
         self::assertNull(
             $this->scalar('SELECT product_id FROM lh_shopping_items WHERE id = ' . (int) $preserved['id'])
         );
+        self::assertNull(
+            $this->scalar('SELECT product_id FROM lh_recipe_ingredients WHERE recipe_id = ' . $recipeId)
+        );
+        self::assertSame(
+            'Mele',
+            $this->scalar('SELECT ingredient_name FROM lh_recipe_ingredients WHERE recipe_id = ' . $recipeId)
+        );
 
-        foreach (
+        $movedProduct = $this->json($app->handle($this->request('POST', '/v1/products', [
+            'name' => 'Pere', 'category_id' => $category['id'],
+        ], $csrf)))['item'];
+        $invalidReplacement = $app->handle($this->request(
+            'DELETE',
+            '/v1/shopping/catalog/categories/' . $category['id'],
+            ['version' => $category['version'], 'replacementCategoryId' => $category['id']],
+            $csrf
+        ));
+        self::assertSame(422, $invalidReplacement->getStatusCode(), (string) $invalidReplacement->getBody());
+
+        $deletedCategory = $app->handle($this->request(
+            'DELETE',
+            '/v1/shopping/catalog/categories/' . $category['id'],
             [
-            ['categories', $category],
-            ['supermarkets', $market],
-            ] as $target
-        ) {
-            $response = $app->handle($this->request(
-                'DELETE',
-                '/v1/shopping/catalog/' . $target[0] . '/' . $target[1]['id'],
-                ['version' => $target[1]['version']],
-                $csrf
-            ));
-            self::assertSame(200, $response->getStatusCode(), (string) $response->getBody());
-        }
+                'version' => $category['version'],
+                'replacementCategoryId' => $replacementCategory['id'],
+            ],
+            $csrf
+        ));
+        self::assertSame(200, $deletedCategory->getStatusCode(), (string) $deletedCategory->getBody());
+        self::assertSame(
+            (int) $replacementCategory['id'],
+            (int) $this->scalar('SELECT category_id FROM lh_products WHERE id = ' . (int) $movedProduct['id'])
+        );
+
+        $deletedReplacement = $app->handle($this->request(
+            'DELETE',
+            '/v1/shopping/catalog/categories/' . $replacementCategory['id'],
+            ['version' => $replacementCategory['version'], 'replacementCategoryId' => null],
+            $csrf
+        ));
+        self::assertSame(200, $deletedReplacement->getStatusCode(), (string) $deletedReplacement->getBody());
+        self::assertNull(
+            $this->scalar('SELECT category_id FROM lh_products WHERE id = ' . (int) $movedProduct['id'])
+        );
+
+        $deletedMarket = $app->handle($this->request(
+            'DELETE',
+            '/v1/shopping/catalog/supermarkets/' . $market['id'],
+            ['version' => $market['version']],
+            $csrf
+        ));
+        self::assertSame(200, $deletedMarket->getStatusCode(), (string) $deletedMarket->getBody());
         self::assertSame(0, (int) $this->scalar('SELECT COUNT(*) FROM lh_categories'));
         self::assertSame(0, (int) $this->scalar('SELECT COUNT(*) FROM lh_supermarkets'));
     }
@@ -564,6 +661,8 @@ final class HttpApiTest extends TestCase
 
         $overview = $this->json($app->handle($this->request('GET', '/v1/recipes/overview')));
         self::assertCount(1, $overview['recipes']);
+        self::assertSame((int) $category['id'], (int) $overview['products'][0]['category_id']);
+        self::assertSame('Pasta', $overview['productCategories'][0]['name']);
         self::assertSame(20, (int) $overview['recipes'][0]['prep_time_minutes']);
         self::assertSame(4, $overview['recipes'][0]['servings']);
         self::assertSame('bassa', $overview['recipes'][0]['difficulty']);
@@ -574,6 +673,15 @@ final class HttpApiTest extends TestCase
         self::assertSame(4, $detail['servings']);
         self::assertSame('Spaghetti', $detail['ingredients'][0]['ingredient_name']);
         self::assertTrue($detail['can_edit']);
+
+        $duplicateIngredients = $payload;
+        $duplicateIngredients['ingredients'] = [
+            ['productId' => $product['id'], 'name' => '', 'quantity' => '200 g'],
+            ['productId' => $product['id'], 'name' => '', 'quantity' => '100 g'],
+        ];
+        $duplicateResponse = $app->handle($this->request('POST', '/v1/recipes', $duplicateIngredients, $csrf));
+        self::assertSame(422, $duplicateResponse->getStatusCode(), (string) $duplicateResponse->getBody());
+        self::assertSame('recipe.ingredient_duplicate', $this->json($duplicateResponse)['error']['code']);
 
         $payload['title'] = 'Spaghetti aggiornati';
         $payload['servings'] = 6;
@@ -608,13 +716,35 @@ final class HttpApiTest extends TestCase
         self::assertSame(201, $documentResponse->getStatusCode(), (string) $documentResponse->getBody());
         $document = ['id' => (int) $this->json($documentResponse)['id']];
 
+        $initialInventory = $this->json($app->handle($this->request('GET', '/v1/inventory/overview')));
+        self::assertCount(5, $initialInventory['categories']);
+        $categoriesByName = [];
+        foreach ($initialInventory['categories'] as $category) {
+            $categoriesByName[(string) $category['name']] = $category;
+        }
+        $toolsCategoryId = (int) $categoriesByName['Attrezzi']['id'];
+        $fallbackCategoryId = (int) $categoriesByName['Altro']['id'];
+
+        $customCategory = $app->handle($this->request('POST', '/v1/inventory/categories', [
+            'name' => 'Cantina',
+        ], $csrf));
+        self::assertSame(201, $customCategory->getStatusCode(), (string) $customCategory->getBody());
+        $customCategoryId = (int) $this->json($customCategory)['id'];
+        $renamedCategory = $app->handle($this->request(
+            'PUT',
+            '/v1/inventory/categories/' . $customCategoryId,
+            ['name' => 'Casa e cantina', 'version' => 1],
+            $csrf
+        ));
+        self::assertSame(200, $renamedCategory->getStatusCode(), (string) $renamedCategory->getBody());
+
         $invalid = $app->handle($this->request('POST', '/v1/inventory', [
-            'name' => 'Trapano', 'category' => 'Attrezzi', 'quantity' => -1,
+            'name' => 'Trapano', 'categoryId' => $toolsCategoryId, 'quantity' => -1,
         ], $csrf));
         self::assertSame(422, $invalid->getStatusCode());
 
         $payload = [
-            'name' => 'Trapano', 'category' => 'Attrezzi', 'location' => 'Garage',
+            'name' => 'Trapano', 'categoryId' => $toolsCategoryId, 'location' => 'Garage',
             'ownerId' => 1, 'documentId' => $document['id'], 'quantity' => 1, 'unit' => 'pz',
             'purchaseDate' => '2026-01-10', 'warrantyExpiry' => '2028-01-10', 'notes' => 'Con valigetta',
         ];
@@ -622,13 +752,44 @@ final class HttpApiTest extends TestCase
         self::assertSame(201, $created->getStatusCode(), (string) $created->getBody());
         $id = (int) $this->json($created)['id'];
 
+        $frontUpload = $app->handle($this->multipartRequest('POST', '/v1/attachments', [
+            'ownerType' => 'inventory', 'ownerId' => $id,
+        ], $csrf, 'trapano-fronte.png'));
+        self::assertSame(201, $frontUpload->getStatusCode(), (string) $frontUpload->getBody());
+        $frontImageId = (int) $this->json($frontUpload)['item']['id'];
+        $frontStorageKey = (string) $this->scalar(
+            'SELECT storage_key FROM lh_attachments WHERE id = ' . $frontImageId
+        );
+        $frontStoragePath = $this->storage()->path()
+            . DIRECTORY_SEPARATOR . 'files' . DIRECTORY_SEPARATOR . $frontStorageKey;
+        self::assertFileExists($frontStoragePath);
+        $backUpload = $app->handle($this->multipartRequest('POST', '/v1/attachments', [
+            'ownerType' => 'inventory', 'ownerId' => $id,
+        ], $csrf, 'trapano-retro.png'));
+        self::assertSame(201, $backUpload->getStatusCode(), (string) $backUpload->getBody());
+
         $overview = $this->json($app->handle($this->request('GET', '/v1/inventory/overview')));
         self::assertCount(1, $overview['items']);
         self::assertSame('admin', $overview['items'][0]['owner_name']);
         self::assertSame('Ricevuta trapano', $overview['items'][0]['document_title']);
-        self::assertSame('Attrezzi', $overview['items'][0]['category_text']);
-        self::assertTrue($overview['can_manage']);
+        self::assertSame('Attrezzi', $overview['items'][0]['category_name']);
+        self::assertSame($toolsCategoryId, (int) $overview['items'][0]['category_id']);
+        $backImageId = (int) $this->json($backUpload)['item']['id'];
+        $backStorageKey = (string) $this->scalar(
+            'SELECT storage_key FROM lh_attachments WHERE id = ' . $backImageId
+        );
+        $backStoragePath = $this->storage()->path()
+            . DIRECTORY_SEPARATOR . 'files' . DIRECTORY_SEPARATOR . $backStorageKey;
+        self::assertFileExists($backStoragePath);
 
+        self::assertTrue($overview['can_manage']);
+        self::assertSame(
+            ['trapano-fronte.png', 'trapano-retro.png'],
+            array_column($overview['items'][0]['images'], 'name')
+        );
+
+        self::assertSame(1, (int) $overview['active_count']);
+        self::assertSame(0, (int) $overview['archived_count']);
         $payload['ownerId'] = null;
         $payload['documentId'] = null;
         $payload['quantity'] = 2.5;
@@ -639,20 +800,128 @@ final class HttpApiTest extends TestCase
         self::assertNull($detail['owner_id']);
         self::assertSame(2.5, (float) $detail['quantity']);
         self::assertSame('2028-01-10', $detail['warranty_expiry']);
+        self::assertCount(2, $detail['images']);
+        self::assertSame((int) $detail['images'][1]['id'], (int) $detail['image_attachment_id']);
+
+        $deletedImage = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/' . $id . '/images/' . $frontImageId,
+            ['version' => 2],
+            $csrf
+        ));
+        self::assertSame(200, $deletedImage->getStatusCode(), (string) $deletedImage->getBody());
+        self::assertFileDoesNotExist($frontStoragePath);
+        $afterImageDelete = $this->json(
+            $app->handle($this->request('GET', '/v1/inventory/' . $id))
+        )['item'];
+        self::assertSame(['trapano-retro.png'], array_column($afterImageDelete['images'], 'name'));
+        self::assertSame(3, (int) $afterImageDelete['version']);
 
         $archived = $app->handle($this->request('POST', '/v1/inventory/' . $id . '/archive', [
-            'version' => 2,
+            'version' => 3,
         ], $csrf));
         self::assertSame(200, $archived->getStatusCode(), (string) $archived->getBody());
         $afterArchive = $this->json($app->handle($this->request('GET', '/v1/inventory/overview')));
         self::assertCount(0, $afterArchive['items']);
+        self::assertSame(0, (int) $afterArchive['active_count']);
+        self::assertSame(1, (int) $afterArchive['archived_count']);
+
+        $archiveOverview = $this->json(
+            $app->handle($this->request('GET', '/v1/inventory/overview?archived=1'))
+        );
+        self::assertCount(1, $archiveOverview['items']);
+        self::assertNotNull($archiveOverview['items'][0]['archived_at']);
+        self::assertSame(1, (int) $archiveOverview['items'][0]['image_count']);
+        self::assertSame(['trapano-retro.png'], array_column($archiveOverview['items'][0]['images'], 'name'));
+
+        $restored = $app->handle($this->request('POST', '/v1/inventory/' . $id . '/restore', [
+            'version' => 4,
+        ], $csrf));
+        self::assertSame(200, $restored->getStatusCode(), (string) $restored->getBody());
+        $afterRestore = $this->json($app->handle($this->request('GET', '/v1/inventory/overview')));
+        self::assertCount(1, $afterRestore['items']);
+        self::assertSame(1, (int) $afterRestore['active_count']);
+        self::assertSame(0, (int) $afterRestore['archived_count']);
+        self::assertSame(5, (int) $afterRestore['items'][0]['version']);
+
+        $archivedAgain = $app->handle($this->request('POST', '/v1/inventory/' . $id . '/archive', [
+            'version' => 5,
+        ], $csrf));
+        self::assertSame(200, $archivedAgain->getStatusCode(), (string) $archivedAgain->getBody());
+
+        $staleDelete = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/' . $id,
+            ['version' => 5],
+            $csrf
+        ));
+        self::assertSame(409, $staleDelete->getStatusCode(), (string) $staleDelete->getBody());
+        self::assertFileExists($backStoragePath);
+
+        $deleted = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/' . $id,
+            ['version' => 6],
+            $csrf
+        ));
+        self::assertSame(200, $deleted->getStatusCode(), (string) $deleted->getBody());
+        self::assertFileDoesNotExist($backStoragePath);
+        self::assertSame(
+            0,
+            (int) $this->scalar('SELECT COUNT(*) FROM lh_inventory WHERE id = ' . $id)
+        );
+        self::assertSame(
+            0,
+            (int) $this->scalar(
+                "SELECT COUNT(*) FROM lh_attachments WHERE owner_type = 'inventory' AND owner_id = " . $id
+            )
+        );
+        self::assertSame(1, (int) $this->scalar('SELECT COUNT(*) FROM lh_documents'));
+
+        $activeCreated = $app->handle($this->request('POST', '/v1/inventory', [
+            'name' => 'Seghetto',
+            'categoryId' => $customCategoryId,
+        ], $csrf));
+        self::assertSame(201, $activeCreated->getStatusCode(), (string) $activeCreated->getBody());
+        $activeId = (int) $this->json($activeCreated)['id'];
+        $deletedCategory = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/categories/' . $customCategoryId,
+            ['version' => 2],
+            $csrf
+        ));
+        self::assertSame(200, $deletedCategory->getStatusCode(), (string) $deletedCategory->getBody());
+        self::assertSame(1, (int) $this->json($deletedCategory)['movedItems']);
+        $reassigned = $this->json($app->handle($this->request('GET', '/v1/inventory/' . $activeId)))['item'];
+        self::assertSame($fallbackCategoryId, (int) $reassigned['category_id']);
+        self::assertSame('Altro', $reassigned['category_name']);
+        self::assertSame(2, (int) $reassigned['version']);
+        $fallbackDelete = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/categories/' . $fallbackCategoryId,
+            ['version' => 1],
+            $csrf
+        ));
+        self::assertSame(422, $fallbackDelete->getStatusCode(), (string) $fallbackDelete->getBody());
+        $activeDeleted = $app->handle($this->request(
+            'DELETE',
+            '/v1/inventory/' . $activeId,
+            ['version' => 2],
+            $csrf
+        ));
+        self::assertSame(200, $activeDeleted->getStatusCode(), (string) $activeDeleted->getBody());
+        self::assertSame(
+            0,
+            (int) $this->scalar('SELECT COUNT(*) FROM lh_inventory WHERE id = ' . $activeId)
+        );
     }
 
-    public function testDocumentArchivePreservesMetadataPrivateFileReplacementAndPhysicalDeletion(): void
+    public function testDocumentArchivePreservesMetadataMultiplePrivateFilesAndPhysicalDeletion(): void
     {
         if ($this->database === null) {
             throw new RuntimeException('Temporary database was not initialized.');
         }
+
         $app = $this->app();
         $session = $this->json($app->handle($this->request('GET', '/v1/auth/session')));
         $login = $this->json($app->handle($this->request('POST', '/v1/auth/login', [
@@ -679,6 +948,8 @@ final class HttpApiTest extends TestCase
         self::assertSame("Rinnovo annuale\nFirmato", $overview['documents'][0]['description']);
         self::assertSame('contratto.png', $overview['documents'][0]['attachment_name']);
         self::assertSame('image/png', $overview['documents'][0]['attachment_mime']);
+        self::assertCount(1, $overview['documents'][0]['attachments']);
+        self::assertSame('contratto.png', $overview['documents'][0]['attachments'][0]['name']);
         self::assertSame('admin', $overview['documents'][0]['owner_name']);
         self::assertTrue($overview['documents'][0]['can_edit']);
         $attachmentId = (int) $overview['documents'][0]['attachment_id'];
@@ -696,30 +967,72 @@ final class HttpApiTest extends TestCase
             'notes' => 'Nuove condizioni', 'version' => 1,
         ], $csrf, null));
         self::assertSame(200, $updated->getStatusCode(), (string) $updated->getBody());
-        $replaced = $app->handle($this->multipartRequest('POST', '/v1/documents/' . $id, [
+        $extended = $app->handle($this->multipartRequest('POST', '/v1/documents/' . $id, [
             'title' => 'Contratto aggiornato', 'category' => 'Certificati',
             'notes' => 'Nuove condizioni', 'version' => 2,
-        ], $csrf, 'contratto-nuovo.png'));
-        self::assertSame(200, $replaced->getStatusCode(), (string) $replaced->getBody());
+        ], $csrf, ['contratto-fronte.png', 'contratto-retro.png']));
+        self::assertSame(200, $extended->getStatusCode(), (string) $extended->getBody());
         $detail = $this->json($app->handle($this->request('GET', '/v1/documents/' . $id)))['item'];
         self::assertSame('Contratto aggiornato', $detail['title']);
         self::assertSame('Certificati', $detail['category_text']);
-        self::assertSame('contratto-nuovo.png', $detail['attachment_name']);
+        self::assertSame('contratto-retro.png', $detail['attachment_name']);
+        self::assertSame(
+            ['contratto.png', 'contratto-fronte.png', 'contratto-retro.png'],
+            array_column($detail['attachments'], 'name')
+        );
         self::assertSame(3, (int) $detail['version']);
         self::assertSame(
-            1,
+            3,
             (int) $this->scalar(
                 "SELECT COUNT(*) FROM lh_attachments WHERE owner_type = 'document' AND owner_id = " . $id
             )
         );
 
-        $now = gmdate('Y-m-d H:i:s');
-        $this->database()->pdo()->prepare(
-            'INSERT INTO lh_inventory (household_id, document_id, name, name_search, status, created_by, '
-            . 'created_at, updated_at) VALUES (1, ?, ?, ?, ?, 1, ?, ?)'
-        )->execute([$id, 'Scatola contratto', 'scatola contratto', 'active', $now, $now]);
+        $attachmentToDelete = $detail['attachments'][1];
+        $deletedAttachmentId = (int) $attachmentToDelete['id'];
+        $deletedStorageKey = (string) $this->scalar(
+            'SELECT storage_key FROM lh_attachments WHERE id = ' . $deletedAttachmentId
+        );
+        $deletedStoragePath = $this->storage()->path()
+            . DIRECTORY_SEPARATOR . 'files' . DIRECTORY_SEPARATOR . $deletedStorageKey;
+        self::assertFileExists($deletedStoragePath);
 
-        $deleted = $app->handle($this->request('DELETE', '/v1/documents/' . $id, ['version' => 3], $csrf));
+        $staleFileDelete = $app->handle($this->request(
+            'DELETE',
+            '/v1/documents/' . $id . '/attachments/' . $deletedAttachmentId,
+            ['version' => 2],
+            $csrf
+        ));
+        self::assertSame(409, $staleFileDelete->getStatusCode(), (string) $staleFileDelete->getBody());
+        self::assertFileExists($deletedStoragePath);
+
+        $deletedFile = $app->handle($this->request(
+            'DELETE',
+            '/v1/documents/' . $id . '/attachments/' . $deletedAttachmentId,
+            ['version' => 3],
+            $csrf
+        ));
+        self::assertSame(200, $deletedFile->getStatusCode(), (string) $deletedFile->getBody());
+        self::assertFileDoesNotExist($deletedStoragePath);
+        $afterFileDelete = $this->json(
+            $app->handle($this->request('GET', '/v1/documents/' . $id))
+        )['item'];
+        self::assertSame(
+            ['contratto.png', 'contratto-retro.png'],
+            array_column($afterFileDelete['attachments'], 'name')
+        );
+        self::assertSame(4, (int) $afterFileDelete['version']);
+
+        $now = gmdate('Y-m-d H:i:s');
+        $fallbackCategoryId = (int) $this->scalar(
+            'SELECT id FROM lh_inventory_categories WHERE household_id = 1 AND is_fallback = 1'
+        );
+        $this->database()->pdo()->prepare(
+            'INSERT INTO lh_inventory (household_id, document_id, category_id, name, name_search, status, '
+            . 'created_by, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, 1, ?, ?)'
+        )->execute([$id, $fallbackCategoryId, 'Scatola contratto', 'scatola contratto', 'active', $now, $now]);
+
+        $deleted = $app->handle($this->request('DELETE', '/v1/documents/' . $id, ['version' => 4], $csrf));
         self::assertSame(200, $deleted->getStatusCode(), (string) $deleted->getBody());
         self::assertSame(0, (int) $this->scalar('SELECT COUNT(*) FROM lh_documents'));
         self::assertSame(
@@ -986,17 +1299,20 @@ final class HttpApiTest extends TestCase
         return $csrf === '' ? $request : $request->withHeader('X-CSRF-Token', $csrf);
     }
 
-    /** @param array<string, mixed> $body */
+    /**
+     * @param array<string, mixed> $body
+     * @param string|list<string>|null $fileNames
+     */
     private function multipartRequest(
         string $method,
         string $path,
         array $body,
         string $csrf,
-        ?string $fileName = 'document.png'
+        $fileNames = 'document.png'
     ): ServerRequestInterface {
         $request = (new ServerRequestFactory())->createServerRequest($method, '/api' . $path)
             ->withParsedBody($body);
-        if ($fileName !== null) {
+        if ($fileNames !== null) {
             $content = base64_decode(
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
                 true
@@ -1004,13 +1320,24 @@ final class HttpApiTest extends TestCase
             if (!is_string($content)) {
                 throw new RuntimeException('Cannot prepare the document fixture.');
             }
-            $temporary = tempnam(sys_get_temp_dir(), 'lifehub-document-');
-            if ($temporary === false || file_put_contents($temporary, $content) === false) {
-                throw new RuntimeException('Cannot write the document fixture.');
+            $names = is_array($fileNames) ? $fileNames : [$fileNames];
+            $uploads = [];
+            foreach ($names as $fileName) {
+                $temporary = tempnam(sys_get_temp_dir(), 'lifehub-document-');
+                if ($temporary === false || file_put_contents($temporary, $content) === false) {
+                    throw new RuntimeException('Cannot write the document fixture.');
+                }
+                $uploads[] = new UploadedFile(
+                    $temporary,
+                    $fileName,
+                    'image/png',
+                    strlen($content),
+                    UPLOAD_ERR_OK
+                );
             }
-            $request = $request->withUploadedFiles([
-                'file' => new UploadedFile($temporary, $fileName, 'image/png', strlen($content), UPLOAD_ERR_OK),
-            ]);
+            $request = $request->withUploadedFiles(is_array($fileNames)
+                ? ['files' => $uploads]
+                : ['file' => $uploads[0]]);
         }
         return $request->withHeader('X-CSRF-Token', $csrf);
     }

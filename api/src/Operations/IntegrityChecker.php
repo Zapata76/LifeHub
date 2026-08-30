@@ -27,7 +27,8 @@ final class IntegrityChecker
             'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks', 'lh_notes',
             'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices', 'lh_recipes',
             'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes', 'lh_shopping_lists',
-            'lh_shopping_items', 'lh_documents', 'lh_inventory', 'lh_goals', 'lh_trackers',
+            'lh_shopping_items', 'lh_documents', 'lh_inventory_categories', 'lh_inventory',
+            'lh_goals', 'lh_trackers',
             'lh_goal_logs', 'lh_attachments',
         ];
         $counts = [];
@@ -48,6 +49,12 @@ final class IntegrityChecker
                 'lh_categories',
                 'id',
                 'category_id IS NOT NULL'
+            ),
+            'inventory.category_id' => $this->orphan(
+                'lh_inventory',
+                'category_id',
+                'lh_inventory_categories',
+                'id'
             ),
             'prices.product_id' => $this->orphan('lh_prices', 'product_id', 'lh_products', 'id'),
             'prices.supermarket_id' => $this->orphan(

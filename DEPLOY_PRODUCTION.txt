@@ -1,8 +1,8 @@
 LIFE HUB - PRODUCTION INSTALLATION AND DEPLOYMENT
 ==================================================
 
-This procedure installs Life Hub on an empty database. There are no migration
-or import scripts for previous applications.
+This procedure installs Life Hub on an empty database using the current schema
+baseline.
 
 
 1. REQUIREMENTS
@@ -107,7 +107,6 @@ Checks:
 
   .\tools\php859.ps1 .\api\bin\lifehub integrity `
     C:\secure\lifehub.production.php
-
 
 4. RELEASE GATE AND BUILD
 -------------------------

@@ -1,1 +1,2 @@
 .auth-card { width: min(440px, 100%); margin: 8vh auto; padding: clamp(1.25rem, 5vw, 2.5rem); }
+.session-expired { padding: .8rem; border: 1px solid #f59e0b66; border-radius: 10px; color: #fde68a; background: #78350f55; }

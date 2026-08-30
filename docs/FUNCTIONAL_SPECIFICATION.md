@@ -80,7 +80,9 @@ and is accessible only to authorized users.
 ## Inventory
 
 - Search by name, location, and category.
-- Owner, category, location, quantity, unit, status, dates, and notes.
+- Owner, configurable household category, location, quantity, unit, status, dates, and notes.
+- Category catalogue with create and rename actions; deleting a category moves its active and archived items to the protected `Altro` fallback.
+- Existing category assignments are normalized through versioned `category_id` references.
 - Link to a document.
 - Attachments and images.
 - Creation and editing through modal dialogs.

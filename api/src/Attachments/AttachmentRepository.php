@@ -34,6 +34,16 @@ final class AttachmentRepository
         return (int) $this->pdo->lastInsertId();
     }
 
+    public function countActive(UserContext $user, string $ownerType, int $ownerId): int
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM lh_attachments WHERE household_id = ? AND owner_type = ? '
+            . 'AND owner_id = ? AND archived_at IS NULL'
+        );
+        $statement->execute([$user->householdId(), $ownerType, $ownerId]);
+        return (int) $statement->fetchColumn();
+    }
+
     /** @return array<string, mixed> */
     public function find(UserContext $user, int $id): array
     {

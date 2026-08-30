@@ -3,7 +3,7 @@
   @if (overview().can_manage) { <button class="primary" type="button" (click)="openCreate()">+ Nuovo documento</button> }
 </div>
 
-@if (error() && !editorOpen() && !deleteTarget()) { <p class="error" role="alert">{{ error() }}</p> }
+@if (error() && !editorOpen() && !deleteTarget() && !attachmentDeleteTarget()) { <p class="error" role="alert">{{ error() }}</p> }
 @if (success()) { <p class="success" role="status">{{ success() }}</p> }
 
 <div class="document-workspace">
@@ -20,8 +20,10 @@
         @for (document of filteredDocuments(); track document.id) {
           <button type="button" class="document-list-item" [class.active]="selected()?.id === document.id"
             (click)="select(document)">
-            <span class="document-list-icon" aria-hidden="true">{{ fileIcon(document) }}</span>
-            <span><strong>{{ document.title }}</strong><small>{{ document.category_text || 'Altro' }} · {{ formatDate(document.created_at) }}</small></span>
+            <span class="document-list-icon" aria-hidden="true">{{ documentIcon(document) }}</span>
+            <span><strong>{{ document.title }}</strong>
+              <small>{{ document.category_text || 'Altro' }} · {{ formatDate(document.created_at) }}
+                · {{ document.attachments.length }} file</small></span>
           </button>
         } @empty { <p class="state">Nessun documento trovato.</p> }
       </div>
@@ -43,13 +45,29 @@
       @if (document.description) {
         <section class="document-detail-section"><h3>Note</h3><div class="document-notes">{{ document.description }}</div></section>
       }
-      <section class="document-detail-section"><h3>File</h3>
-        @if (document.attachment_id) {
-          <div class="document-file-card">
-            <span class="document-file-icon" aria-hidden="true">{{ fileIcon(document) }}</span>
-            <div><strong>{{ document.attachment_name }}</strong><small>{{ document.attachment_mime }} · {{ formatSize(document.attachment_size) }}</small></div>
-            <div class="actions"><a class="button-link" [href]="api.attachment(document.attachment_id, true)" target="_blank" rel="noopener">Apri</a>
-              <a class="button-link" [href]="api.attachment(document.attachment_id)">Scarica</a></div>
+      <section class="document-detail-section"><h3>File ({{ document.attachments.length }})</h3>
+        @if (document.attachments.length > 0) {
+          <div class="document-file-list">
+            @for (attachment of document.attachments; track attachment.id) {
+              <div class="document-file-card">
+                <span class="document-file-icon" aria-hidden="true">{{ fileIcon(attachment) }}</span>
+                <div><strong>{{ attachment.name }}</strong>
+                  <small>{{ attachment.mime }} · {{ formatSize(attachment.size) }}</small></div>
+                <div class="actions">
+                  @if (isPreviewable(attachment)) {
+                    <button class="document-preview-action" type="button"
+                      (click)="openPreview(attachment)">Anteprima</button>
+                  }
+                  <a class="button-link" [href]="api.attachment(attachment.id, true)"
+                    target="_blank" rel="noopener">Apri</a>
+                  <a class="button-link" [href]="api.attachment(attachment.id)">Scarica</a>
+                  @if (document.can_edit) {
+                    <button class="danger document-file-delete" type="button"
+                      (click)="confirmAttachmentDelete(attachment)">Elimina</button>
+                  }
+                </div>
+              </div>
+            }
           </div>
         } @else { <p class="state">Il file associato non è disponibile. Usa “Modifica” per caricarlo.</p> }
       </section>
@@ -80,21 +98,67 @@
           </select></label>
           <label class="wide">Note<textarea formControlName="notes" rows="5" maxlength="20000" placeholder="Descrizione o dettagli del documento"></textarea></label>
           <section class="wide document-upload">
-            <h3>{{ editing() ? 'Sostituisci file' : 'File' }}</h3>
-            @if (editing() && selected()?.attachment_name && !selectedFile()) {
-              <p>File attuale: <strong>{{ selected()?.attachment_name }}</strong></p>
+            <h3>{{ editing() ? 'Aggiungi file' : 'File' }}</h3>
+            @if (editing() && selected()?.attachments?.length) {
+              <p><strong>{{ selected()?.attachments?.length }} file</strong> già presenti.
+                I nuovi file verranno aggiunti senza sostituirli.</p>
             }
-            <label class="recipe-upload-button">📁 {{ selectedFile()?.name || (editing() ? 'Scegli un nuovo file' : 'Seleziona file') }}
-              <input hidden type="file" accept="application/pdf,image/jpeg,image/png" (change)="selectFile($event)"></label>
-            <small>PDF, JPEG o PNG, massimo 10 MiB. Il file è obbligatorio per un nuovo documento.</small>
+            <span class="recipe-upload-button">📁 {{ selectedFilesLabel() }}</span>
+            <small>Fino a 10 file PDF, JPEG o PNG, massimo 10 MiB ciascuno. Almeno un file è obbligatorio per un nuovo documento.</small>
+            <input class="document-upload-input" multiple type="file" accept="application/pdf,image/jpeg,image/png"
+              [attr.aria-label]="editing() ? 'Aggiungi file al documento' : 'Seleziona i file del documento'"
+              (change)="selectFiles($event)">
           </section>
         </div>
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
         <footer class="shopping-modal-footer"><button class="task-secondary" type="button" (click)="closeEditor()">Annulla</button>
           <span class="modal-spacer"></span><button class="primary" type="submit"
-            [disabled]="form.invalid || busy() || (!editing() && !selectedFile())">
+            [disabled]="form.invalid || busy() || (!editing() && selectedFiles().length === 0)">
             {{ busy() ? 'Salvataggio…' : 'Salva documento' }}</button></footer>
       </form>
+    </section>
+  </div>
+}
+
+@if (previewTarget(); as attachment) {
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop (backdropDismissed)="closePreview()"
+    (keydown.escape)="closePreview()">
+    <section class="shopping-modal card document-preview-modal" role="dialog" aria-modal="true"
+      aria-labelledby="document-preview-title" (click)="$event.stopPropagation()">
+      <h2 id="document-preview-title">Anteprima · {{ attachment.name }}</h2>
+      <div class="document-preview-body">
+        @if (isImage(attachment)) {
+          <img [src]="api.attachment(attachment.id, true)" [alt]="'Anteprima di ' + attachment.name">
+        } @else if (previewPdfUrl(); as pdfUrl) {
+          <iframe [src]="pdfUrl" [title]="'Anteprima di ' + attachment.name"></iframe>
+        }
+      </div>
+      <footer class="shopping-modal-footer"><button type="button" (click)="closePreview()">Chiudi</button>
+        <span class="modal-spacer"></span>
+        <a class="button-link" [href]="api.attachment(attachment.id, true)" target="_blank" rel="noopener">
+          Apri in una nuova scheda</a>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (attachmentDeleteTarget(); as attachment) {
+  <div class="shopping-modal-backdrop" role="presentation" lhModalBackdrop
+    (backdropDismissed)="closeAttachmentDelete()" (keydown.escape)="closeAttachmentDelete()">
+    <section class="shopping-modal card document-delete-modal" role="alertdialog" aria-modal="true"
+      aria-labelledby="document-file-delete-title" (click)="$event.stopPropagation()">
+      <h2 id="document-file-delete-title">Eliminare il file?</h2>
+      <div class="document-delete-copy">
+        <p>“{{ attachment.name }}” sarà eliminato definitivamente dal documento “{{ selected()?.title }}”.</p>
+        @if (selected()?.attachments?.length === 1) {
+          <p><strong>È l’ultimo file associato:</strong> il documento resterà disponibile, ma senza allegati.</p>
+        }
+      </div>
+      @if (error()) { <p class="shopping-modal-error error" role="alert">{{ error() }}</p> }
+      <footer class="shopping-modal-footer"><button type="button" (click)="closeAttachmentDelete()"
+          [disabled]="busy()">Annulla</button>
+        <span class="modal-spacer"></span><button class="danger" type="button" (click)="deleteAttachment()"
+          [disabled]="busy()">{{ busy() ? 'Eliminazione…' : 'Elimina definitivamente' }}</button></footer>
     </section>
   </div>
 }
@@ -103,7 +167,7 @@
   <div class="shopping-modal-backdrop" role="presentation">
     <section class="shopping-modal card document-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="document-delete-title">
       <h2 id="document-delete-title">Eliminare il documento?</h2>
-      <p>“{{ document.title }}” e il relativo file saranno eliminati definitivamente. Gli oggetti dell’inventario collegati resteranno senza documento.</p>
+      <p>“{{ document.title }}” e tutti i relativi file saranno eliminati definitivamente. Gli oggetti dell’inventario collegati resteranno senza documento.</p>
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
       <footer class="shopping-modal-footer"><button type="button" (click)="deleteTarget.set(null)" [disabled]="busy()">Annulla</button>
         <span class="modal-spacer"></span><button class="danger" type="button" (click)="deleteDocument()" [disabled]="busy()">Elimina definitivamente</button></footer>

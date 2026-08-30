@@ -1,3 +1,10 @@
+export interface DocumentAttachment {
+  id: number;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface DocumentItem {
   id: number;
   title: string;
@@ -9,6 +16,7 @@ export interface DocumentItem {
   created_at: string;
   updated_at: string;
   version: number;
+  attachments: DocumentAttachment[];
   attachment_id: number | null;
   attachment_name: string | null;
   attachment_mime: string | null;

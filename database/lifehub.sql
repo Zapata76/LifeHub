@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `lh_attachments` (
   `household_id` int(11) NOT NULL,
   `owner_type` varchar(64) NOT NULL,
   `owner_id` bigint(20) NOT NULL,
-  `original_name` mediumblob NOT NULL,
+  `original_name` varchar(255) NOT NULL,
   `storage_key` varchar(190) NOT NULL,
   `detected_mime` varchar(96) NOT NULL,
   `size_bytes` bigint(20) NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS `lh_calendars` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,
   `name` varbinary(255) NOT NULL,
-  `external_id` mediumblob NOT NULL,
+  `external_id` varchar(512) NOT NULL,
   `created_by` int(11) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_at` datetime NOT NULL,
@@ -120,17 +120,31 @@ CREATE TABLE IF NOT EXISTS `lh_households` (
   `version` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_inventory_categories` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `name_key` varchar(190) NOT NULL,
+  `is_fallback` tinyint(1) NOT NULL DEFAULT '0',
+  `created_by` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  `version` int(11) NOT NULL DEFAULT '1',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_inventory_category_name` (`household_id`,`name_key`),
+  KEY `ix_lh_inventory_category_fallback` (`household_id`,`is_fallback`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 CREATE TABLE IF NOT EXISTS `lh_inventory` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,
   `owner_id` int(11) DEFAULT NULL,
   `document_id` int(11) DEFAULT NULL,
+  `category_id` int(11) NOT NULL,
   `name` varbinary(255) NOT NULL,
   `name_search` varchar(255) NOT NULL,
-  `category_text` mediumblob,
   `quantity` decimal(14,4) DEFAULT NULL,
   `unit_code` varchar(32) DEFAULT NULL,
-  `location` mediumblob,
+  `location` varchar(500) DEFAULT NULL,
   `status` varchar(32) NOT NULL DEFAULT 'active',
   `notes` mediumblob,
   `purchase_date` date DEFAULT NULL,
@@ -142,7 +156,8 @@ CREATE TABLE IF NOT EXISTS `lh_inventory` (
   `version` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   KEY `ix_lh_inventory_owner` (`household_id`,`owner_id`),
-  KEY `ix_lh_inventory_document` (`household_id`,`document_id`)
+  KEY `ix_lh_inventory_document` (`household_id`,`document_id`),
+  KEY `ix_lh_inventory_category` (`household_id`,`category_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 CREATE TABLE IF NOT EXISTS `lh_login_attempts` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
@@ -251,7 +266,7 @@ CREATE TABLE IF NOT EXISTS `lh_prices` (
   `supermarket_id` int(11) NOT NULL,
   `amount` decimal(12,2) NOT NULL,
   `currency` char(3) NOT NULL DEFAULT 'EUR',
-  `package_text` mediumblob,
+  `package_text` varchar(32) DEFAULT NULL,
   `observed_on` date DEFAULT NULL,
   `created_by` int(11) NOT NULL,
   `created_at` datetime NOT NULL,
@@ -274,15 +289,15 @@ CREATE TABLE IF NOT EXISTS `lh_products` (
   `version` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   KEY `ix_lh_products_category` (`household_id`,`category_id`),
-  KEY `ix_lh_products_name` (`household_id`,`name_key`)
+  UNIQUE KEY `uq_lh_products_name` (`household_id`,`name_key`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 CREATE TABLE IF NOT EXISTS `lh_recipe_ingredients` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,
   `recipe_id` int(11) NOT NULL,
   `product_id` int(11) DEFAULT NULL,
-  `ingredient_name` mediumblob NOT NULL,
-  `quantity_raw` mediumblob,
+  `ingredient_name` varchar(255) NOT NULL,
+  `quantity_raw` varchar(100) DEFAULT NULL,
   `quantity_value` decimal(14,4) DEFAULT NULL,
   `unit_code` varchar(32) DEFAULT NULL,
   `position_no` int(11) NOT NULL DEFAULT '0',
@@ -301,7 +316,7 @@ CREATE TABLE IF NOT EXISTS `lh_recipes` (
   `title_search` varchar(255) NOT NULL,
   `description` mediumblob,
   `instructions` mediumblob,
-  `category_text` mediumblob,
+  `category_text` varchar(100) DEFAULT NULL,
   `prep_time_minutes` int(11) DEFAULT NULL,
   `difficulty` varchar(30) DEFAULT NULL,
   `servings` decimal(10,2) DEFAULT NULL,
@@ -320,8 +335,8 @@ CREATE TABLE IF NOT EXISTS `lh_shopping_items` (
   `list_id` int(11) NOT NULL,
   `product_id` int(11) DEFAULT NULL,
   `supermarket_id` int(11) DEFAULT NULL,
-  `label` mediumblob NOT NULL,
-  `quantity_raw` mediumblob,
+  `label` varchar(255) NOT NULL,
+  `quantity_raw` varchar(80) DEFAULT NULL,
   `checked` tinyint(1) NOT NULL DEFAULT '0',
   `source_type` varchar(32) DEFAULT NULL,
   `source_id` bigint(20) DEFAULT NULL,
