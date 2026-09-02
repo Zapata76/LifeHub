@@ -23,36 +23,48 @@ final class ShoppingRepository
     }
 
     /** @return array<string, list<array<string, mixed>>> */
-    public function overview(UserContext $user): array
+    public function listOverview(UserContext $user): array
     {
         $householdId = $user->householdId();
         return [
-            'lists' => $this->rows(
-                'SELECT id, name, is_primary, version FROM lh_shopping_lists '
-                . 'WHERE household_id = ? AND archived_at IS NULL ORDER BY is_primary DESC, id',
-                [$householdId]
-            ),
+            'lists' => $this->lists($householdId),
             'items' => $this->items($householdId),
-            'categories' => $this->rows(
-                'SELECT id, name, version FROM lh_categories WHERE household_id = ? '
-                . 'AND archived_at IS NULL ORDER BY name_key',
-                [$householdId]
-            ),
-            'supermarkets' => $this->rows(
-                'SELECT id, name, version FROM lh_supermarkets WHERE household_id = ? '
-                . 'AND archived_at IS NULL ORDER BY name_key',
-                [$householdId]
-            ),
+            'supermarkets' => $this->supermarkets($householdId),
             'products' => $this->products($householdId),
-            'product_recipe_usages' => $this->rows(
-                'SELECT DISTINCT i.product_id, r.id AS recipe_id, r.title AS recipe_title '
-                . 'FROM lh_recipe_ingredients i INNER JOIN lh_recipes r '
-                . 'ON r.household_id = i.household_id AND r.id = i.recipe_id '
-                . 'WHERE i.household_id = ? AND i.product_id IS NOT NULL '
-                . 'AND i.archived_at IS NULL AND r.archived_at IS NULL '
-                . 'ORDER BY i.product_id, r.title, r.id',
+        ];
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    public function catalogOverview(UserContext $user): array
+    {
+        $householdId = $user->householdId();
+        return [
+            'lists' => $this->lists($householdId),
+            'categories' => $this->categories($householdId),
+            'supermarkets' => $this->supermarkets($householdId),
+            'products' => $this->products($householdId),
+            'product_recipe_usages' => $this->productRecipeUsages($householdId),
+            'active_product_ids' => $this->rows(
+                'SELECT DISTINCT product_id AS id FROM lh_shopping_items WHERE household_id = ? '
+                . 'AND product_id IS NOT NULL AND archived_at IS NULL ORDER BY product_id',
                 [$householdId]
             ),
+            'supermarket_item_counts' => $this->resourceCounts(
+                'lh_shopping_items',
+                'supermarket_id',
+                $householdId
+            ),
+            'supermarket_price_counts' => $this->resourceCounts('lh_prices', 'supermarket_id', $householdId),
+        ];
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    public function pricesOverview(UserContext $user): array
+    {
+        $householdId = $user->householdId();
+        return [
+            'supermarkets' => $this->supermarkets($householdId),
+            'products' => $this->products($householdId),
             'prices' => $this->prices($householdId),
         ];
     }
@@ -246,6 +258,61 @@ final class ShoppingRepository
         } finally {
             $this->pdo->exec('UNLOCK TABLES');
         }
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function lists(int $householdId): array
+    {
+        return $this->rows(
+            'SELECT id, name, is_primary, version FROM lh_shopping_lists '
+            . 'WHERE household_id = ? AND archived_at IS NULL ORDER BY is_primary DESC, id',
+            [$householdId]
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function categories(int $householdId): array
+    {
+        return $this->rows(
+            'SELECT id, name, version FROM lh_categories WHERE household_id = ? '
+            . 'AND archived_at IS NULL ORDER BY name_key',
+            [$householdId]
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function supermarkets(int $householdId): array
+    {
+        return $this->rows(
+            'SELECT id, name, version FROM lh_supermarkets WHERE household_id = ? '
+            . 'AND archived_at IS NULL ORDER BY name_key',
+            [$householdId]
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function productRecipeUsages(int $householdId): array
+    {
+        return $this->rows(
+            'SELECT DISTINCT i.product_id, r.id AS recipe_id, r.title AS recipe_title '
+            . 'FROM lh_recipe_ingredients i INNER JOIN lh_recipes r '
+            . 'ON r.household_id = i.household_id AND r.id = i.recipe_id '
+            . 'WHERE i.household_id = ? AND i.product_id IS NOT NULL '
+            . 'AND i.archived_at IS NULL AND r.archived_at IS NULL '
+            . 'ORDER BY i.product_id, r.title, r.id',
+            [$householdId]
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function resourceCounts(string $table, string $column, int $householdId): array
+    {
+        return $this->rows(
+            'SELECT ' . $column . ' AS id, COUNT(*) AS count FROM ' . $table . ' '
+            . 'WHERE household_id = ? AND ' . $column . ' IS NOT NULL AND archived_at IS NULL '
+            . 'GROUP BY ' . $column . ' ORDER BY ' . $column,
+            [$householdId]
+        );
     }
 
     /** @return list<array<string, mixed>> */

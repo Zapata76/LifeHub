@@ -51,7 +51,7 @@
                 </div>
                 <div class="price-observation-media" role="cell">
                   @if (hasImage(price)) {
-                    <img class="price-photo" loading="lazy" [src]="api.attachment(price.image_attachment_id!)"
+                    <img class="price-photo" loading="lazy" decoding="async" [src]="api.attachment(price.image_attachment_id!)"
                       [alt]="'Foto della rilevazione di ' + price.product_name">
                   }
                 </div>

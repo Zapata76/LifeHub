@@ -27,7 +27,7 @@
         [class.note-pinned]="isPinned(note)" [class.note-archived]="showArchived()"
         (click)="openEdit(note)" (keydown.enter)="openEdit(note)" tabindex="0">
         @if (note.image_attachment_id) {
-          <div class="note-card-image"><img [src]="api.attachment(note.image_attachment_id)"
+          <div class="note-card-image"><img loading="lazy" decoding="async" [src]="api.attachment(note.image_attachment_id)"
             [alt]="'Foto della nota ' + (note.title || 'senza titolo')"></div>
         }
         <div class="note-card-body">
@@ -65,7 +65,7 @@
             placeholder="Inizia a scrivere…" aria-label="Contenuto nota"></textarea>
           <section class="note-photo-editor" aria-label="Foto della nota">
             @if (imageSource(editing()); as photo) {
-              <div class="note-photo-preview"><img [src]="photo" alt="Anteprima foto">
+              <div class="note-photo-preview"><img decoding="async" [src]="photo" alt="Anteprima foto">
                 <button type="button" aria-label="Rimuovi foto" (click)="removePhoto()">×</button></div>
             } @else {
               <div class="note-photo-actions"><label>📁 Galleria

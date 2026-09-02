@@ -59,7 +59,7 @@
                 <button class="meal-slot-content" type="button" (click)="openEdit(planned)">
                   @if (planned.description) { <strong>{{ planned.description }}</strong> }
                   @for (recipe of planned.recipes; track recipe.id) {
-                    <span class="meal-recipe-line"><img [src]="recipeImage(recipe)" alt="">{{ recipe.title }}</span>
+                    <span class="meal-recipe-line"><img loading="lazy" decoding="async" [src]="recipeImage(recipe)" alt="">{{ recipe.title }}</span>
                   }
                   @if (planned.servings) { <small>👥 {{ planned.servings }} porzioni</small> }
                   @if (planned.notes) { <small class="meal-note">📝 {{ planned.notes }}</small> }
@@ -112,7 +112,7 @@
             <div class="meal-recipe-results">
               @for (recipe of filteredRecipes(); track recipe.id) {
                 <button type="button" [class.selected]="hasRecipe(recipe.id)" (click)="toggleRecipe(recipe.id)">
-                  <img [src]="recipeImage(recipe)" alt=""><span><strong>{{ recipe.title }}</strong>
+                  <img loading="lazy" decoding="async" [src]="recipeImage(recipe)" alt=""><span><strong>{{ recipe.title }}</strong>
                   <small>{{ recipe.category_text || 'Senza categoria' }} @if (recipe.prep_time_minutes) { · {{ recipe.prep_time_minutes }} min }</small></span>
                   <span>{{ hasRecipe(recipe.id) ? '✓' : '+' }}</span>
                 </button>

@@ -185,12 +185,16 @@
         </div>
         <div class="goal-log-history">
           <h3>Cronologia</h3>
-          @for (log of target.tracker.logs; track log.id) {
-            <div><span>{{ formatDate(log.log_date) }}</span><strong>
-              @if (target.tracker.tracker_type === 'boolean') { {{ log.value_boolean ? 'Fatto' : 'Non fatto' }} }
-              @else { {{ historyValue(target.tracker, log.value_number) }} }
-            </strong></div>
-          } @empty { <p class="muted">Nessun progresso registrato.</p> }
+          @if (logLoading()) {
+            <p class="muted">Caricamento cronologia…</p>
+          } @else {
+            @for (log of target.tracker.logs; track log.id) {
+              <div><span>{{ formatDate(log.log_date) }}</span><strong>
+                @if (target.tracker.tracker_type === 'boolean') { {{ log.value_boolean ? 'Fatto' : 'Non fatto' }} }
+                @else { {{ historyValue(target.tracker, log.value_number) }} }
+              </strong></div>
+            } @empty { <p class="muted">Nessun progresso registrato.</p> }
+          }
         </div>
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
         <footer class="goal-modal-footer">

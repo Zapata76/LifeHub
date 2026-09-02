@@ -577,6 +577,19 @@ paths:
         '200': {description: Progress recorded}
         '403': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
+  /goal-trackers/{trackerId}/logs:
+    get:
+      tags: [Goals]
+      summary: Read the complete recent progress history for a tracker
+      parameters:
+        - name: trackerId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Up to 30 progress observations, newest first}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
   /documents/overview:
     get:
       tags: [Documents]
@@ -717,13 +730,26 @@ paths:
           schema: {type: boolean, default: false}
       responses:
         '200': {description: File content}
+        '304': {description: Cached non-document content is still current}
         '404': {$ref: '#/components/responses/Error'}
-  /shopping/overview:
+  /shopping/list-overview:
     get:
       tags: [Shopping]
-      summary: Read the joined shopping list, product catalog, supermarkets, and price history
+      summary: Read active shopping rows and the data required by the list editor
       responses:
-        '200': {description: Household shopping workspace}
+        '200': {description: Household shopping list workspace}
+  /shopping/catalog-overview:
+    get:
+      tags: [Shopping]
+      summary: Read products, catalogue entries, recipe usages, and impact counters
+      responses:
+        '200': {description: Household shopping catalogue workspace}
+  /shopping/prices-overview:
+    get:
+      tags: [Shopping]
+      summary: Read the complete price history and its product and supermarket dictionaries
+      responses:
+        '200': {description: Household price history workspace}
   /shopping/items:
     post:
       tags: [Shopping]

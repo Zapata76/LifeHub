@@ -5,6 +5,7 @@ import { SessionStore } from '../../core/session.store';
 import { ShoppingApiService } from './shopping-api.service';
 import { ShoppingCatalogComponent } from './shopping-catalog.component';
 import { ShoppingOverview } from './shopping.models';
+import { ShoppingStore } from './shopping.store';
 
 const overview: ShoppingOverview = {
   lists: [{ id: 1, name: 'Spesa', is_primary: 1, version: 1 }],
@@ -28,7 +29,10 @@ const overview: ShoppingOverview = {
   product_recipe_usages: [
     { product_id: 3, recipe_id: 11, recipe_title: 'Torta all\'acqua' },
     { product_id: 3, recipe_id: 12, recipe_title: 'Pane fatto in casa' }
-  ]
+  ],
+  active_product_ids: [{ id: 3 }],
+  supermarket_item_counts: [{ id: 2, count: 1 }],
+  supermarket_price_counts: [{ id: 2, count: 1 }]
 };
 
 describe('ShoppingCatalogComponent', () => {
@@ -36,8 +40,8 @@ describe('ShoppingCatalogComponent', () => {
     const deleteCatalog = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ShoppingCatalogComponent],
-      providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(overview), deleteCatalog, attachment: (id: number) => `attachment/${id}`
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+        catalogOverview: () => of(overview), deleteCatalog, attachment: (id: number) => `attachment/${id}`
       } }]
     }).compileComponents();
     TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');
@@ -75,8 +79,8 @@ describe('ShoppingCatalogComponent', () => {
     const deleteCatalog = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ShoppingCatalogComponent],
-      providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(overview),
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+        catalogOverview: () => of(overview),
         updateCategory,
         updateSupermarket,
         deleteCatalog,
@@ -113,8 +117,8 @@ describe('ShoppingCatalogComponent', () => {
     const addItem = vi.fn(() => of({ id: 20 }));
     await TestBed.configureTestingModule({
       imports: [ShoppingCatalogComponent],
-      providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(overview),
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+        catalogOverview: () => of(overview),
         addItem,
         attachment: (id: number) => 'attachment/' + id
       } }]
@@ -142,8 +146,8 @@ describe('ShoppingCatalogComponent', () => {
     const createSupermarket = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ShoppingCatalogComponent],
-      providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(overview),
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+        catalogOverview: () => of(overview),
         createCategory,
         createSupermarket,
         attachment: (id: number) => 'attachment/' + id
@@ -185,8 +189,8 @@ describe('ShoppingCatalogComponent', () => {
     try {
       await TestBed.configureTestingModule({
         imports: [ShoppingCatalogComponent],
-        providers: [{ provide: ShoppingApiService, useValue: {
-          overview: () => of(overview), attachment: (id: number) => 'attachment/' + id
+        providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+          catalogOverview: () => of(overview), attachment: (id: number) => 'attachment/' + id
         } }]
       }).compileComponents();
       TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');

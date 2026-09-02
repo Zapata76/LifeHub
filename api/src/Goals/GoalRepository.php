@@ -15,6 +15,8 @@ use PDO;
 
 final class GoalRepository
 {
+    private const OVERVIEW_LOG_LIMIT = 6;
+
     /** @var PDO */ private $pdo;
 
     public function __construct(PDO $pdo)
@@ -32,8 +34,14 @@ final class GoalRepository
             . 'WHERE g.household_id = ? AND g.archived_at IS NULL ORDER BY g.created_at DESC, g.id DESC',
             [$user->householdId()]
         );
+        $trackersByGoal = $this->trackersForGoals(
+            $user->householdId(),
+            array_map(function (array $goal): int {
+                return (int) $goal['id'];
+            }, $goals)
+        );
         foreach ($goals as &$goal) {
-            $goal['trackers'] = $this->trackers($user->householdId(), (int) $goal['id']);
+            $goal['trackers'] = $trackersByGoal[(int) $goal['id']] ?? [];
             $goal['can_edit'] = Authorization::canManageHousehold($user);
             $goal['can_log'] = Authorization::canManageHousehold($user)
                 || (int) $goal['owner_id'] === $user->id();
@@ -174,23 +182,73 @@ final class GoalRepository
     }
 
     /** @return list<array<string, mixed>> */
-    private function trackers(int $householdId, int $goalId): array
+    public function logs(UserContext $user, int $trackerId): array
     {
+        $this->trackerForLog($user->householdId(), $trackerId);
+        return $this->rows(
+            'SELECT id, tracker_id, log_date, value_number, value_boolean, note, version '
+            . 'FROM lh_goal_logs WHERE household_id = ? AND tracker_id = ? AND archived_at IS NULL '
+            . 'ORDER BY log_date DESC, id DESC LIMIT 30',
+            [$user->householdId(), $trackerId]
+        );
+    }
+
+    /**
+     * @param list<int> $goalIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function trackersForGoals(int $householdId, array $goalIds): array
+    {
+        if ($goalIds === []) {
+            return [];
+        }
+        $goalPlaceholders = implode(', ', array_fill(0, count($goalIds), '?'));
         $trackers = $this->rows(
             'SELECT id, goal_id, tracker_type, target_value, unit_code, frequency_code, version '
-            . 'FROM lh_trackers WHERE household_id = ? AND goal_id = ? AND archived_at IS NULL ORDER BY id',
-            [$householdId, $goalId]
+            . 'FROM lh_trackers WHERE household_id = ? AND goal_id IN (' . $goalPlaceholders . ') '
+            . 'AND archived_at IS NULL ORDER BY goal_id, id',
+            array_merge([$householdId], $goalIds)
         );
+        $trackerIds = array_map(function (array $tracker): int {
+            return (int) $tracker['id'];
+        }, $trackers);
+        $logsByTracker = $this->recentLogsByTracker($householdId, $trackerIds);
+        $byGoal = [];
         foreach ($trackers as &$tracker) {
-            $tracker['logs'] = $this->rows(
-                'SELECT id, tracker_id, log_date, value_number, value_boolean, note, version '
-                . 'FROM lh_goal_logs WHERE household_id = ? AND tracker_id = ? AND archived_at IS NULL '
-                . 'ORDER BY log_date DESC, id DESC LIMIT 30',
-                [$householdId, (int) $tracker['id']]
-            );
+            $trackerId = (int) $tracker['id'];
+            $goalId = (int) $tracker['goal_id'];
+            $tracker['logs'] = $logsByTracker[$trackerId] ?? [];
+            $byGoal[$goalId][] = $tracker;
         }
         unset($tracker);
-        return $trackers;
+        return $byGoal;
+    }
+
+    /**
+     * @param list<int> $trackerIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function recentLogsByTracker(int $householdId, array $trackerIds): array
+    {
+        if ($trackerIds === []) {
+            return [];
+        }
+        $placeholders = implode(', ', array_fill(0, count($trackerIds), '?'));
+        $logs = $this->rows(
+            'SELECT l.id, l.tracker_id, l.log_date, l.value_number, l.value_boolean, l.note, l.version '
+            . 'FROM lh_goal_logs l WHERE l.household_id = ? AND l.tracker_id IN (' . $placeholders . ') '
+            . 'AND l.archived_at IS NULL AND (SELECT COUNT(*) FROM lh_goal_logs newer '
+            . 'WHERE newer.household_id = l.household_id AND newer.tracker_id = l.tracker_id '
+            . 'AND newer.archived_at IS NULL AND (newer.log_date > l.log_date '
+            . 'OR (newer.log_date = l.log_date AND newer.id > l.id))) < ' . self::OVERVIEW_LOG_LIMIT . ' '
+            . 'ORDER BY l.tracker_id, l.log_date DESC, l.id DESC',
+            array_merge([$householdId], $trackerIds)
+        );
+        $byTracker = [];
+        foreach ($logs as $log) {
+            $byTracker[(int) $log['tracker_id']][] = $log;
+        }
+        return $byTracker;
     }
 
     /** @param list<array<string, mixed>> $trackers */

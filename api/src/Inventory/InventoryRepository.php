@@ -135,7 +135,7 @@ final class InventoryRepository
     {
         $this->assertManager($user);
         $this->detail($user, $id);
-        $this->pdo->beginTransaction();
+        $this->pdo->exec('LOCK TABLES lh_inventory WRITE, lh_attachments WRITE');
         try {
             $attachment = $this->pdo->prepare(
                 'SELECT storage_key FROM lh_attachments WHERE household_id = ? '
@@ -146,6 +146,16 @@ final class InventoryRepository
             $storageKey = $attachment->fetchColumn();
             if (!is_string($storageKey)) {
                 throw new ApiException(404, 'inventory.image_not_found', 'Inventory image not found.');
+            }
+
+            $current = $this->pdo->prepare(
+                'SELECT updated_at FROM lh_inventory WHERE household_id = ? AND id = ? '
+                . 'AND version = ? AND archived_at IS NULL'
+            );
+            $current->execute([$user->householdId(), $id, $version]);
+            $previousUpdatedAt = $current->fetchColumn();
+            if (!is_string($previousUpdatedAt)) {
+                throw new ApiException(409, 'version.conflict', 'The inventory item changed; reload and retry.');
             }
 
             $item = $this->pdo->prepare(
@@ -161,18 +171,29 @@ final class InventoryRepository
                 "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'inventory' "
                 . 'AND owner_id = ? AND id = ?'
             );
-            $delete->execute([$user->householdId(), $id, $imageId]);
+            try {
+                $delete->execute([$user->householdId(), $id, $imageId]);
+            } catch (Throwable $exception) {
+                $this->restoreItemVersion($user->householdId(), $id, $version + 1, $previousUpdatedAt);
+                throw $exception;
+            }
             if ($delete->rowCount() !== 1) {
+                $this->restoreItemVersion($user->householdId(), $id, $version + 1, $previousUpdatedAt);
                 throw new ApiException(409, 'version.conflict', 'The inventory image changed; reload and retry.');
             }
-            $this->pdo->commit();
             return $storageKey;
-        } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
+        } finally {
+            $this->pdo->exec('UNLOCK TABLES');
         }
+    }
+
+    private function restoreItemVersion(int $householdId, int $id, int $currentVersion, string $updatedAt): void
+    {
+        $restore = $this->pdo->prepare(
+            'UPDATE lh_inventory SET updated_at = ?, version = version - 1 '
+            . 'WHERE household_id = ? AND id = ? AND version = ?'
+        );
+        $restore->execute([$updatedAt, $householdId, $id, $currentVersion]);
     }
 
     /** @return list<string> */

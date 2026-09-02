@@ -1,11 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, from, map, switchMap } from 'rxjs';
+import { ImageOptimizer } from '../../shared/image-optimizer.service';
 import { NoteItem, NoteOverview, NotePayload } from './note.models';
 
 @Injectable({ providedIn: 'root' })
 export class NoteApiService {
   private readonly http = inject(HttpClient);
+  private readonly images = inject(ImageOptimizer);
 
   overview(archived: boolean): Observable<NoteOverview> {
     return this.http.get<NoteOverview>(`api/v1/notes/overview?archived=${archived ? 1 : 0}`);
@@ -37,11 +39,15 @@ export class NoteApiService {
   }
 
   uploadImage(id: number, file: File): Observable<void> {
-    const body = new FormData();
-    body.append('ownerType', 'note');
-    body.append('ownerId', String(id));
-    body.append('file', file);
-    return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    return from(this.images.optimize(file, {
+      maxEdge: 1280, jpegQuality: 0.82, fallbackName: 'nota'
+    })).pipe(switchMap((optimized) => {
+      const body = new FormData();
+      body.append('ownerType', 'note');
+      body.append('ownerId', String(id));
+      body.append('file', optimized);
+      return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    }));
   }
 
   attachment(id: number): string {

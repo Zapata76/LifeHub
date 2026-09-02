@@ -100,7 +100,7 @@
             @if (hasImage(product)) {
               <img loading="lazy" decoding="async" [src]="api.attachment(product.image_attachment_id!)"
                 [alt]="'Immagine di ' + product.name">
-            } @else { <img src="icons/5a.png" alt="Immagine prodotto non disponibile"> }
+            } @else { <img loading="lazy" decoding="async" src="icons/5a.png" alt="Immagine prodotto non disponibile"> }
           </div>
           <div class="product-card-body">
             <small>{{ product.category_name || 'Senza categoria' }}</small>

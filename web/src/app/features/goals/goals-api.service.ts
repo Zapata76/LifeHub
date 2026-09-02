@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { GoalPayload, GoalsOverview } from './goals.models';
+import { GoalLog, GoalPayload, GoalsOverview } from './goals.models';
 
 @Injectable({ providedIn: 'root' })
 export class GoalsApiService {
@@ -26,5 +26,10 @@ export class GoalsApiService {
   saveLog(trackerId: number, date: string, value: number | boolean, note: string): Observable<void> {
     return this.http.post(`api/v1/goal-trackers/${trackerId}/log`, { date, value, note })
       .pipe(map(() => undefined));
+  }
+
+  logs(trackerId: number): Observable<GoalLog[]> {
+    return this.http.get<{ items: GoalLog[] }>(`api/v1/goal-trackers/${trackerId}/logs`)
+      .pipe(map(({ items }) => items));
   }
 }

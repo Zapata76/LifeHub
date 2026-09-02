@@ -51,12 +51,31 @@ export interface PriceRecord {
   version: number;
 }
 
-export interface ShoppingOverview {
+export interface ShoppingListOverview {
   lists: ShoppingList[];
   items: ShoppingItem[];
+  supermarkets: Supermarket[];
+  products: Product[];
+}
+
+export interface ResourceCount { id: number; count: number; }
+
+export interface ShoppingCatalogOverview {
+  lists: ShoppingList[];
   categories: Category[];
   supermarkets: Supermarket[];
   products: Product[];
   product_recipe_usages: ProductRecipeUsage[];
+  active_product_ids: Array<{ id: number }>;
+  supermarket_item_counts: ResourceCount[];
+  supermarket_price_counts: ResourceCount[];
+}
+
+export interface ShoppingPricesOverview {
+  supermarkets: Supermarket[];
+  products: Product[];
   prices: PriceRecord[];
 }
+
+/** Complete fixture shape used by cross-view tests and development tooling. */
+export type ShoppingOverview = ShoppingListOverview & ShoppingCatalogOverview & ShoppingPricesOverview;

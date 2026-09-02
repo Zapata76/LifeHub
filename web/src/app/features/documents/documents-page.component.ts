@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Observable } from 'rxjs';
+import { apiErrorMessage } from '../../shared/api-error';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { DocumentsApiService } from './documents-api.service';
 import { DocumentAttachment, DocumentItem, DocumentOverview, DocumentPayload } from './documents.models';
@@ -148,7 +149,7 @@ export class DocumentsPageComponent {
         this.editorOpen.set(false); this.selectedFiles.set([]);
         this.load(id, this.editing() ? 'Documento aggiornato.' : 'Documento aggiunto all’archivio.');
       },
-      error: (error) => this.fail(this.message(error, 'Il documento non è stato salvato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Il documento non è stato salvato.'))
     });
   }
 
@@ -166,7 +167,7 @@ export class DocumentsPageComponent {
         this.deleteTarget.set(null); this.selected.set(null);
         this.load(undefined, 'Documento e file eliminati definitivamente.');
       },
-      error: (error) => this.fail(this.message(error, 'Il documento non è stato eliminato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Il documento non è stato eliminato.'))
     });
   }
 
@@ -199,7 +200,7 @@ export class DocumentsPageComponent {
         if (this.previewTarget()?.id === attachment.id) this.previewTarget.set(null);
         this.load(document.id, `File “${attachment.name}” eliminato definitivamente.`);
       },
-      error: (error) => this.fail(this.message(error, 'Il file non è stato eliminato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Il file non è stato eliminato.'))
     });
   }
 
@@ -248,7 +249,4 @@ export class DocumentsPageComponent {
     this.error.set(message); this.busy.set(false); this.loading.set(false);
   }
 
-  private message(error: any, fallback: string): string {
-    return typeof error?.error?.error?.message === 'string' ? error.error.error.message : fallback;
-  }
 }

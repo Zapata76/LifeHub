@@ -25,7 +25,9 @@ const overview = {
 
 describe('GoalsPageComponent', () => {
   async function createFixture() {
-    const get = vi.fn(() => of(overview));
+    const get = vi.fn((url: string) => of(
+      url.endsWith('/logs') ? { items: overview.goals[0].trackers[0].logs } : overview
+    ));
     const post = vi.fn((url: string) => of(url === 'api/v1/goals' ? { id: 3 } : { saved: true }));
     const put = vi.fn(() => of({ updated: true }));
     const remove = vi.fn(() => of({ deleted: true }));

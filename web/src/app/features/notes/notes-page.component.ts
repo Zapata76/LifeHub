@@ -9,6 +9,8 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { concat, Observable, of } from 'rxjs';
+import { apiErrorMessage } from '../../shared/api-error';
+import { ConfirmationService } from '../../shared/confirmation.service';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { NoteApiService } from './note-api.service';
 import { NoteItem, NoteOverview, NotePayload } from './note.models';
@@ -21,6 +23,7 @@ import { NoteItem, NoteOverview, NotePayload } from './note.models';
 })
 export class NotesPageComponent implements OnDestroy {
   readonly api = inject(NoteApiService);
+  private readonly confirmation = inject(ConfirmationService);
   readonly overview = signal<NoteOverview | null>(null);
   readonly loading = signal(true);
   readonly busy = signal(false);
@@ -104,9 +107,14 @@ export class NotesPageComponent implements OnDestroy {
     this.editorOpen.set(true);
   }
 
-  closeEditor(force = false): void {
+  async closeEditor(force = false): Promise<void> {
     if (this.busy()) return;
-    if (!force && this.hasUnsavedChanges() && !confirm('Scartare le modifiche non salvate?')) return;
+    if (!force && this.hasUnsavedChanges() && !await this.confirmation.confirm({
+      title: 'Modifiche non salvate',
+      message: 'Scartare le modifiche non salvate?',
+      confirmLabel: 'Scarta',
+      danger: true
+    })) return;
     this.editorOpen.set(false); this.resetEditor();
   }
 
@@ -124,7 +132,7 @@ export class NotesPageComponent implements OnDestroy {
       : this.api.create(payload);
     request.subscribe({
       next: (createdId: number | void) => this.persistImage(note ? Number(note.id) : Number(createdId)),
-      error: (error: any) => this.fail(this.message(error, 'La nota non è stata salvata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La nota non è stata salvata.'))
     });
   }
 
@@ -138,11 +146,16 @@ export class NotesPageComponent implements OnDestroy {
     });
   }
 
-  setArchived(note: NoteItem, event?: Event): void {
+  async setArchived(note: NoteItem, event?: Event): Promise<void> {
     event?.stopPropagation();
     if (!note.can_edit || this.busy()) return;
     const restore = this.showArchived();
-    if (!restore && !confirm(`Eliminare “${note.title || 'Senza titolo'}” dalle note attive?`)) return;
+    if (!restore && !await this.confirmation.confirm({
+      title: 'Archivia nota',
+      message: `Archiviare “${note.title || 'Senza titolo'}”? Potrai ripristinarla dall’archivio.`,
+      confirmLabel: 'Archivia',
+      danger: true
+    })) return;
     this.busy.set(true); this.error.set('');
     this.api.setArchived(Number(note.id), Number(note.version), restore).subscribe({
       next: () => {
@@ -220,7 +233,4 @@ export class NotesPageComponent implements OnDestroy {
   }
 
   private fail(message: string): void { this.error.set(message); this.busy.set(false); this.loading.set(false); }
-  private message(error: any, fallback: string): string {
-    return typeof error?.error?.message === 'string' ? error.error.message : fallback;
-  }
 }

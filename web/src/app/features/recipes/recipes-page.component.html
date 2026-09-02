@@ -30,9 +30,9 @@
             (click)="select(recipe.id, true)">
             <span class="recipe-list-thumb">
               @if (recipe.image_attachment_id) {
-                <img [src]="api.attachment(recipe.image_attachment_id)" alt="" (error)="useRecipePlaceholder($event)">
+                <img loading="lazy" decoding="async" [src]="api.attachment(recipe.image_attachment_id)" alt="" (error)="useRecipePlaceholder($event)">
               } @else {
-                <img src="icons/5a.png" alt="">
+                <img loading="lazy" decoding="async" src="icons/5a.png" alt="">
               }
             </span>
             <span class="recipe-list-copy">
@@ -74,7 +74,7 @@
       </header>
 
       <div class="recipe-hero" [class.placeholder]="!recipe.image_attachment_id">
-        <img [src]="recipe.image_attachment_id ? api.attachment(recipe.image_attachment_id) : 'icons/5a.png'"
+        <img decoding="async" [src]="recipe.image_attachment_id ? api.attachment(recipe.image_attachment_id) : 'icons/5a.png'"
           [alt]="recipe.image_attachment_id ? 'Foto di ' + recipe.title : 'Immagine ricetta non disponibile'"
           (error)="useRecipePlaceholder($event)">
       </div>
@@ -150,7 +150,7 @@
           <section class="recipe-editor-section">
             <h3>Foto ricetta</h3>
             @if (imageSource(editing() ? selected() : null); as photo) {
-              <div class="recipe-photo-preview"><img [src]="photo" alt="Anteprima foto"><button type="button" (click)="removePhoto()">×</button></div>
+              <div class="recipe-photo-preview"><img decoding="async" [src]="photo" alt="Anteprima foto"><button type="button" (click)="removePhoto()">×</button></div>
             } @else {
               <div class="recipe-photo-actions">
                 <label class="recipe-upload-button">📁 Galleria<input hidden type="file" accept="image/jpeg,image/png" (change)="selectImage($event)"></label>

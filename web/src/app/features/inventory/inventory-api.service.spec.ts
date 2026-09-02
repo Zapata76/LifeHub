@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { ImageOptimizer } from '../../shared/image-optimizer.service';
 import { InventoryApiService } from './inventory-api.service';
 
 describe('InventoryApiService images', () => {
@@ -10,7 +11,11 @@ describe('InventoryApiService images', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()]
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ImageOptimizer, useValue: { optimize: (file: File) => Promise.resolve(file) } }
+      ]
     });
     api = TestBed.inject(InventoryApiService);
     http = TestBed.inject(HttpTestingController);
@@ -18,12 +23,13 @@ describe('InventoryApiService images', () => {
 
   afterEach(() => http.verify());
 
-  it('uploads every selected image as an inventory attachment', () => {
+  it('uploads every selected image as an inventory attachment', async () => {
     const first = new File(['front'], 'fronte.jpg', { type: 'image/jpeg' });
     const second = new File(['back'], 'retro.png', { type: 'image/png' });
 
     api.uploadImage(42, first).subscribe();
     api.uploadImage(42, second).subscribe();
+    await new Promise((resolve) => setTimeout(resolve));
 
     const uploads = http.match('api/v1/attachments');
     expect(uploads).toHaveLength(2);

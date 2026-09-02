@@ -14,6 +14,7 @@ use LifeHub\Shared\Http\RequestData;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
+use Slim\Psr7\Factory\StreamFactory;
 use Throwable;
 
 final class AttachmentController
@@ -88,20 +89,25 @@ final class AttachmentController
             throw new ApiException(404, 'attachment.not_found', 'Attachment not found.');
         }
         $path = $this->storage->filePath((string) $attachment['storage_key']);
-        $content = file_get_contents($path);
-        if ($content === false) {
-            throw new ApiException(404, 'attachment.file_missing', 'Attachment content is unavailable.');
-        }
-        $response->getBody()->write($content);
         $name = rawurlencode((string) $attachment['original_name']);
         $mime = (string) $attachment['detected_mime'];
         $inline = ($request->getQueryParams()['inline'] ?? '0') === '1'
             && (strpos($mime, 'image/') === 0 || $mime === 'application/pdf');
-        return $response
+        $etag = '"' . (string) $attachment['sha256'] . '"';
+        $cacheControl = (string) $attachment['owner_type'] === 'document'
+            ? 'private, no-store'
+            : 'private, max-age=3600, must-revalidate';
+        $response = $response
             ->withHeader('Content-Type', (string) $attachment['detected_mime'])
-            ->withHeader('Content-Length', (string) strlen($content))
+            ->withHeader('Content-Length', (string) $attachment['size_bytes'])
             ->withHeader('Content-Disposition', ($inline ? 'inline' : 'attachment') . "; filename*=UTF-8''" . $name)
-            ->withHeader('Cache-Control', 'private, no-store');
+            ->withHeader('Cache-Control', $cacheControl)
+            ->withHeader('ETag', $etag);
+        if ($request->getHeaderLine('If-None-Match') === $etag && $cacheControl !== 'private, no-store') {
+            return $response->withStatus(304)->withoutHeader('Content-Length');
+        }
+
+        return $response->withBody((new StreamFactory())->createStreamFromFile($path, 'r'));
     }
 
     private function user(ServerRequestInterface $request): UserContext

@@ -36,6 +36,15 @@ final class GoalController
         return JsonResponder::write($response, $this->goals->overview($this->user($request)));
     }
 
+    /** @param array<string, string> $args */
+    public function logs(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        return JsonResponder::write(
+            $response,
+            ['items' => $this->goals->logs($this->user($request), (int) $args['trackerId'])]
+        );
+    }
+
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $this->manager($request);

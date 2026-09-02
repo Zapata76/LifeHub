@@ -3,6 +3,8 @@ import {
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { concat, Observable, of } from 'rxjs';
+import { apiErrorMessage } from '../../shared/api-error';
+import { ConfirmationService } from '../../shared/confirmation.service';
 import { SessionStore } from '../../core/session.store';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { RecipesApiService } from './recipes-api.service';
@@ -26,6 +28,7 @@ type IngredientMode = 'search' | 'product' | 'free' | 'create';
 })
 export class RecipesPageComponent implements OnDestroy {
   readonly api = inject(RecipesApiService);
+  private readonly confirmation = inject(ConfirmationService);
   readonly store = inject(SessionStore);
   readonly overview = signal<RecipesOverview | null>(null);
   readonly selected = signal<RecipeDetail | null>(null);
@@ -373,9 +376,9 @@ export class RecipesPageComponent implements OnDestroy {
         this.ingredientBusy.set(false);
         this.commitIngredient(productWithCategory, productWithCategory.name, quantity, keepOpen);
       },
-      error: (error: any) => {
+      error: (error: unknown) => {
         this.ingredientBusy.set(false);
-        this.ingredientError.set(this.message(
+        this.ingredientError.set(apiErrorMessage(
           error,
           'Il prodotto non \u00e8 stato creato. Controlla il nome e riprova.'
         ));
@@ -426,13 +429,18 @@ export class RecipesPageComponent implements OnDestroy {
         const id = this.editing() && current ? current.id : Number(createdId);
         this.persistImage(id);
       },
-      error: (error: any) => this.fail(this.message(error, 'La ricetta non è stata salvata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La ricetta non è stata salvata.'))
     });
   }
 
-  archive(): void {
+  async archive(): Promise<void> {
     const recipe = this.selected();
-    if (!recipe?.can_edit || !confirm(`Archiviare “${recipe.title}”?`)) return;
+    if (!recipe?.can_edit || !await this.confirmation.confirm({
+      title: 'Archivia ricetta',
+      message: `Archiviare “${recipe.title}”?`,
+      confirmLabel: 'Archivia',
+      danger: true
+    })) return;
     this.busy.set(true);
     this.api.archive(recipe.id, Number(recipe.version)).subscribe({
       next: () => { this.selected.set(null); this.load(undefined, 'Ricetta archiviata.'); },
@@ -619,7 +627,4 @@ export class RecipesPageComponent implements OnDestroy {
   }
 
   private fail(message: string): void { this.error.set(message); this.busy.set(false); this.loading.set(false); }
-  private message(error: any, fallback: string): string {
-    return typeof error?.error?.message === 'string' ? error.error.message : fallback;
-  }
 }

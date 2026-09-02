@@ -298,7 +298,7 @@ final class HttpApiTest extends TestCase
         ], $csrf));
         self::assertSame(409, $duplicate->getStatusCode());
 
-        $overview = $this->json($app->handle($this->request('GET', '/v1/shopping/overview')));
+        $overview = $this->json($app->handle($this->request('GET', '/v1/shopping/list-overview')));
         self::assertCount(1, $overview['items']);
         self::assertSame('Tè nero', $overview['items'][0]['product_name']);
         self::assertSame('Mercato test', $overview['items'][0]['supermarket_name']);
@@ -308,14 +308,14 @@ final class HttpApiTest extends TestCase
             'supermarketId' => $market['id'], 'version' => 1,
         ], $csrf));
         self::assertSame(200, $checked->getStatusCode(), (string) $checked->getBody());
-        $afterCheck = $this->json($app->handle($this->request('GET', '/v1/shopping/overview')));
+        $afterCheck = $this->json($app->handle($this->request('GET', '/v1/shopping/list-overview')));
         self::assertSame(1, (int) $afterCheck['items'][0]['checked']);
 
         $removed = $app->handle($this->request('POST', '/v1/shopping/items/' . $itemId . '/remove', [
             'version' => 2,
         ], $csrf));
         self::assertSame(200, $removed->getStatusCode(), (string) $removed->getBody());
-        $afterRemove = $this->json($app->handle($this->request('GET', '/v1/shopping/overview')));
+        $afterRemove = $this->json($app->handle($this->request('GET', '/v1/shopping/list-overview')));
         self::assertCount(0, $afterRemove['items']);
     }
 
@@ -375,7 +375,7 @@ final class HttpApiTest extends TestCase
         ], $csrf));
         self::assertSame(201, $recipeResponse->getStatusCode(), (string) $recipeResponse->getBody());
         $recipeId = (int) $this->json($recipeResponse)['id'];
-        $catalogueOverview = $this->json($app->handle($this->request('GET', '/v1/shopping/overview')));
+        $catalogueOverview = $this->json($app->handle($this->request('GET', '/v1/shopping/catalog-overview')));
         self::assertCount(1, $catalogueOverview['product_recipe_usages']);
         self::assertSame(
             (int) $product['id'],
@@ -412,6 +412,9 @@ final class HttpApiTest extends TestCase
             'product_id' => $product['id'], 'supermarket_id' => $market['id'], 'amount' => 2.29,
         ], $csrf)))['item'];
         self::assertGreaterThan(0, (int) $secondPrice['id']);
+        $pricesOverview = $this->json($app->handle($this->request('GET', '/v1/shopping/prices-overview')));
+        self::assertCount(1, $pricesOverview['prices']);
+        self::assertSame((int) $secondPrice['id'], (int) $pricesOverview['prices'][0]['id']);
         $created = $this->json($app->handle($this->request('POST', '/v1/shopping/items', [
             'listId' => $list['id'], 'productId' => $product['id'],
             'supermarketId' => $market['id'], 'quantity' => '1 kg',
@@ -608,6 +611,12 @@ final class HttpApiTest extends TestCase
         self::assertCount(1, $afterLogs['goals'][0]['trackers'][0]['logs']);
         self::assertSame(85.0, (float) $afterLogs['goals'][0]['trackers'][0]['logs'][0]['value_number']);
         self::assertSame(1, (int) $afterLogs['goals'][0]['trackers'][1]['logs'][0]['value_boolean']);
+        $history = $this->json($app->handle($this->request(
+            'GET',
+            '/v1/goal-trackers/' . $percentage['id'] . '/logs'
+        )));
+        self::assertCount(1, $history['items']);
+        self::assertSame(85.0, (float) $history['items'][0]['value_number']);
 
         $deleted = $app->handle($this->request(
             'DELETE',
@@ -781,6 +790,15 @@ final class HttpApiTest extends TestCase
         $backStoragePath = $this->storage()->path()
             . DIRECTORY_SEPARATOR . 'files' . DIRECTORY_SEPARATOR . $backStorageKey;
         self::assertFileExists($backStoragePath);
+
+        $imageRequest = $this->request('GET', '/v1/attachments/' . $backImageId . '/download?inline=1');
+        $imageDownload = $app->handle($imageRequest);
+        self::assertSame(200, $imageDownload->getStatusCode(), (string) $imageDownload->getBody());
+        self::assertSame('private, max-age=3600, must-revalidate', $imageDownload->getHeaderLine('Cache-Control'));
+        $etag = $imageDownload->getHeaderLine('ETag');
+        self::assertNotSame('', $etag);
+        $cachedImage = $app->handle($imageRequest->withHeader('If-None-Match', $etag));
+        self::assertSame(304, $cachedImage->getStatusCode(), (string) $cachedImage->getBody());
 
         self::assertTrue($overview['can_manage']);
         self::assertSame(

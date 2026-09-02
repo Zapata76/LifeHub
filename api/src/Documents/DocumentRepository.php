@@ -129,7 +129,7 @@ final class DocumentRepository
     {
         $this->assertManager($user);
         $this->detail($user, $id);
-        $this->pdo->beginTransaction();
+        $this->pdo->exec('LOCK TABLES lh_documents WRITE, lh_attachments WRITE');
         try {
             $attachment = $this->pdo->prepare(
                 'SELECT storage_key FROM lh_attachments WHERE household_id = ? '
@@ -139,6 +139,16 @@ final class DocumentRepository
             $storageKey = $attachment->fetchColumn();
             if (!is_string($storageKey)) {
                 throw new ApiException(404, 'document.attachment_not_found', 'Document file not found.');
+            }
+
+            $current = $this->pdo->prepare(
+                'SELECT updated_at FROM lh_documents WHERE household_id = ? AND id = ? '
+                . 'AND version = ? AND archived_at IS NULL'
+            );
+            $current->execute([$user->householdId(), $id, $version]);
+            $previousUpdatedAt = $current->fetchColumn();
+            if (!is_string($previousUpdatedAt)) {
+                throw new ApiException(409, 'version.conflict', 'The document changed; reload and retry.');
             }
 
             $document = $this->pdo->prepare(
@@ -154,18 +164,33 @@ final class DocumentRepository
                 "DELETE FROM lh_attachments WHERE household_id = ? AND owner_type = 'document' "
                 . 'AND owner_id = ? AND id = ?'
             );
-            $delete->execute([$user->householdId(), $id, $attachmentId]);
+            try {
+                $delete->execute([$user->householdId(), $id, $attachmentId]);
+            } catch (Throwable $exception) {
+                $this->restoreDocumentVersion($user->householdId(), $id, $version + 1, $previousUpdatedAt);
+                throw $exception;
+            }
             if ($delete->rowCount() !== 1) {
+                $this->restoreDocumentVersion($user->householdId(), $id, $version + 1, $previousUpdatedAt);
                 throw new ApiException(409, 'version.conflict', 'The document file changed; reload and retry.');
             }
-            $this->pdo->commit();
             return $storageKey;
-        } catch (Throwable $exception) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $exception;
+        } finally {
+            $this->pdo->exec('UNLOCK TABLES');
         }
+    }
+
+    private function restoreDocumentVersion(
+        int $householdId,
+        int $id,
+        int $currentVersion,
+        string $updatedAt
+    ): void {
+        $restore = $this->pdo->prepare(
+            'UPDATE lh_documents SET updated_at = ?, version = version - 1 '
+            . 'WHERE household_id = ? AND id = ? AND version = ?'
+        );
+        $restore->execute([$updatedAt, $householdId, $id, $currentVersion]);
     }
 
     /** @return list<string> */

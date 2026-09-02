@@ -5,6 +5,7 @@ import { SessionStore } from '../../core/session.store';
 import { ShoppingApiService } from './shopping-api.service';
 import { ShoppingOverview } from './shopping.models';
 import { ShoppingPricesComponent } from './shopping-prices.component';
+import { ShoppingStore } from './shopping.store';
 
 const overview: ShoppingOverview = {
   lists: [], items: [], categories: [], supermarkets: [],
@@ -28,14 +29,15 @@ const overview: ShoppingOverview = {
       observed_on: '2026-07-16', created_at: '2026-07-16 10:00:00', product_name: 'Latte',
       category_name: 'Bevande', supermarket_name: 'Conad', username: null,
       image_attachment_id: null, version: 1 }
-  ]
+  ],
+  active_product_ids: [], supermarket_item_counts: [], supermarket_price_counts: []
 };
 
 describe('ShoppingPricesComponent', () => {
   it('groups observations by product and renders one compact row per registration', async () => {
     await TestBed.configureTestingModule({
       imports: [ShoppingPricesComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview) } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { pricesOverview: () => of(overview) } }]
     }).compileComponents();
     TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');
     const fixture = TestBed.createComponent(ShoppingPricesComponent);
@@ -54,7 +56,7 @@ describe('ShoppingPricesComponent', () => {
   it('replaces the product select with an alphabetic searchable product list', async () => {
     await TestBed.configureTestingModule({
       imports: [ShoppingPricesComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview) } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { pricesOverview: () => of(overview) } }]
     }).compileComponents();
     TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');
     const fixture = TestBed.createComponent(ShoppingPricesComponent);
@@ -93,7 +95,7 @@ describe('ShoppingPricesComponent', () => {
     const createPrice = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ShoppingPricesComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview), createPrice } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { pricesOverview: () => of(overview), createPrice } }]
     }).compileComponents();
     TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');
     const fixture = TestBed.createComponent(ShoppingPricesComponent);
@@ -120,7 +122,7 @@ describe('ShoppingPricesComponent', () => {
     const deleteCatalog = vi.fn(() => of(undefined));
     await TestBed.configureTestingModule({
       imports: [ShoppingPricesComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview), deleteCatalog } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { pricesOverview: () => of(overview), deleteCatalog } }]
     }).compileComponents();
     TestBed.inject(SessionStore).set({ id: 1, householdId: 1, role: 'admin', username: 'admin' }, 'csrf');
     const fixture = TestBed.createComponent(ShoppingPricesComponent);

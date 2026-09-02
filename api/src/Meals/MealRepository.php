@@ -35,18 +35,14 @@ final class MealRepository
             . 'ORDER BY m.meal_date, FIELD(m.meal_type, \'breakfast\', \'lunch\', \'dinner\'), m.id',
             [$user->householdId(), $start, $end]
         );
+        $recipesByMeal = $this->recipesByMeal(
+            $user->householdId(),
+            array_map(function (array $meal): int {
+                return (int) $meal['id'];
+            }, $meals)
+        );
         foreach ($meals as &$meal) {
-            $meal['recipes'] = $this->rows(
-                'SELECT r.id, r.title, r.category_text, r.prep_time_minutes, r.difficulty, r.servings, '
-                . '(SELECT a.id FROM lh_attachments a WHERE a.household_id = r.household_id '
-                . "AND a.owner_type = 'recipe' AND a.owner_id = r.id AND a.archived_at IS NULL "
-                . 'ORDER BY a.id DESC LIMIT 1) AS image_attachment_id '
-                . 'FROM lh_meal_plan_recipes link INNER JOIN lh_recipes r '
-                . 'ON r.household_id = link.household_id AND r.id = link.recipe_id '
-                . 'WHERE link.household_id = ? AND link.meal_plan_id = ? AND link.archived_at IS NULL '
-                . 'AND r.archived_at IS NULL ORDER BY link.position_no, link.id',
-                [$user->householdId(), (int) $meal['id']]
-            );
+            $meal['recipes'] = $recipesByMeal[(int) $meal['id']] ?? [];
         }
         unset($meal);
 
@@ -63,6 +59,37 @@ final class MealRepository
             ),
             'primaryListId' => $this->primaryListId($user->householdId()),
         ];
+    }
+
+    /**
+     * @param list<int> $mealIds
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function recipesByMeal(int $householdId, array $mealIds): array
+    {
+        if ($mealIds === []) {
+            return [];
+        }
+        $placeholders = implode(', ', array_fill(0, count($mealIds), '?'));
+        $rows = $this->rows(
+            'SELECT link.meal_plan_id, r.id, r.title, r.category_text, r.prep_time_minutes, '
+            . 'r.difficulty, r.servings, (SELECT a.id FROM lh_attachments a '
+            . "WHERE a.household_id = r.household_id AND a.owner_type = 'recipe' "
+            . 'AND a.owner_id = r.id AND a.archived_at IS NULL ORDER BY a.id DESC LIMIT 1) '
+            . 'AS image_attachment_id FROM lh_meal_plan_recipes link INNER JOIN lh_recipes r '
+            . 'ON r.household_id = link.household_id AND r.id = link.recipe_id '
+            . 'WHERE link.household_id = ? AND link.meal_plan_id IN (' . $placeholders . ') '
+            . 'AND link.archived_at IS NULL AND r.archived_at IS NULL '
+            . 'ORDER BY link.meal_plan_id, link.position_no, link.id',
+            array_merge([$householdId], $mealIds)
+        );
+        $byMeal = [];
+        foreach ($rows as $row) {
+            $mealId = (int) $row['meal_plan_id'];
+            unset($row['meal_plan_id']);
+            $byMeal[$mealId][] = $row;
+        }
+        return $byMeal;
     }
 
     /**

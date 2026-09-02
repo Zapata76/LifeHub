@@ -7,6 +7,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { NgTemplateOutlet } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { ConfirmationService } from '../shared/confirmation.service';
 import { HouseholdTask, TaskCommand, TaskPriority, TaskStatus } from './tasks/task.models';
 import { TasksApiService } from './tasks/tasks-api.service';
 
@@ -18,6 +19,7 @@ import { TasksApiService } from './tasks/tasks-api.service';
 })
 export class TasksComponent {
   private readonly api = inject(TasksApiService);
+  private readonly confirmation = inject(ConfirmationService);
   readonly tasks = signal<HouseholdTask[]>([]);
   readonly members = signal<{ id: number; username: string }[]>([]);
   readonly memberFilters = signal<Set<number>>(new Set());
@@ -95,8 +97,13 @@ export class TasksComponent {
     this.mutate(() => this.api.complete(task));
   }
 
-  archive(task: HouseholdTask): void {
-    if (!this.showArchived() && !window.confirm(`Eliminare "${task.title}" dalla board attiva?`)) return;
+  async archive(task: HouseholdTask): Promise<void> {
+    if (!this.showArchived() && !await this.confirmation.confirm({
+      title: 'Archivia attività',
+      message: `Archiviare “${task.title}”? Potrai ripristinarla dall’archivio.`,
+      confirmLabel: 'Archivia',
+      danger: true
+    })) return;
     this.editorOpen.set(false);
     this.mutate(() => this.api.setArchived(task, this.showArchived()));
   }

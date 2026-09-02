@@ -13,7 +13,10 @@ const overview: ShoppingOverview = {
   supermarkets: [{ id: 3, name: 'Conad', version: 1 }],
   products: [],
   product_recipe_usages: [],
-  prices: []
+  prices: [],
+  active_product_ids: [],
+  supermarket_item_counts: [],
+  supermarket_price_counts: []
 };
 
 describe('ShoppingPageComponent', () => {
@@ -21,7 +24,9 @@ describe('ShoppingPageComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ShoppingPageComponent],
       providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(overview),
+        listOverview: () => of(overview),
+        catalogOverview: () => of(overview),
+        pricesOverview: () => of(overview),
         attachment: (id: number) => 'attachment/' + id
       } }]
     }).compileComponents();

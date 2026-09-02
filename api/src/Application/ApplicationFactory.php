@@ -176,7 +176,9 @@ final class ApplicationFactory
 
                 $protected->post('/attachments', [$attachments, 'upload']);
                 $protected->get('/attachments/{id:[0-9]+}/download', [$attachments, 'download']);
-                $protected->get('/shopping/overview', [$shoppingList, 'overview']);
+                $protected->get('/shopping/list-overview', [$shoppingList, 'listOverview']);
+                $protected->get('/shopping/catalog-overview', [$shoppingList, 'catalogOverview']);
+                $protected->get('/shopping/prices-overview', [$shoppingList, 'pricesOverview']);
                 $protected->post('/shopping/items', [$shoppingList, 'create']);
                 $protected->post('/shopping/items/clear-checked', [$shoppingList, 'clearChecked']);
                 $protected->put('/shopping/items/{id:[0-9]+}', [$shoppingList, 'update']);
@@ -189,6 +191,7 @@ final class ApplicationFactory
                 $protected->post('/goals', [$goals, 'create']);
                 $protected->put('/goals/{id:[0-9]+}', [$goals, 'update']);
                 $protected->delete('/goals/{id:[0-9]+}', [$goals, 'delete']);
+                $protected->get('/goal-trackers/{trackerId:[0-9]+}/logs', [$goals, 'logs']);
                 $protected->post('/goal-trackers/{trackerId:[0-9]+}/log', [$goals, 'log']);
                 $protected->get('/documents/overview', [$documents, 'overview']);
                 $protected->get('/documents/{id:[0-9]+}', [$documents, 'detail']);

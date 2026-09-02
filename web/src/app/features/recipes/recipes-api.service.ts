@@ -1,11 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, from, map, switchMap } from 'rxjs';
+import { ImageOptimizer } from '../../shared/image-optimizer.service';
 import { RecipeDetail, RecipePayload, RecipesOverview } from './recipes.models';
 
 @Injectable({ providedIn: 'root' })
 export class RecipesApiService {
   private readonly http = inject(HttpClient);
+  private readonly images = inject(ImageOptimizer);
 
   overview(): Observable<RecipesOverview> {
     return this.http.get<RecipesOverview>('api/v1/recipes/overview');
@@ -38,11 +40,15 @@ export class RecipesApiService {
   }
 
   uploadImage(id: number, file: File): Observable<void> {
-    const body = new FormData();
-    body.append('ownerType', 'recipe');
-    body.append('ownerId', String(id));
-    body.append('file', file);
-    return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    return from(this.images.optimize(file, {
+      maxEdge: 1920, jpegQuality: 0.86, fallbackName: 'ricetta'
+    })).pipe(switchMap((optimized) => {
+      const body = new FormData();
+      body.append('ownerType', 'recipe');
+      body.append('ownerId', String(id));
+      body.append('file', optimized);
+      return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    }));
   }
 
   attachment(id: number): string {

@@ -1,11 +1,19 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
+import { apiErrorMessage } from '../../shared/api-error';
+import { localDateKey } from '../../shared/local-date';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { MealsApiService } from './meals-api.service';
 import { MealPayload, MealRecipe, MealsOverview, MealType, PlannedMeal, ShoppingPreview } from './meals.models';
 
 interface PlannerDay { date: string; dateValue: Date; }
+
+const PERIOD_FORMATTER = new Intl.DateTimeFormat('it-IT', {
+  day: 'numeric', month: 'short', year: 'numeric'
+});
+const DAY_NAME_FORMATTER = new Intl.DateTimeFormat('it-IT', { weekday: 'long' });
+const DAY_NUMBER_FORMATTER = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' });
 
 @Component({
   standalone: true,
@@ -23,7 +31,7 @@ export class MealsPageComponent {
   readonly startDate = signal(this.mondayOf(new Date()));
   readonly rangeDays = signal<7 | 14>(7);
   readonly view = signal<'week' | 'day'>('week');
-  readonly selectedDay = signal(this.localDate(new Date()));
+  readonly selectedDay = signal(localDateKey());
   readonly editorOpen = signal(false);
   readonly editing = signal<PlannedMeal | null>(null);
   readonly selectedRecipeIds = signal<number[]>([]);
@@ -49,7 +57,7 @@ export class MealsPageComponent {
 
   readonly days = computed<PlannerDay[]>(() => Array.from({ length: this.rangeDays() }, (_, index) => {
     const value = this.addDays(this.parseDate(this.startDate()), index);
-    return { date: this.localDate(value), dateValue: value };
+    return { date: localDateKey(value), dateValue: value };
   }));
   readonly visibleDays = computed(() => this.view() === 'day'
     ? this.days().filter((day) => day.date === this.selectedDay())
@@ -57,8 +65,7 @@ export class MealsPageComponent {
   readonly periodLabel = computed(() => {
     const days = this.days();
     if (!days.length) return '';
-    const formatter = new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${formatter.format(days[0].dateValue)} — ${formatter.format(days[days.length - 1].dateValue)}`;
+    return `${PERIOD_FORMATTER.format(days[0].dateValue)} — ${PERIOD_FORMATTER.format(days[days.length - 1].dateValue)}`;
   });
   readonly filteredRecipes = computed(() => {
     const term = this.recipeSearch().trim().toLocaleLowerCase('it');
@@ -71,14 +78,14 @@ export class MealsPageComponent {
 
   load(message = ''): void {
     const start = this.startDate();
-    const end = this.localDate(this.addDays(this.parseDate(start), this.rangeDays() - 1));
+    const end = localDateKey(this.addDays(this.parseDate(start), this.rangeDays() - 1));
     this.loading.set(true); this.error.set('');
     this.api.overview(start, end).subscribe({
       next: (overview) => {
         this.overview.set(overview); this.loading.set(false); this.busy.set(false); this.success.set(message);
         this.selectedMealIds.set(overview.meals.map((meal) => meal.id));
       },
-      error: (error) => this.fail(this.message(error, 'Impossibile caricare il piano pasti.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Impossibile caricare il piano pasti.'))
     });
   }
 
@@ -92,16 +99,16 @@ export class MealsPageComponent {
       const start = this.parseDate(this.startDate());
       const end = this.addDays(start, this.rangeDays() - 1);
       if (next < start || next > end) this.startDate.set(this.mondayOf(next));
-      this.selectedDay.set(this.localDate(next));
+      this.selectedDay.set(localDateKey(next));
     } else {
-      this.startDate.set(this.localDate(this.addDays(this.parseDate(this.startDate()), direction * this.rangeDays())));
+      this.startDate.set(localDateKey(this.addDays(this.parseDate(this.startDate()), direction * this.rangeDays())));
       this.selectedDay.set(this.startDate());
     }
     this.load();
   }
 
   today(): void {
-    const now = new Date(); this.startDate.set(this.mondayOf(now)); this.selectedDay.set(this.localDate(now)); this.load();
+    const now = new Date(); this.startDate.set(this.mondayOf(now)); this.selectedDay.set(localDateKey(now)); this.load();
   }
 
   chooseWeek(event: Event): void {
@@ -156,7 +163,7 @@ export class MealsPageComponent {
     const request: Observable<number | void> = current ? this.api.update(current.id, payload) : this.api.create(payload);
     request.subscribe({
       next: () => { this.editorOpen.set(false); this.load(current ? 'Pasto aggiornato.' : 'Pasto pianificato.'); },
-      error: (error: any) => this.fail(this.message(error, 'Il pasto non è stato salvato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Il pasto non è stato salvato.'))
     });
   }
 
@@ -165,7 +172,7 @@ export class MealsPageComponent {
     this.busy.set(true); this.error.set('');
     this.api.delete(current.id, Number(current.version)).subscribe({
       next: () => { this.editorOpen.set(false); this.deleteConfirm.set(false); this.load('Pasto rimosso dal piano.'); },
-      error: (error) => this.fail(this.message(error, 'Il pasto non è stato rimosso.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Il pasto non è stato rimosso.'))
     });
   }
 
@@ -180,7 +187,7 @@ export class MealsPageComponent {
     this.busy.set(true); this.error.set('');
     this.api.shoppingPreview(ids).subscribe({
       next: (preview) => { this.preview.set(preview); this.previewOpen.set(true); this.busy.set(false); },
-      error: (error) => this.fail(this.message(error, 'Impossibile preparare l’anteprima della spesa.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'Impossibile preparare l’anteprima della spesa.'))
     });
   }
   closePreview(): void { if (!this.busy()) { this.previewOpen.set(false); this.preview.set(null); } }
@@ -193,25 +200,20 @@ export class MealsPageComponent {
         this.previewOpen.set(false); this.preview.set(null);
         this.load(`${result.createdItems} articoli aggiunti alla lista della spesa.`);
       },
-      error: (error) => this.fail(this.message(error, 'La lista della spesa non è stata aggiornata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La lista della spesa non è stata aggiornata.'))
     });
   }
 
-  dayName(day: PlannerDay): string { return new Intl.DateTimeFormat('it-IT', { weekday: 'long' }).format(day.dateValue); }
-  dayNumber(day: PlannerDay): string { return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'short' }).format(day.dateValue); }
-  isToday(date: string): boolean { return date === this.localDate(new Date()); }
-  typeLabel(type: MealType): string { return this.mealTypes.find((item) => item.value === type)?.label ?? type; }
+  dayName(day: PlannerDay): string { return DAY_NAME_FORMATTER.format(day.dateValue); }
+  dayNumber(day: PlannerDay): string { return DAY_NUMBER_FORMATTER.format(day.dateValue); }
+  isToday(date: string): boolean { return date === localDateKey(); }
   recipeImage(recipe: MealRecipe): string { return recipe.image_attachment_id ? this.api.attachment(recipe.image_attachment_id) : 'icons/5a.png'; }
 
   private mondayOf(date: Date): string {
     const value = new Date(date.getFullYear(), date.getMonth(), date.getDate()); const day = value.getDay() || 7;
-    value.setDate(value.getDate() - day + 1); return this.localDate(value);
+    value.setDate(value.getDate() - day + 1); return localDateKey(value);
   }
   private parseDate(value: string): Date { const [year, month, day] = value.split('-').map(Number); return new Date(year, month - 1, day); }
   private addDays(date: Date, days: number): Date { return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days); }
-  private localDate(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  }
   private fail(message: string): void { this.error.set(message); this.busy.set(false); this.loading.set(false); }
-  private message(error: any, fallback: string): string { return typeof error?.error?.message === 'string' ? error.error.message : fallback; }
 }

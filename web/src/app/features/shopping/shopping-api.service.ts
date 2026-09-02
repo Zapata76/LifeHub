@@ -7,7 +7,9 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, from, map, of, switchMap } from 'rxjs';
 import { ProductImageOptimizer } from './product-image-optimizer.service';
-import { ShoppingOverview } from './shopping.models';
+import {
+  ShoppingCatalogOverview, ShoppingListOverview, ShoppingPricesOverview
+} from './shopping.models';
 
 interface ResourceItem { id: number; version: number; }
 interface AttachmentItem { id: number; version: number; }
@@ -17,8 +19,16 @@ export class ShoppingApiService {
   private readonly http = inject(HttpClient);
   private readonly productImages = inject(ProductImageOptimizer);
 
-  overview(): Observable<ShoppingOverview> {
-    return this.http.get<ShoppingOverview>('api/v1/shopping/overview');
+  listOverview(): Observable<ShoppingListOverview> {
+    return this.http.get<ShoppingListOverview>('api/v1/shopping/list-overview');
+  }
+
+  catalogOverview(): Observable<ShoppingCatalogOverview> {
+    return this.http.get<ShoppingCatalogOverview>('api/v1/shopping/catalog-overview');
+  }
+
+  pricesOverview(): Observable<ShoppingPricesOverview> {
+    return this.http.get<ShoppingPricesOverview>('api/v1/shopping/prices-overview');
   }
 
   addItem(command: {

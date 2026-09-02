@@ -4,12 +4,14 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ShoppingCatalogComponent } from './shopping-catalog.component';
 import { ShoppingListComponent } from './shopping-list.component';
 import { ShoppingPricesComponent } from './shopping-prices.component';
+import { ShoppingStore } from './shopping.store';
 
 type ShoppingView = 'list' | 'products' | 'prices' | 'categories' | 'supermarkets';
 
 @Component({
   standalone: true,
   imports: [ShoppingListComponent, ShoppingPricesComponent, ShoppingCatalogComponent],
+  providers: [ShoppingStore],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-heading shopping-heading">

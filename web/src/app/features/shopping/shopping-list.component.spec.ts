@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ShoppingApiService } from './shopping-api.service';
 import { ShoppingListComponent } from './shopping-list.component';
 import { ShoppingOverview } from './shopping.models';
+import { ShoppingStore } from './shopping.store';
 
 const overview: ShoppingOverview = {
   lists: [{ id: 1, name: 'Spesa', is_primary: 1, version: 1 }],
@@ -17,7 +18,7 @@ const overview: ShoppingOverview = {
       image_attachment_id: null, version: 1 }
   ],
   product_recipe_usages: [],
-  prices: []
+  prices: [], active_product_ids: [], supermarket_item_counts: [], supermarket_price_counts: []
 };
 
 describe('ShoppingListComponent', () => {
@@ -33,8 +34,8 @@ describe('ShoppingListComponent', () => {
     ] };
     await TestBed.configureTestingModule({
       imports: [ShoppingListComponent],
-      providers: [{ provide: ShoppingApiService, useValue: {
-        overview: () => of(withItems), clearChecked, attachment: (id: number) => `attachment/${id}`
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: {
+        listOverview: () => of(withItems), clearChecked, attachment: (id: number) => `attachment/${id}`
       } }]
     }).compileComponents();
     const fixture = TestBed.createComponent(ShoppingListComponent);
@@ -57,7 +58,7 @@ describe('ShoppingListComponent', () => {
   it('shows live matches and selects a product from the add modal', async () => {
     await TestBed.configureTestingModule({
       imports: [ShoppingListComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview) } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { listOverview: () => of(overview) } }]
     }).compileComponents();
     const fixture = TestBed.createComponent(ShoppingListComponent);
     fixture.detectChanges();
@@ -88,7 +89,7 @@ describe('ShoppingListComponent', () => {
     const addItem = vi.fn(() => of({ id: 20 }));
     await TestBed.configureTestingModule({
       imports: [ShoppingListComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: () => of(overview), addItem } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { listOverview: () => of(overview), addItem } }]
     }).compileComponents();
     const fixture = TestBed.createComponent(ShoppingListComponent);
     fixture.componentInstance.openAdd();
@@ -108,7 +109,7 @@ describe('ShoppingListComponent', () => {
     const load = vi.fn(() => of(overview));
     await TestBed.configureTestingModule({
       imports: [ShoppingListComponent],
-      providers: [{ provide: ShoppingApiService, useValue: { overview: load, addItem } }]
+      providers: [ShoppingStore, { provide: ShoppingApiService, useValue: { listOverview: load, addItem } }]
     }).compileComponents();
     const fixture = TestBed.createComponent(ShoppingListComponent);
     fixture.componentInstance.openAdd();

@@ -1,11 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, from, map, switchMap } from 'rxjs';
+import { ImageOptimizer } from '../../shared/image-optimizer.service';
 import { InventoryItem, InventoryOverview, InventoryPayload } from './inventory.models';
 
 @Injectable({ providedIn: 'root' })
 export class InventoryApiService {
   private readonly http = inject(HttpClient);
+  private readonly images = inject(ImageOptimizer);
 
   overview(archived = false): Observable<InventoryOverview> {
     return this.http.get<InventoryOverview>(`api/v1/inventory/overview?archived=${archived ? 1 : 0}`);
@@ -49,21 +51,21 @@ export class InventoryApiService {
     }).pipe(map(({ movedItems }) => movedItems));
   }
 
-  removeImage(id: number): Observable<void> {
-    return this.http.post(`api/v1/inventory/${id}/image/remove`, {}).pipe(map(() => undefined));
-  }
-
   deleteImage(id: number, imageId: number, version: number): Observable<void> {
     return this.http.delete(`api/v1/inventory/${id}/images/${imageId}`, { body: { version } })
       .pipe(map(() => undefined));
   }
 
   uploadImage(id: number, file: File): Observable<void> {
-    const body = new FormData();
-    body.append('ownerType', 'inventory');
-    body.append('ownerId', String(id));
-    body.append('file', file);
-    return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    return from(this.images.optimize(file, {
+      maxEdge: 1280, jpegQuality: 0.82, fallbackName: 'oggetto'
+    })).pipe(switchMap((optimized) => {
+      const body = new FormData();
+      body.append('ownerType', 'inventory');
+      body.append('ownerId', String(id));
+      body.append('file', optimized);
+      return this.http.post('api/v1/attachments', body).pipe(map(() => undefined));
+    }));
   }
 
   attachment(id: number): string {

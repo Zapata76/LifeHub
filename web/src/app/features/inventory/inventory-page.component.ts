@@ -4,6 +4,9 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { concat, Observable, of } from 'rxjs';
+import { apiErrorMessage } from '../../shared/api-error';
+import { ConfirmationService } from '../../shared/confirmation.service';
+import { localDateKey } from '../../shared/local-date';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { InventoryApiService } from './inventory-api.service';
 import { InventoryCategory, InventoryImage, InventoryItem, InventoryOverview, InventoryPayload } from './inventory.models';
@@ -21,6 +24,7 @@ interface PendingInventoryImage {
 })
 export class InventoryPageComponent implements OnDestroy {
   readonly api = inject(InventoryApiService);
+  private readonly confirmation = inject(ConfirmationService);
   readonly overview = signal<InventoryOverview | null>(null);
   readonly selected = signal<InventoryItem | null>(null);
   readonly loading = signal(true);
@@ -188,13 +192,18 @@ export class InventoryPageComponent implements OnDestroy {
         const id = this.editing() && current ? current.id : Number(createdId);
         this.persistImage(id);
       },
-      error: (error: any) => this.fail(this.message(error, 'L’oggetto non è stato salvato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'L’oggetto non è stato salvato.'))
     });
   }
 
-  archive(): void {
+  async archive(): Promise<void> {
     const item = this.selected();
-    if (!item?.can_edit || !confirm(`Archiviare “${item.name}”?`)) return;
+    if (!item?.can_edit || !await this.confirmation.confirm({
+      title: 'Archivia oggetto',
+      message: `Archiviare “${item.name}”? Potrai ripristinarlo dalla sezione Archivio.`,
+      confirmLabel: 'Archivia',
+      danger: true
+    })) return;
     this.busy.set(true);
     this.api.archive(item.id, Number(item.version)).subscribe({
       next: () => { this.selected.set(null); this.load(undefined, 'Oggetto archiviato.'); },
@@ -211,7 +220,7 @@ export class InventoryPageComponent implements OnDestroy {
         this.selected.set(null);
         this.load(undefined, 'Oggetto ripristinato.');
       },
-      error: (error: any) => this.fail(this.message(error, 'L’oggetto non è stato ripristinato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'L’oggetto non è stato ripristinato.'))
     });
   }
 
@@ -236,7 +245,7 @@ export class InventoryPageComponent implements OnDestroy {
         this.selectedImageId.set(null);
         this.load(undefined, 'Oggetto eliminato definitivamente.');
       },
-      error: (error: any) => this.fail(this.message(error, 'L’oggetto non è stato eliminato.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'L’oggetto non è stato eliminato.'))
     });
   }
   selectImages(event: Event): void {
@@ -275,21 +284,26 @@ export class InventoryPageComponent implements OnDestroy {
     this.selectedImageId.set(id);
   }
 
-  deleteImage(image: InventoryImage): void {
+  async deleteImage(image: InventoryImage): Promise<void> {
     const item = this.selected();
     if (!item?.can_edit || this.showArchived() || this.busy()) return;
     const last = (item.images ?? []).length === 1;
     const prompt = last
       ? 'Eliminare questa foto? L’oggetto resterà senza immagini.'
       : 'Eliminare questa foto dall’oggetto?';
-    if (!confirm(prompt)) return;
+    if (!await this.confirmation.confirm({
+      title: 'Elimina foto',
+      message: prompt,
+      confirmLabel: 'Elimina',
+      danger: true
+    })) return;
     this.busy.set(true); this.error.set(''); this.success.set('');
     this.api.deleteImage(item.id, image.id, Number(item.version)).subscribe({
       next: () => {
         this.selectedImageId.set(null);
         this.load(item.id, 'Foto eliminata.');
       },
-      error: (error: any) => this.fail(this.message(error, 'La foto non è stata eliminata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La foto non è stata eliminata.'))
     });
   }
 
@@ -333,7 +347,7 @@ export class InventoryPageComponent implements OnDestroy {
         this.categoryForm.reset({ name: '' });
         this.load(undefined, category ? 'Categoria rinominata.' : 'Categoria aggiunta.');
       },
-      error: (error: any) => this.fail(this.message(error, 'La categoria non è stata salvata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La categoria non è stata salvata.'))
     });
   }
 
@@ -358,7 +372,7 @@ export class InventoryPageComponent implements OnDestroy {
           : `Categoria eliminata. ${movedItems} oggetti sono stati spostati in Altro.`;
         this.load(undefined, message);
       },
-      error: (error: any) => this.fail(this.message(error, 'La categoria non è stata eliminata.'))
+      error: (error: unknown) => this.fail(apiErrorMessage(error, 'La categoria non è stata eliminata.'))
     });
   }
 
@@ -367,7 +381,7 @@ export class InventoryPageComponent implements OnDestroy {
   }
 
   isExpired(date: string | null): boolean {
-    return !!date && date < new Date().toISOString().slice(0, 10);
+    return !!date && date < localDateKey();
   }
 
   quantityLabel(item: InventoryItem): string {
@@ -411,7 +425,4 @@ export class InventoryPageComponent implements OnDestroy {
     return fallback ? String(fallback.id) : '';
   }
   private fail(message: string): void { this.error.set(message); this.busy.set(false); this.loading.set(false); }
-  private message(error: any, fallback: string): string {
-    return typeof error?.error?.message === 'string' ? error.error.message : fallback;
-  }
 }

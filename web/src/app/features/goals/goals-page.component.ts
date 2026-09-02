@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { SessionStore } from '../../core/session.store';
+import { localDateKey } from '../../shared/local-date';
 import { GoalsApiService } from './goals-api.service';
 import {
   GoalItem, GoalPayload, GoalStatus, GoalTracker, GoalTrackerPayload,
@@ -28,6 +29,7 @@ export class GoalsPageComponent {
   readonly trackerDrafts = signal<GoalTrackerPayload[]>([]);
   readonly deleteTarget = signal<GoalItem | null>(null);
   readonly logTarget = signal<{ goal: GoalItem; tracker: GoalTracker } | null>(null);
+  readonly logLoading = signal(false);
 
   readonly isChild = computed(() => this.session.user()?.role === 'child');
   readonly canManage = computed(() => ['admin', 'adult'].includes(this.session.user()?.role ?? ''));
@@ -182,6 +184,7 @@ export class GoalsPageComponent {
   openLog(goal: GoalItem, tracker: GoalTracker): void {
     if (!goal.can_log) return;
     const latest = tracker.logs[0];
+    this.error.set('');
     this.logForm.reset({
       date: this.today(),
       value: tracker.tracker_type === 'percentage' && latest?.value_number !== null
@@ -190,6 +193,26 @@ export class GoalsPageComponent {
       note: ''
     });
     this.logTarget.set({ goal, tracker });
+    this.logLoading.set(true);
+    this.api.logs(tracker.id).subscribe({
+      next: (logs) => {
+        const current = this.logTarget();
+        if (current?.tracker.id === tracker.id) {
+          this.logTarget.set({
+            goal: current.goal,
+            tracker: {
+              ...current.tracker,
+              logs: logs.map((log) => ({ ...log, id: Number(log.id), version: Number(log.version) }))
+            }
+          });
+        }
+        this.logLoading.set(false);
+      },
+      error: () => {
+        this.logLoading.set(false);
+        this.error.set('La cronologia completa non è disponibile. Puoi comunque registrare il progresso.');
+      }
+    });
   }
 
   saveLog(): void {
@@ -273,9 +296,7 @@ export class GoalsPageComponent {
   }
 
   private today(): string {
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    return localDateKey();
   }
 
   private fail(message: string): void {

@@ -6,10 +6,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { apiErrorMessage } from '../../shared/api-error';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { matchingProducts } from './product-search';
 import { ShoppingApiService } from './shopping-api.service';
-import { Product, ShoppingItem, ShoppingOverview } from './shopping.models';
+import { Product, ShoppingItem } from './shopping.models';
+import { ShoppingStore } from './shopping.store';
 
 @Component({
   selector: 'lh-shopping-list',
@@ -20,7 +22,8 @@ import { Product, ShoppingItem, ShoppingOverview } from './shopping.models';
 })
 export class ShoppingListComponent {
   readonly api = inject(ShoppingApiService);
-  readonly overview = signal<ShoppingOverview | null>(null);
+  readonly shopping = inject(ShoppingStore);
+  readonly overview = this.shopping.listOverview;
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -51,12 +54,12 @@ export class ShoppingListComponent {
   });
   readonly checkedCount = computed(() => (this.overview()?.items ?? []).filter((item) => !!item.checked).length);
 
-  constructor() { this.load(); }
+  constructor() { this.load(false); }
 
-  load(): void {
+  load(force = true): void {
     this.loading.set(true);
-    this.api.overview().subscribe({
-      next: (overview) => { this.overview.set(overview); this.loading.set(false); this.busy.set(false); },
+    this.shopping.loadList(force).subscribe({
+      next: () => { this.loading.set(false); this.busy.set(false); },
       error: () => { this.error.set('Impossibile caricare la lista della spesa.'); this.loading.set(false); this.busy.set(false); }
     });
   }
@@ -134,7 +137,7 @@ export class ShoppingListComponent {
       supermarketId: value.supermarketId ? Number(value.supermarketId) : null,
       quantity: value.quantity.trim()
     }).subscribe({
-      next: () => { this.addModalOpen.set(false); this.load(); },
+      next: () => { this.addModalOpen.set(false); this.shopping.invalidateCatalog(); this.load(); },
       error: (response: HttpErrorResponse) => {
         if (response.status === 409 && response.error?.error?.code === 'shopping.duplicate') {
           this.error.set(response.error.error.message || 'Il prodotto è già presente nella lista.');
@@ -143,7 +146,7 @@ export class ShoppingListComponent {
           this.load();
           return;
         }
-        this.error.set(this.message(response, 'Il prodotto non è stato aggiunto.')); this.busy.set(false);
+        this.error.set(apiErrorMessage(response, 'Il prodotto non è stato aggiunto.')); this.busy.set(false);
       }
     });
   }
@@ -167,7 +170,7 @@ export class ShoppingListComponent {
       checked: Boolean(item.checked), quantity: value.quantity.trim(),
       supermarketId: value.supermarketId ? Number(value.supermarketId) : null, version: item.version
     }).subscribe({
-      next: () => { this.editingItem.set(null); this.load(); },
+      next: () => { this.editingItem.set(null); this.shopping.invalidateCatalog(); this.load(); },
       error: () => this.conflict()
     });
   }
@@ -177,12 +180,18 @@ export class ShoppingListComponent {
     this.optimistic(item, checked);
     this.api.updateItem(item.id, {
       checked, quantity: item.quantity_raw || '1', supermarketId: item.supermarket_id, version: item.version
-    }).subscribe({ next: () => this.load(), error: () => { this.optimistic(item, !checked); this.conflict(); } });
+    }).subscribe({
+      next: () => { this.shopping.invalidateCatalog(); this.load(); },
+      error: () => { this.optimistic(item, !checked); this.conflict(); }
+    });
   }
 
   remove(item: ShoppingItem): void {
     this.busy.set(true);
-    this.api.removeItem(item.id, item.version).subscribe({ next: () => this.load(), error: () => this.conflict() });
+    this.api.removeItem(item.id, item.version).subscribe({
+      next: () => { this.shopping.invalidateCatalog(); this.load(); },
+      error: () => this.conflict()
+    });
   }
 
   openClear(): void {
@@ -197,9 +206,9 @@ export class ShoppingListComponent {
     if (!list) { this.error.set('Nessuna lista della spesa attiva.'); return; }
     this.busy.set(true); this.error.set('');
     this.api.clearChecked(list.id).subscribe({
-      next: () => { this.clearModalOpen.set(false); this.load(); },
+      next: () => { this.clearModalOpen.set(false); this.shopping.invalidateCatalog(); this.load(); },
       error: (response: HttpErrorResponse) => {
-        this.error.set(this.message(response, 'Non è stato possibile pulire gli articoli acquistati.'));
+        this.error.set(apiErrorMessage(response, 'Non è stato possibile pulire gli articoli acquistati.'));
         this.busy.set(false);
       }
     });
@@ -225,8 +234,4 @@ export class ShoppingListComponent {
     this.load();
   }
 
-  private message(response: HttpErrorResponse, fallback: string): string {
-    if (typeof response.error?.error?.message === 'string') return response.error.error.message;
-    return typeof response.error?.message === 'string' ? response.error.message : fallback;
-  }
 }

@@ -32,9 +32,19 @@ final class ShoppingListController
         $this->storage = $storage;
     }
 
-    public function overview(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    public function listOverview(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
-        return JsonResponder::write($response, $this->shopping->overview($this->user($request)));
+        return JsonResponder::write($response, $this->shopping->listOverview($this->user($request)));
+    }
+
+    public function catalogOverview(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return JsonResponder::write($response, $this->shopping->catalogOverview($this->user($request)));
+    }
+
+    public function pricesOverview(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return JsonResponder::write($response, $this->shopping->pricesOverview($this->user($request)));
     }
 
     public function create(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface

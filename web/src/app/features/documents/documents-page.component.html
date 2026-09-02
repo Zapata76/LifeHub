@@ -128,7 +128,7 @@
       <h2 id="document-preview-title">Anteprima · {{ attachment.name }}</h2>
       <div class="document-preview-body">
         @if (isImage(attachment)) {
-          <img [src]="api.attachment(attachment.id, true)" [alt]="'Anteprima di ' + attachment.name">
+          <img decoding="async" [src]="api.attachment(attachment.id, true)" [alt]="'Anteprima di ' + attachment.name">
         } @else if (previewPdfUrl(); as pdfUrl) {
           <iframe [src]="pdfUrl" [title]="'Anteprima di ' + attachment.name"></iframe>
         }

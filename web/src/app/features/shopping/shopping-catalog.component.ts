@@ -9,7 +9,8 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { SessionStore } from '../../core/session.store';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
 import { ShoppingApiService } from './shopping-api.service';
-import { Product, ProductRecipeUsage, ShoppingOverview } from './shopping.models';
+import { Product, ProductRecipeUsage } from './shopping.models';
+import { ShoppingStore } from './shopping.store';
 
 type CatalogSection = 'products' | 'categories' | 'supermarkets';
 type CatalogResource = 'products' | 'categories' | 'supermarkets';
@@ -29,8 +30,9 @@ interface CatalogDeleteTarget { resource: CatalogResource; id: number; version: 
 export class ShoppingCatalogComponent {
   readonly api = inject(ShoppingApiService);
   readonly store = inject(SessionStore);
+  readonly shopping = inject(ShoppingStore);
   @Input() section: CatalogSection = 'products';
-  readonly overview = signal<ShoppingOverview | null>(null);
+  readonly overview = this.shopping.catalogOverview;
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -75,14 +77,14 @@ export class ShoppingCatalogComponent {
   });
   readonly canManage = computed(() => ['admin', 'adult'].includes(this.store.user()?.role ?? ''));
 
-  constructor() { this.load(); }
+  constructor() { this.load('', false); }
 
-  load(message = ''): void {
+  load(message = '', force = true): void {
     this.loading.set(true);
     this.addingProductId.set(null);
-    this.api.overview().subscribe({
-      next: (overview) => {
-        this.overview.set(overview); this.loading.set(false); this.busy.set(false);
+    this.shopping.loadCatalog(force).subscribe({
+      next: () => {
+        this.loading.set(false); this.busy.set(false);
         this.addingProductId.set(null);
         this.error.set('');
         this.success.set(message);
@@ -103,6 +105,8 @@ export class ShoppingCatalogComponent {
       next: () => {
         this.productModalOpen.set(false);
         this.resetProductEditor();
+        this.shopping.invalidateList();
+        this.shopping.invalidatePrices();
         this.load('Prodotto salvato.');
       },
       error: () => this.failed('Il prodotto non è stato salvato.')
@@ -128,7 +132,7 @@ export class ShoppingCatalogComponent {
   }
 
   isProductInList(productId: number): boolean {
-    return (this.overview()?.items ?? []).some((item) => Number(item.product_id) === productId);
+    return (this.overview()?.active_product_ids ?? []).some((item) => Number(item.id) === productId);
   }
 
   addToList(product: Product): void {
@@ -148,7 +152,7 @@ export class ShoppingCatalogComponent {
       supermarketId: null,
       quantity: '1'
     }).subscribe({
-      next: () => this.load(product.name + ' aggiunto alla lista.'),
+      next: () => { this.shopping.invalidateList(); this.load(product.name + ' aggiunto alla lista.'); },
       error: (response: HttpErrorResponse) => {
         if (response.status === 409 && response.error?.error?.code === 'shopping.duplicate') {
           this.load(product.name + ' \u00e8 gi\u00e0 presente nella lista.');
@@ -189,6 +193,8 @@ export class ShoppingCatalogComponent {
       next: () => {
         this.createTarget.set(null);
         this.catalogCreateForm.reset({ name: '' });
+        this.shopping.invalidateList();
+        this.shopping.invalidatePrices();
         this.load('Categoria aggiunta.');
       },
       error: () => this.failed('La categoria non è stata aggiunta.')
@@ -202,6 +208,8 @@ export class ShoppingCatalogComponent {
       next: () => {
         this.createTarget.set(null);
         this.catalogCreateForm.reset({ name: '' });
+        this.shopping.invalidateList();
+        this.shopping.invalidatePrices();
         this.load('Supermercato aggiunto.');
       },
       error: () => this.failed('Il supermercato non è stato aggiunto.')
@@ -236,6 +244,8 @@ export class ShoppingCatalogComponent {
       next: () => {
         this.renameTarget.set(null);
         this.catalogNameForm.reset({ name: '' });
+        this.shopping.invalidateList();
+        this.shopping.invalidatePrices();
         this.load(target.resource === 'categories' ? 'Categoria rinominata.' : 'Supermercato rinominato.');
       },
       error: () => this.failed('Il nome non \u00e8 stato aggiornato. Ricarica e riprova.')
@@ -252,7 +262,7 @@ export class ShoppingCatalogComponent {
       ? this.api.deleteCatalog(resource, item.id, item.version)
       : this.api.deleteCatalog(resource, item.id, item.version, replacementCategoryId);
     request.subscribe({
-      next: () => this.load('Elemento eliminato definitivamente.'),
+      next: () => { this.shopping.invalidateAll(); this.load('Elemento eliminato definitivamente.'); },
       error: () => this.failed('L\u2019elemento \u00e8 stato modificato: ricarica e riprova.')
     });
   }
@@ -286,13 +296,13 @@ export class ShoppingCatalogComponent {
   }
 
   supermarketPriceCount(supermarketId: number): number {
-    return (this.overview()?.prices ?? [])
-      .filter((price) => Number(price.supermarket_id) === supermarketId).length;
+    return Number((this.overview()?.supermarket_price_counts ?? [])
+      .find((entry) => Number(entry.id) === supermarketId)?.count ?? 0);
   }
 
   supermarketItemCount(supermarketId: number): number {
-    return (this.overview()?.items ?? [])
-      .filter((item) => Number(item.supermarket_id) === supermarketId).length;
+    return Number((this.overview()?.supermarket_item_counts ?? [])
+      .find((entry) => Number(entry.id) === supermarketId)?.count ?? 0);
   }
 
   recipesForProduct(productId: number): ProductRecipeUsage[] {

@@ -7,9 +7,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { SessionStore } from '../../core/session.store';
 import { ModalBackdropDirective } from '../../shared/modal-backdrop.directive';
+import { localDateKey } from '../../shared/local-date';
 import { matchingProducts } from './product-search';
 import { ShoppingApiService } from './shopping-api.service';
-import { PriceRecord, Product, ShoppingOverview } from './shopping.models';
+import { PriceRecord, Product } from './shopping.models';
+import { ShoppingStore } from './shopping.store';
 
 interface PriceGroup {
   productId: number;
@@ -42,7 +44,8 @@ function optionalPackage(control: AbstractControl): ValidationErrors | null {
 export class ShoppingPricesComponent {
   readonly api = inject(ShoppingApiService);
   readonly store = inject(SessionStore);
-  readonly overview = signal<ShoppingOverview | null>(null);
+  readonly shopping = inject(ShoppingStore);
+  readonly overview = this.shopping.pricesOverview;
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -61,7 +64,7 @@ export class ShoppingPricesComponent {
     amount: new FormControl<number | null>(null, [Validators.required, Validators.min(0.01)]),
     packageAmount: new FormControl<number | null>(null, [Validators.min(0.01)]),
     packageUnit: new FormControl<PackageUnit>('', { nonNullable: true }),
-    observedOn: new FormControl(new Date().toISOString().slice(0, 10), { nonNullable: true })
+    observedOn: new FormControl(localDateKey(), { nonNullable: true })
   }, { validators: optionalPackage });
   readonly prices = computed(() => {
     const term = this.filter().trim().toLocaleLowerCase('it');
@@ -94,13 +97,13 @@ export class ShoppingPricesComponent {
   });
   readonly canManage = computed(() => ['admin', 'adult'].includes(this.store.user()?.role ?? ''));
 
-  constructor() { this.load(); }
+  constructor() { this.load('', false); }
 
-  load(message = ''): void {
+  load(message = '', force = true): void {
     this.loading.set(true);
-    this.api.overview().subscribe({
-      next: (overview) => {
-        this.overview.set(overview); this.loading.set(false); this.busy.set(false); this.success.set(message);
+    this.shopping.loadPrices(force).subscribe({
+      next: () => {
+        this.loading.set(false); this.busy.set(false); this.success.set(message);
       },
       error: () => { this.error.set('Impossibile caricare lo storico prezzi.'); this.loading.set(false); this.busy.set(false); }
     });
@@ -176,6 +179,7 @@ export class ShoppingPricesComponent {
       next: () => {
         this.priceModalOpen.set(false);
         this.resetEditor();
+        this.shopping.invalidateCatalog();
         this.load('Prezzo registrato.');
       },
       error: () => { this.error.set('Il prezzo non è stato registrato.'); this.busy.set(false); }
@@ -185,7 +189,7 @@ export class ShoppingPricesComponent {
   deleteResource(price: PriceRecord): void {
     this.busy.set(true); this.error.set(''); this.success.set('');
     this.api.deleteCatalog('prices', price.id, price.version).subscribe({
-      next: () => this.load('Registrazione eliminata definitivamente.'),
+      next: () => { this.shopping.invalidateCatalog(); this.load('Registrazione eliminata definitivamente.'); },
       error: () => { this.error.set('La registrazione è cambiata: ricarica e riprova.'); this.busy.set(false); }
     });
   }
@@ -230,7 +234,7 @@ export class ShoppingPricesComponent {
     this.highlightedProductIndex.set(-1);
     this.form.reset({ productSearch: '', productId: '', supermarketId: '', amount: null,
       packageAmount: null, packageUnit: '',
-      observedOn: new Date().toISOString().slice(0, 10) });
+      observedOn: localDateKey() });
   }
 
   private packageText(amount: number | null, unit: PackageUnit): string | null {

@@ -80,7 +80,7 @@
       @if (currentImage(); as image) {
         <section class="inventory-gallery" aria-label="Galleria immagini dell’oggetto">
           <div class="inventory-photo">
-            <img [src]="api.attachment(image.id)" [alt]="'Foto di ' + item.name">
+            <img decoding="async" [src]="api.attachment(image.id)" [alt]="'Foto di ' + item.name">
           </div>
           <div class="inventory-photo-controls">
             <span>{{ item.images.length }} foto</span>
@@ -95,7 +95,7 @@
                 <button type="button" class="inventory-thumbnail" [class.active]="candidate.id === image.id"
                   [attr.aria-label]="'Mostra foto ' + (index + 1)" [attr.aria-pressed]="candidate.id === image.id"
                   (click)="chooseImage(candidate.id)">
-                  <img [src]="api.attachment(candidate.id)" alt="">
+                  <img loading="lazy" decoding="async" [src]="api.attachment(candidate.id)" alt="">
                 </button>
               }
             </div>
@@ -271,7 +271,7 @@
               <p class="inventory-existing-images-copy">Le foto già presenti restano associate. Puoi eliminarle dalla galleria dell’oggetto.</p>
               <div class="inventory-editor-thumbnails" aria-label="Foto già presenti">
                 @for (image of selected()?.images ?? []; track image.id) {
-                  <img [src]="api.attachment(image.id)" [alt]="image.name">
+                  <img loading="lazy" decoding="async" [src]="api.attachment(image.id)" [alt]="image.name">
                 }
               </div>
             }
@@ -279,7 +279,7 @@
               <div class="inventory-pending-images" aria-label="Nuove foto da caricare">
                 @for (pending of pendingImages(); track pending.url; let index = $index) {
                   <div class="inventory-pending-image">
-                    <img [src]="pending.url" [alt]="'Nuova foto: ' + pending.file.name">
+                    <img decoding="async" [src]="pending.url" [alt]="'Nuova foto: ' + pending.file.name">
                     <button type="button" (click)="removePendingImage(index)" [attr.aria-label]="'Rimuovi ' + pending.file.name">×</button>
                   </div>
                 }

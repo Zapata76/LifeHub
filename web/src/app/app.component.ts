@@ -3,11 +3,12 @@ import { ChangeDetectionStrategy, Component, OnDestroy, inject, signal } from '@
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { SessionStore } from './core/session.store';
+import { ConfirmationDialogComponent } from './shared/confirmation-dialog.component';
 
 @Component({
   selector: 'lh-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ConfirmationDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a class="skip-link" href="#main">Vai al contenuto</a>
@@ -33,6 +34,7 @@ import { SessionStore } from './core/session.store';
       <div class="offline" role="status">Sei offline. I dati protetti non vengono salvati nella cache.</div>
     }
     <main id="main" tabindex="-1"><router-outlet /></main>
+    <lh-confirmation-dialog />
   `
 })
 export class AppComponent implements OnDestroy {
