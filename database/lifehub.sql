@@ -399,6 +399,22 @@ CREATE TABLE IF NOT EXISTS `lh_tasks` (
   KEY `ix_lh_tasks_creator` (`household_id`,`created_by`),
   KEY `ix_lh_tasks_due` (`household_id`,`due_date`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_task_notification_deliveries` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `household_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `notification_date` date NOT NULL,
+  `status` varchar(16) NOT NULL DEFAULT 'sending',
+  `attempt_count` int(11) NOT NULL DEFAULT '1',
+  `claimed_at` datetime NOT NULL,
+  `sent_at` datetime DEFAULT NULL,
+  `last_error_code` varchar(64) DEFAULT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_task_notification_day` (`household_id`,`user_id`,`notification_date`),
+  KEY `ix_lh_task_notification_status` (`notification_date`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 CREATE TABLE IF NOT EXISTS `lh_trackers` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,
@@ -429,6 +445,7 @@ CREATE TABLE IF NOT EXISTS `lh_users` (
   `household_id` int(11) NOT NULL,
   `username` varbinary(190) NOT NULL,
   `username_key` varchar(190) NOT NULL,
+  `email` varchar(254) DEFAULT NULL,
   `password_hash` varbinary(255) DEFAULT NULL,
   `role` varchar(16) NOT NULL,
   `status` varchar(16) NOT NULL DEFAULT 'active',

@@ -49,6 +49,11 @@ use LifeHub\Shopping\ShoppingListController;
 use LifeHub\Shopping\ShoppingRepository;
 use LifeHub\Tasks\TaskController;
 use LifeHub\Tasks\TaskRepository;
+use LifeHub\Tasks\Notifications\NativeTaskNotificationMailer;
+use LifeHub\Tasks\Notifications\TaskNotificationController;
+use LifeHub\Tasks\Notifications\TaskNotificationMailer;
+use LifeHub\Tasks\Notifications\TaskNotificationRepository;
+use LifeHub\Tasks\Notifications\TaskNotificationService;
 use PDO;
 use Psr\Container\ContainerInterface;
 use Slim\Factory\AppFactory;
@@ -59,19 +64,24 @@ use Slim\App;
 final class ApplicationFactory
 {
     /** @return App<ContainerInterface|null> */
-    public static function create(Settings $settings, ?PDO $pdo = null): App
-    {
+    public static function create(
+        Settings $settings,
+        ?PDO $pdo = null,
+        ?TaskNotificationMailer $taskNotificationMailer = null
+    ): App {
         $pdo = $pdo ?? PdoFactory::create($settings);
         $app = AppFactory::create();
         $app->setBasePath($settings->apiPath());
         $responses = new ResponseFactory();
         $audit = new AuditLogger($pdo);
 
-        self::routes($app, $pdo, $audit, $responses, $settings);
+        self::routes($app, $pdo, $audit, $responses, $settings, $taskNotificationMailer);
 
         $app->addRoutingMiddleware();
         $app->addBodyParsingMiddleware();
-        $app->add(new CsrfMiddleware($responses));
+        $app->add(new CsrfMiddleware($responses, [
+            $settings->apiPath() . '/v1/jobs/task-notifications',
+        ]));
         $app->add(new SessionMiddleware($settings));
         $app->add(new ApiExceptionMiddleware($responses, $settings->isDebug()));
         $app->add(new SecurityHeadersMiddleware());
@@ -86,7 +96,8 @@ final class ApplicationFactory
         PDO $pdo,
         AuditLogger $audit,
         ResponseFactory $responses,
-        Settings $settings
+        Settings $settings,
+        ?TaskNotificationMailer $taskNotificationMailer
     ): void {
         $users = new UserRepository($pdo);
         $auth = new AuthController(new AuthService($pdo, $users), $users);
@@ -109,12 +120,42 @@ final class ApplicationFactory
             $storage,
             $audit
         );
-
         $app->get('/health', function ($request, $response) {
             return JsonResponder::write($response, ['status' => 'ok', 'runtime' => PHP_VERSION]);
         });
         $app->get('/v1/app-config', function ($request, $response) use ($settings) {
             return JsonResponder::write($response, ['siteName' => $settings->get('siteName')]);
+        });
+        $taskNotificationController = function () use (
+            $pdo,
+            $settings,
+            $taskNotificationMailer
+        ) {
+            $mailer = $taskNotificationMailer ?? new NativeTaskNotificationMailer(
+                $settings->get('mailFromAddress'),
+                $settings->get('mailFromName') ?: $settings->get('siteName')
+            );
+            return new TaskNotificationController(
+                new TaskNotificationService(
+                    new TaskNotificationRepository($pdo),
+                    $mailer,
+                    $settings->get('siteName'),
+                    $settings->get('publicUrl')
+                ),
+                $settings
+            );
+        };
+        $app->post('/v1/jobs/task-notifications', function (
+            $request,
+            $response
+        ) use ($taskNotificationController) {
+            return $taskNotificationController()->run($request, $response);
+        });
+        $app->get('/v1/jobs/task-notifications/status', function (
+            $request,
+            $response
+        ) use ($taskNotificationController) {
+            return $taskNotificationController()->status($request, $response);
         });
         $app->group('/v1', function (RouteCollectorProxyInterface $group) use (
             $auth,

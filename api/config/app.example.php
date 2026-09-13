@@ -29,4 +29,12 @@ return [
 
     // StorageGateway appends /files to this root automatically.
     'storagePath' => $privateRuntime,
+
+    // Used only by the external daily-job endpoint. Generate a random value of at least 32 characters.
+    'jobToken' => 'REPLACE_WITH_A_LONG_RANDOM_JOB_TOKEN',
+    // PHP mail() sender accepted by the hosting account.
+    'mailFromAddress' => 'no-reply@example.com',
+    'mailFromName' => 'Life Hub',
+    // Public application URL, without trailing slash; notification links append /tasks.
+    'publicUrl' => 'https://example.com/lifehub',
 ];

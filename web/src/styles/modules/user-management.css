@@ -14,6 +14,7 @@
 .management-identity { display: flex; align-content: start; align-items: flex-start; flex-wrap: wrap; gap: .5rem; }
 .management-identity h3 { flex-basis: 100%; margin: 0; }
 .management-fields { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: .75rem; }
+.management-email { grid-column: 1 / -1; }
 .calendar-checks { min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: .75rem; }
 .calendar-checks legend { padding: 0 .35rem; color: var(--muted); font-size: .85rem; }
 .calendar-checks label { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: .55rem; margin: .35rem 0; color: var(--text); }

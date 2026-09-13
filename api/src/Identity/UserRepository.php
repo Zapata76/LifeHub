@@ -62,7 +62,7 @@ final class UserRepository
     public function list(int $householdId): array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, username, role, status, created_at, updated_at, archived_at, version '
+            'SELECT id, username, email, role, status, created_at, updated_at, archived_at, version '
             . 'FROM lh_users WHERE household_id = ? ORDER BY username_key'
         );
         $statement->execute([$householdId]);
@@ -82,13 +82,18 @@ final class UserRepository
         return $rows;
     }
 
-    public function create(int $householdId, string $username, string $password, string $role): int
-    {
+    public function create(
+        int $householdId,
+        string $username,
+        string $password,
+        string $role,
+        ?string $email
+    ): int {
         $now = gmdate('Y-m-d H:i:s');
         $statement = $this->pdo->prepare(
             'INSERT INTO lh_users '
-            . '(household_id, username, username_key, password_hash, role, status, created_at, updated_at) '
-            . "VALUES (?, ?, ?, ?, ?, 'active', ?, ?)"
+            . '(household_id, username, username_key, password_hash, role, email, status, created_at, updated_at) '
+            . "VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)"
         );
         try {
             $statement->execute([
@@ -97,6 +102,7 @@ final class UserRepository
                 SearchKey::from($username),
                 password_hash($password, PASSWORD_BCRYPT),
                 $role,
+                $email,
                 $now,
                 $now,
             ]);
@@ -182,8 +188,14 @@ final class UserRepository
         return false;
     }
 
-    public function update(int $householdId, int $id, string $role, string $status, int $version): bool
-    {
+    public function update(
+        int $householdId,
+        int $id,
+        string $role,
+        string $status,
+        ?string $email,
+        int $version
+    ): bool {
         $this->pdo->exec('LOCK TABLES lh_users WRITE');
         try {
             $current = $this->find($householdId, $id);
@@ -193,12 +205,22 @@ final class UserRepository
             if ($current['role'] === 'admin' && ($role !== 'admin' || $status !== 'active')) {
                 $this->assertAnotherAdmin($householdId, $id);
             }
+            $securityChanged = $current['role'] !== $role || $current['status'] !== $status;
             $statement = $this->pdo->prepare(
-                'UPDATE lh_users SET role = ?, status = ?, updated_at = ?, version = version + 1, '
-                . 'session_version = session_version + 1 '
+                'UPDATE lh_users SET role = ?, status = ?, email = ?, updated_at = ?, version = version + 1, '
+                . 'session_version = session_version + ? '
                 . 'WHERE household_id = ? AND id = ? AND version = ?'
             );
-            $statement->execute([$role, $status, gmdate('Y-m-d H:i:s'), $householdId, $id, $version]);
+            $statement->execute([
+                $role,
+                $status,
+                $email,
+                gmdate('Y-m-d H:i:s'),
+                $securityChanged ? 1 : 0,
+                $householdId,
+                $id,
+                $version,
+            ]);
             return $statement->rowCount() === 1;
         } finally {
             $this->pdo->exec('UNLOCK TABLES');

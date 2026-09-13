@@ -24,7 +24,8 @@ final class IntegrityChecker
     public function report(): array
     {
         $tables = [
-            'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks', 'lh_notes',
+            'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks',
+            'lh_task_notification_deliveries', 'lh_notes',
             'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices', 'lh_recipes',
             'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes', 'lh_shopping_lists',
             'lh_shopping_items', 'lh_documents', 'lh_inventory_categories', 'lh_inventory',
@@ -42,6 +43,12 @@ final class IntegrityChecker
                 'lh_users',
                 'id',
                 'assigned_to IS NOT NULL'
+            ),
+            'task_notifications.user_id' => $this->orphan(
+                'lh_task_notification_deliveries',
+                'user_id',
+                'lh_users',
+                'id'
             ),
             'products.category_id' => $this->orphan(
                 'lh_products',

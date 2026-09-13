@@ -17,10 +17,14 @@ final class CsrfMiddleware
 {
     /** @var ResponseFactory */
     private $responseFactory;
+    /** @var list<string> */
+    private $exemptPaths;
 
-    public function __construct(ResponseFactory $responseFactory)
+    /** @param list<string> $exemptPaths */
+    public function __construct(ResponseFactory $responseFactory, array $exemptPaths = [])
     {
         $this->responseFactory = $responseFactory;
+        $this->exemptPaths = $exemptPaths;
     }
 
     public function __invoke(
@@ -34,6 +38,7 @@ final class CsrfMiddleware
         if (
             in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
             && !$this->isLogoutRequest($request)
+            && !in_array(rtrim($request->getUri()->getPath(), '/'), $this->exemptPaths, true)
         ) {
             $provided = $request->getHeaderLine('X-CSRF-Token');
             if ($provided === '' || !hash_equals((string) $_SESSION['csrfToken'], $provided)) {

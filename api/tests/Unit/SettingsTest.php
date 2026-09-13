@@ -31,6 +31,36 @@ final class SettingsTest extends TestCase
         self::assertFalse($settings->isDebug());
     }
 
+    public function testAcceptsValidatedNotificationSettings(): void
+    {
+        $settings = Settings::fromArray([
+            'dbName' => 'production_database',
+            'dbUser' => 'production_user',
+            'storagePath' => '/var/private/lifehub/uploads',
+            'jobToken' => str_repeat('a', 32),
+            'mailFromAddress' => 'lifehub@example.test',
+            'mailFromName' => 'Family Hub',
+            'publicUrl' => 'https://example.test/lifehub',
+        ]);
+
+        self::assertSame('lifehub@example.test', $settings->get('mailFromAddress'));
+        self::assertSame('https://example.test/lifehub', $settings->get('publicUrl'));
+    }
+
+    public function testKeepsCoreSettingsAvailableWhenOptionalJobConfigurationIsIncomplete(): void
+    {
+        $settings = Settings::fromArray([
+            'dbName' => 'production_database',
+            'dbUser' => 'production_user',
+            'storagePath' => '/var/private/lifehub/uploads',
+            'jobToken' => 'too-short',
+            'mailFromAddress' => 'not-an-email',
+            'publicUrl' => '/not-an-absolute-url',
+        ]);
+
+        self::assertSame('too-short', $settings->get('jobToken'));
+    }
+
     public function testUsesTheDomainRootByDefault(): void
     {
         $settings = Settings::fromArray([

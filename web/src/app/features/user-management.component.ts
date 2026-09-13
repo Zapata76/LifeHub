@@ -13,6 +13,7 @@ type UserStatus = 'active' | 'disabled';
 interface ManagedUser {
   id: number;
   username: string;
+  email: string | null;
   role: UserRole;
   status: UserStatus;
   version: number;
@@ -26,6 +27,7 @@ interface CalendarAssignment {
 interface UserDraft {
   role: UserRole;
   status: UserStatus;
+  email: string;
 }
 
 interface CalendarDraft {
@@ -82,6 +84,10 @@ interface HomeSettings {
           <input type="password" formControlName="password" autocomplete="new-password" minlength="12">
           <small>Almeno 12 caratteri; verrà salvata esclusivamente con bcrypt.</small>
         </label>
+        <label>Email notifiche <small>(facoltativa)</small>
+          <input type="email" formControlName="email" autocomplete="email" maxlength="254"
+            placeholder="nome@esempio.it">
+        </label>
         <label>Ruolo
           <select formControlName="role">
             @for (role of roles; track role) { <option [value]="role">{{ roleLabel(role) }}</option> }
@@ -134,6 +140,10 @@ interface HomeSettings {
                 @if (isSelf(user)) { <small>Account corrente</small> }
               </div>
               <div class="management-fields">
+                <label class="management-email">Email notifiche
+                  <input type="email" maxlength="254" [value]="userDraft(user).email" [disabled]="busy()"
+                    placeholder="Nessuna email" (input)="changeUserEmail(user, $event)">
+                </label>
                 <label>Ruolo
                   <select [value]="userDraft(user).role" [disabled]="isSelf(user) || busy()"
                     (change)="changeUserRole(user, $event)">
@@ -162,8 +172,8 @@ interface HomeSettings {
                 }
               </fieldset>
               <div class="actions management-actions">
-                <button type="button" (click)="saveUser(user)" [disabled]="isSelf(user) || busy()">
-                  Salva ruolo e stato
+                <button type="button" (click)="saveUser(user)" [disabled]="busy() || !validEmail(userDraft(user).email)">
+                  Salva utente
                 </button>
                 <button type="button" (click)="openPasswordReset(user)" [disabled]="busy()">
                   Reimposta password
@@ -244,6 +254,7 @@ export class UserManagementComponent {
       Validators.required, Validators.pattern(/^[A-Za-z0-9._-]{3,50}$/)
     ] }),
     password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(12)] }),
+    email: new FormControl('', { nonNullable: true, validators: [Validators.email, Validators.maxLength(254)] }),
     role: new FormControl<UserRole>('adult', { nonNullable: true, validators: [Validators.required] })
   });
   readonly passwordForm = new FormGroup({
@@ -290,7 +301,7 @@ export class UserManagementComponent {
         this.calendars.set(normalizedCalendars);
         this.assignments.set(normalizedAssignments);
         this.userDrafts.set(Object.fromEntries(normalizedUsers.map((user) => [
-          user.id, { role: user.role, status: user.status }
+          user.id, { role: user.role, status: user.status, email: user.email ?? '' }
         ])));
         this.calendarDrafts.set(Object.fromEntries(normalizedCalendars.map((calendar) => [
           calendar.id, { name: calendar.name, externalId: calendar.external_id }
@@ -326,10 +337,10 @@ export class UserManagementComponent {
     this.begin();
     const value = this.createForm.getRawValue();
     this.http.post('api/v1/users', {
-      username: value.username.trim(), password: value.password, role: value.role
+      username: value.username.trim(), password: value.password, email: value.email.trim(), role: value.role
     }).subscribe({
       next: () => {
-        this.createForm.reset({ username: '', password: '', role: value.role });
+        this.createForm.reset({ username: '', password: '', email: '', role: value.role });
         this.userModalOpen.set(false);
         this.done('Utente creato.');
       },
@@ -340,7 +351,7 @@ export class UserManagementComponent {
   openUserModal(): void {
     this.error.set('');
     this.success.set('');
-    this.createForm.reset({ username: '', password: '', role: 'adult' });
+    this.createForm.reset({ username: '', password: '', email: '', role: 'adult' });
     this.userModalOpen.set(true);
   }
 
@@ -348,7 +359,7 @@ export class UserManagementComponent {
     if (this.busy()) return;
     this.userModalOpen.set(false);
     this.error.set('');
-    this.createForm.reset({ username: '', password: '', role: 'adult' });
+    this.createForm.reset({ username: '', password: '', email: '', role: 'adult' });
   }
 
   userModalBackdrop(event: MouseEvent): void {
@@ -359,7 +370,7 @@ export class UserManagementComponent {
     this.begin();
     const draft = this.userDraft(user);
     this.http.put(`api/v1/users/${user.id}`, { ...draft, version: user.version }).subscribe({
-      next: () => this.done('Ruolo e stato aggiornati.'),
+      next: () => this.done('Utente aggiornato.'),
       error: (failure: unknown) => this.fail(failure, 'Aggiornamento utente non riuscito.')
     });
   }
@@ -436,7 +447,7 @@ export class UserManagementComponent {
   }
 
   userDraft(user: ManagedUser): UserDraft {
-    return this.userDrafts()[user.id] ?? { role: user.role, status: user.status };
+    return this.userDrafts()[user.id] ?? { role: user.role, status: user.status, email: user.email ?? '' };
   }
 
   calendarDraft(calendar: CalendarItem): CalendarDraft {
@@ -451,6 +462,15 @@ export class UserManagementComponent {
   changeUserStatus(user: ManagedUser, event: Event): void {
     const status = (event.target as HTMLSelectElement).value as UserStatus;
     this.userDrafts.update((current) => ({ ...current, [user.id]: { ...this.userDraft(user), status } }));
+  }
+
+  changeUserEmail(user: ManagedUser, event: Event): void {
+    const email = (event.target as HTMLInputElement).value;
+    this.userDrafts.update((current) => ({ ...current, [user.id]: { ...this.userDraft(user), email } }));
+  }
+
+  validEmail(email: string): boolean {
+    return email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   }
 
   changeCalendarName(calendar: CalendarItem, event: Event): void {
@@ -494,6 +514,7 @@ export class UserManagementComponent {
       'user.username_exists': 'Lo username è già utilizzato.',
       'user.invalid_username': 'Usa 3-50 lettere, numeri, punti, trattini o underscore.',
       'user.password_short': 'La password deve contenere almeno 12 caratteri.',
+      'user.email_invalid': 'Inserisci un indirizzo email valido oppure lascia il campo vuoto.',
       'user.last_admin': 'Non puoi disattivare o declassare l’ultimo amministratore attivo.',
       'user.self_lockout': 'Non puoi declassare o disattivare il tuo account corrente.',
       'version.conflict': 'I dati sono cambiati: la pagina verrà ricaricata prima di riprovare.',

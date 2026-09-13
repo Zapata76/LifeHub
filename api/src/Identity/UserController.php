@@ -59,7 +59,8 @@ final class UserController
             $user->householdId(),
             $username,
             $password,
-            $role
+            $role,
+            $this->email($data)
         );
         $this->record($request, $user, 'user.created', $id);
 
@@ -85,6 +86,7 @@ final class UserController
             $targetId,
             $role,
             $status,
+            $this->email($data),
             $data->requiredInt('version')
         );
         if (!$updated) {
@@ -157,6 +159,19 @@ final class UserController
         }
 
         return $role;
+    }
+
+    private function email(RequestData $data): ?string
+    {
+        $email = $data->optionalString('email', 254);
+        if ($email === null || $email === '') {
+            return null;
+        }
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            throw new ApiException(422, 'user.email_invalid', 'Email address is invalid.');
+        }
+
+        return mb_strtolower($email, 'UTF-8');
     }
 
     /** @param array<string, string> $args */

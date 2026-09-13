@@ -57,6 +57,10 @@ final class Settings
             'sessionName' => 'lifehub',
             'sessionIdleSeconds' => '28800',
             'storagePath' => '',
+            'jobToken' => '',
+            'mailFromAddress' => '',
+            'mailFromName' => '',
+            'publicUrl' => '',
         ];
         $values = [];
         if (array_key_exists('apiBasePath', $configuration)) {

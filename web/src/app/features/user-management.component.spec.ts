@@ -6,9 +6,9 @@ import { SessionStore } from '../core/session.store';
 import { UserManagementComponent } from './user-management.component';
 
 const users = [
-  { id: 1, username: 'Emiliano', role: 'admin', status: 'active', version: 1 },
-  { id: 2, username: 'Giulia', role: 'child', status: 'active', version: 1 },
-  { id: 3, username: 'Simona', role: 'adult', status: 'active', version: 1 }
+  { id: 1, username: 'Emiliano', email: 'emiliano@example.test', role: 'admin', status: 'active', version: 1 },
+  { id: 2, username: 'Giulia', email: null, role: 'child', status: 'active', version: 1 },
+  { id: 3, username: 'Simona', email: null, role: 'adult', status: 'active', version: 1 }
 ];
 const calendars = [
   { id: 1, name: 'Giulia', external_id: 'child@example.test', version: 1 },
@@ -80,6 +80,17 @@ describe('UserManagementComponent', () => {
 
     expect(put).toHaveBeenCalledWith('api/v1/admin/home-settings', {
       homeEyebrow: 'Messaggio del giorno', homeTitle: 'Benvenuti a casa', version: 2
+    });
+  });
+
+  it('allows the current administrator to save an optional notification email', async () => {
+    const { fixture, put } = await createFixture();
+    const user = fixture.componentInstance.users()[0];
+    fixture.componentInstance.changeUserEmail(user, { target: { value: 'new@example.test' } } as unknown as Event);
+    fixture.componentInstance.saveUser(user);
+
+    expect(put).toHaveBeenCalledWith('api/v1/users/1', {
+      role: 'admin', status: 'active', email: 'new@example.test', version: 1
     });
   });
 });

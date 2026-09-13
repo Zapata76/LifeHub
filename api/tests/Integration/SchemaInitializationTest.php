@@ -90,6 +90,7 @@ final class SchemaInitializationTest extends TestCase
             'lh_recipes.category_text' => 'varchar(100)',
             'lh_shopping_items.label' => 'varchar(255)',
             'lh_shopping_items.quantity_raw' => 'varchar(80)',
+            'lh_users.email' => 'varchar(254)',
         ];
         foreach ($expectedTypes as $qualifiedColumn => $expectedType) {
             [$table, $column] = explode('.', $qualifiedColumn, 2);
@@ -111,6 +112,12 @@ final class SchemaInitializationTest extends TestCase
         );
         self::assertNotFalse($residueTables);
         self::assertSame(0, (int) $residueTables->fetchColumn());
+        $notificationEngine = $pdo->query(
+            "SELECT engine FROM information_schema.tables WHERE table_schema = DATABASE() "
+            . "AND table_name = 'lh_task_notification_deliveries'"
+        );
+        self::assertNotFalse($notificationEngine);
+        self::assertSame('MyISAM', $notificationEngine->fetchColumn());
     }
 
     public function testInitializationRefusesAnExistingInstallation(): void

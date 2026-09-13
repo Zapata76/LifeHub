@@ -14,6 +14,11 @@ use LifeHub\Inventory\InventoryCategoryDefaults;
 use LifeHub\Shared\Config\Settings;
 use LifeHub\Tests\Support\TemporaryDatabase;
 use LifeHub\Tests\Support\TemporaryStorage;
+use LifeHub\Tasks\Notifications\TaskNotificationRepository;
+use LifeHub\Tasks\Notifications\TaskNotificationService;
+use LifeHub\Tests\Support\RecordingTaskNotificationMailer;
+use DateTimeImmutable;
+use DateTimeZone;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -170,6 +175,7 @@ final class HttpApiTest extends TestCase
 
         $created = $app->handle($this->request('POST', '/v1/users', [
             'username' => 'member.one', 'password' => 'member-password-123', 'role' => 'adult',
+            'email' => 'member@example.test',
         ], $csrf));
         self::assertSame(201, $created->getStatusCode(), (string) $created->getBody());
         $userId = (int) $this->json($created)['id'];
@@ -182,9 +188,17 @@ final class HttpApiTest extends TestCase
         $users = $this->json($app->handle($this->request('GET', '/v1/users')))['items'];
         self::assertCount(2, $users);
         self::assertArrayNotHasKey('password_hash', $users[1]);
+        self::assertSame('member@example.test', $users[1]['email']);
+
+        $invalidEmail = $app->handle($this->request('POST', '/v1/users', [
+            'username' => 'other.member', 'password' => 'member-password-123', 'role' => 'adult',
+            'email' => 'not-an-email',
+        ], $csrf));
+        self::assertSame(422, $invalidEmail->getStatusCode());
+        self::assertSame('user.email_invalid', $this->json($invalidEmail)['error']['code']);
 
         $updated = $app->handle($this->request('PUT', '/v1/users/' . $userId, [
-            'role' => 'child', 'status' => 'active', 'version' => 1,
+            'role' => 'child', 'status' => 'active', 'email' => 'member@example.test', 'version' => 1,
         ], $csrf));
         self::assertSame(200, $updated->getStatusCode());
 
@@ -228,7 +242,7 @@ final class HttpApiTest extends TestCase
         self::assertSame(0, (int) $calendarLinks->fetchColumn());
 
         $disabled = $app->handle($this->request('PUT', '/v1/users/' . $userId, [
-            'role' => 'child', 'status' => 'disabled', 'version' => 3,
+            'role' => 'child', 'status' => 'disabled', 'email' => 'member@example.test', 'version' => 3,
         ], $csrf));
         self::assertSame(200, $disabled->getStatusCode());
         $selfLockout = $app->handle($this->request('PUT', '/v1/users/1', [
@@ -317,6 +331,158 @@ final class HttpApiTest extends TestCase
         self::assertSame(200, $removed->getStatusCode(), (string) $removed->getBody());
         $afterRemove = $this->json($app->handle($this->request('GET', '/v1/shopping/list-overview')));
         self::assertCount(0, $afterRemove['items']);
+    }
+
+    public function testDailyTaskNotificationsAreSentOncePerUserAndDay(): void
+    {
+        $pdo = $this->database()->pdo();
+        $now = '2026-09-02 08:00:00';
+        $pdo->exec("UPDATE lh_users SET email = 'admin@example.test' WHERE id = 1");
+        $statement = $pdo->prepare(
+            'INSERT INTO lh_tasks '
+            . '(household_id, title, title_search, description, assigned_to, status, priority, due_date, '
+            . 'created_by, created_at, updated_by, updated_at) VALUES (1, ?, ?, NULL, 1, ?, ?, ?, 1, ?, 1, ?)'
+        );
+        $statement->execute([
+            'Prenotare la visita', 'prenotare la visita', 'open', 'low', '2026-09-04', $now, $now,
+        ]);
+        $statement->execute(['Comprare il pane', 'comprare il pane', 'open', 'normal', '2026-09-03', $now, $now]);
+        $statement->execute([
+            'Preparare i documenti', 'preparare i documenti', 'in_progress', 'high', null, $now, $now,
+        ]);
+        $mailer = new RecordingTaskNotificationMailer();
+        $service = new TaskNotificationService(
+            new TaskNotificationRepository($pdo),
+            $mailer,
+            'Life Hub Test',
+            'https://example.test/lifehub'
+        );
+        $runAt = new DateTimeImmutable('2026-09-02 09:00:00', new DateTimeZone('UTC'));
+
+        $first = $service->run($runAt);
+        $second = $service->run($runAt);
+
+        self::assertSame(1, $first['sent']);
+        self::assertSame(0, $first['failed']);
+        self::assertSame(1, $second['alreadyHandled']);
+        self::assertCount(1, $mailer->messages);
+        $message = $mailer->messages[0]['text'];
+        self::assertStringContainsString('Comprare il pane — Da fare, priorità Media, scadenza 03/09/2026', $message);
+        self::assertStringContainsString(
+            'Prenotare la visita — Da fare, priorità Bassa, scadenza 04/09/2026',
+            $message
+        );
+        self::assertStringContainsString(
+            'Preparare i documenti — In corso, priorità Alta, nessuna scadenza',
+            $message
+        );
+        self::assertLessThan(strpos($message, 'Prenotare la visita'), strpos($message, 'Comprare il pane'));
+        self::assertLessThan(strpos($message, 'Preparare i documenti'), strpos($message, 'Prenotare la visita'));
+        self::assertStringContainsString('/lifehub/tasks', $mailer->messages[0]['text']);
+        self::assertStringNotContainsString('Pasti programmati', $mailer->messages[0]['text']);
+        self::assertStringNotContainsString('Pasti programmati', $mailer->messages[0]['html']);
+        $deliveries = $pdo->query(
+            "SELECT COUNT(*) FROM lh_task_notification_deliveries WHERE status = 'sent'"
+        );
+        self::assertNotFalse($deliveries);
+        self::assertSame(1, (int) $deliveries->fetchColumn());
+        $status = $service->status($runAt);
+        self::assertSame(1, $status['eligibleUsers']);
+        self::assertSame(3, $status['pendingTasks']);
+        self::assertSame(1, $status['sentToday']);
+        self::assertSame(0, $status['failedToday']);
+        self::assertSame('2026-09-02 09:00:00', $status['lastSentAt']);
+    }
+
+    public function testTaskNotificationIncludesOnlyTheHouseholdsNextSevenDaysOfMeals(): void
+    {
+        $pdo = $this->database()->pdo();
+        $pdo->exec("UPDATE lh_users SET email = 'admin@example.test' WHERE id = 1");
+        $pdo->exec(
+            'INSERT INTO lh_tasks (household_id, title, title_search, assigned_to, status, priority, '
+            . 'created_by, created_at, updated_by, updated_at) '
+            . "VALUES (1, 'Fare la spesa', 'fare la spesa', 1, 'open', 'normal', 1, NOW(), 1, NOW())"
+        );
+        // Insertion order differs from calendar order; both ends of the date window are exercised.
+        $meal = $pdo->prepare(
+            'INSERT INTO lh_meal_plan (household_id, meal_date, meal_type, description, archived_at, '
+            . 'created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())'
+        );
+        $plannedMeals = [
+            [1, '2026-09-14', 'dinner', 'Ultimo giorno', null],
+            [1, '2026-09-08', 'dinner', 'Cena fuori', null],
+            [1, '2026-09-08', 'lunch', 'Verdure & <pane>', null],
+            [1, '2026-09-08', 'breakfast', 'Latte', null],
+            [1, '2026-09-07', 'dinner', 'Pasto passato', null],
+            [1, '2026-09-15', 'lunch', 'Oltre la settimana', null],
+            [1, '2026-09-09', 'lunch', 'Pasto archiviato', '2026-09-08 07:00:00'],
+            [2, '2026-09-09', 'lunch', 'Altra famiglia', null],
+        ];
+        foreach ($plannedMeals as $values) {
+            $meal->execute($values);
+        }
+        $recipe = $pdo->prepare(
+            'INSERT INTO lh_recipes (household_id, title, title_search, created_by, created_at, '
+            . 'updated_by, updated_at, archived_at) VALUES (1, ?, ?, 1, NOW(), 1, NOW(), ?)'
+        );
+        foreach ([['Pasta', null], ['Insalata', null], ['Ricetta archiviata', '2026-09-08 07:00:00']] as $values) {
+            $recipe->execute([$values[0], $values[0], $values[1]]);
+        }
+        $pdo->exec(
+            'INSERT INTO lh_meal_plan_recipes (household_id, meal_plan_id, recipe_id, position_no, created_at) '
+            . 'VALUES (1, 3, 1, 1, NOW()), (1, 3, 2, 0, NOW()), (1, 3, 3, 2, NOW())'
+        );
+        $mailer = new RecordingTaskNotificationMailer();
+        $service = new TaskNotificationService(
+            new TaskNotificationRepository($pdo),
+            $mailer,
+            'Life Hub Test',
+            'https://example.test/lifehub'
+        );
+        // UTC date is still September 7; the household is already at September 8, 08:30.
+        $pdo->exec("UPDATE lh_households SET timezone = 'Pacific/Auckland' WHERE id = 1");
+        $result = $service->run(new DateTimeImmutable('2026-09-07 20:30:00', new DateTimeZone('UTC')));
+        self::assertSame(1, $result['sent']);
+        self::assertCount(1, $mailer->messages);
+        $message = $mailer->messages[0];
+        $expectedLines = [
+            '08/09/2026 — Colazione: Latte',
+            '08/09/2026 — Pranzo: Verdure & <pane>; Insalata; Pasta',
+            '08/09/2026 — Cena: Cena fuori',
+            '14/09/2026 — Cena: Ultimo giorno',
+        ];
+        self::assertStringContainsString(implode("\n- ", $expectedLines), $message['text']);
+        foreach ($expectedLines as $line) {
+            self::assertStringContainsString(htmlspecialchars($line, ENT_QUOTES, 'UTF-8'), $message['html']);
+        }
+        $excludedMeals = [
+            'Pasto passato', 'Oltre la settimana', 'Pasto archiviato', 'Altra famiglia', 'Ricetta archiviata',
+        ];
+        foreach (['text', 'html'] as $format) {
+            self::assertStringContainsString('Pasti programmati', $message[$format]);
+            self::assertStringContainsString('https://example.test/lifehub/meals', $message[$format]);
+            foreach ($excludedMeals as $excluded) {
+                self::assertStringNotContainsString($excluded, $message[$format]);
+            }
+        }
+    }
+
+    public function testNotificationJobUsesItsTokenWithoutAUserSessionOrCsrf(): void
+    {
+        $app = $this->app();
+        $unauthorized = $app->handle($this->request('POST', '/v1/jobs/task-notifications', []));
+        self::assertSame(401, $unauthorized->getStatusCode(), (string) $unauthorized->getBody());
+
+        $authorizedRequest = $this->request('POST', '/v1/jobs/task-notifications', [])
+            ->withHeader('X-LifeHub-Job-Token', str_repeat('t', 32));
+        $authorized = $app->handle($authorizedRequest);
+        self::assertSame(200, $authorized->getStatusCode(), (string) $authorized->getBody());
+
+        $statusRequest = $this->request('GET', '/v1/jobs/task-notifications/status')
+            ->withHeader('X-LifeHub-Job-Token', str_repeat('t', 32));
+        $status = $app->handle($statusRequest);
+        self::assertSame(200, $status->getStatusCode(), (string) $status->getBody());
+        self::assertSame(0, $this->json($status)['status']['eligibleUsers']);
     }
 
     public function testShoppingCleanupAndCatalogueDeletionArePhysicalAndRepairReferences(): void
@@ -1297,6 +1463,10 @@ final class HttpApiTest extends TestCase
             'dbName' => $this->database->name(),
             'dbUser' => 'test-runner',
             'storagePath' => $this->storage->path(),
+            'jobToken' => str_repeat('t', 32),
+            'mailFromAddress' => 'lifehub@example.test',
+            'mailFromName' => 'Life Hub Test',
+            'publicUrl' => 'https://example.test/lifehub',
         ]);
         return ApplicationFactory::create($settings, $this->database->pdo());
     }

@@ -134,6 +134,34 @@ paths:
       responses:
         '201': {description: Created}
         '422': {$ref: '#/components/responses/Error'}
+  /jobs/task-notifications:
+    post:
+      tags: [Tasks]
+      summary: Send each eligible assignee one daily pending-task notification
+      security: []
+      parameters:
+        - name: X-LifeHub-Job-Token
+          in: header
+          required: true
+          schema: {type: string, minLength: 32}
+      responses:
+        '200': {description: Daily notification run completed or already handled}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /jobs/task-notifications/status:
+    get:
+      tags: [Tasks]
+      summary: Read aggregate daily notification delivery status without personal data
+      security: []
+      parameters:
+        - name: X-LifeHub-Job-Token
+          in: header
+          required: true
+          schema: {type: string, minLength: 32}
+      responses:
+        '200': {description: Aggregate notification status}
+        '401': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /dashboard:
     get:
       tags: [Resources]
