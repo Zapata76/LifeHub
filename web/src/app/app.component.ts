@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, OnDestroy, inject, signal } from '@
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './core/auth.service';
 import { SessionStore } from './core/session.store';
+import { SessionExpiryService } from './core/session-expiry.service';
+import { AppUpdateService } from './core/app-update.service';
 import { ConfirmationDialogComponent } from './shared/confirmation-dialog.component';
 
 @Component({
@@ -33,12 +35,26 @@ import { ConfirmationDialogComponent } from './shared/confirmation-dialog.compon
     @if (!online()) {
       <div class="offline" role="status">Sei offline. I dati protetti non vengono salvati nella cache.</div>
     }
+    @if (updates.ready()) {
+      <div class="app-update-notice" role="status" aria-live="polite" aria-atomic="true">
+        <div class="app-update-copy">
+          <strong>Nuova versione disponibile</strong>
+          <span id="app-update-hint">L’aggiornamento ricarica la pagina: salva eventuali modifiche prima di procedere.</span>
+        </div>
+        <button class="primary" type="button" aria-describedby="app-update-hint"
+          (click)="updates.apply()" [disabled]="updates.requests() > 0 || !online()">
+          Aggiorna ora
+        </button>
+      </div>
+    }
     <main id="main" tabindex="-1"><router-outlet /></main>
     <lh-confirmation-dialog />
   `
 })
 export class AppComponent implements OnDestroy {
   readonly store = inject(SessionStore);
+  readonly updates = inject(AppUpdateService);
+  private readonly sessionExpiry = inject(SessionExpiryService);
   readonly siteName = signal('Life Hub');
   readonly online = signal(navigator.onLine);
   private readonly auth = inject(AuthService);
@@ -48,6 +64,8 @@ export class AppComponent implements OnDestroy {
   private readonly offlineListener = () => this.online.set(false);
 
   constructor() {
+    this.updates.start();
+    this.sessionExpiry.start();
     window.addEventListener('online', this.onlineListener);
     window.addEventListener('offline', this.offlineListener);
     this.http.get<{ siteName: string }>('api/v1/app-config').subscribe({

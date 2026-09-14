@@ -16,6 +16,7 @@ const calendars = [
 ];
 
 function responseFor(url: string) {
+  if (url === 'api/v1/admin/weather-settings') return of({ location: null, version: 1 });
   if (url === 'api/v1/users') return of({ items: users, calendarAssignments: [] });
   if (url === 'api/v1/calendars') return of({ items: calendars });
   if (url === 'api/v1/admin/home-settings') return of({
@@ -76,7 +77,9 @@ describe('UserManagementComponent', () => {
     fixture.componentInstance.homeForm.setValue({
       homeEyebrow: 'Messaggio del giorno', homeTitle: 'Benvenuti a casa'
     });
+    fixture.componentInstance.homeForm.markAsDirty();
     fixture.componentInstance.saveHomeSettings();
+    expect(fixture.componentInstance.homeForm.pristine).toBe(true);
 
     expect(put).toHaveBeenCalledWith('api/v1/admin/home-settings', {
       homeEyebrow: 'Messaggio del giorno', homeTitle: 'Benvenuti a casa', version: 2
@@ -87,10 +90,25 @@ describe('UserManagementComponent', () => {
     const { fixture, put } = await createFixture();
     const user = fixture.componentInstance.users()[0];
     fixture.componentInstance.changeUserEmail(user, { target: { value: 'new@example.test' } } as unknown as Event);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.management-row').getAttribute('data-unsaved-changes')).toBe('true');
     fixture.componentInstance.saveUser(user);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.management-row').hasAttribute('data-unsaved-changes')).toBe(false);
 
     expect(put).toHaveBeenCalledWith('api/v1/users/1', {
       role: 'admin', status: 'active', email: 'new@example.test', version: 1
     });
+  });
+
+  it('protects edited calendar drafts and releases them after saving', async () => {
+    const { fixture } = await createFixture();
+    const calendar = fixture.componentInstance.calendars()[0];
+    fixture.componentInstance.changeCalendarName(calendar, { target: { value: 'Nuovo nome' } } as unknown as Event);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.calendar-editor').getAttribute('data-unsaved-changes')).toBe('true');
+    fixture.componentInstance.saveCalendar(calendar);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.calendar-editor').hasAttribute('data-unsaved-changes')).toBe(false);
   });
 });

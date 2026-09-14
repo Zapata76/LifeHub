@@ -23,8 +23,8 @@ export class AuthService {
       tap((session) => this.store.set(session.user, session.csrfToken)),
       map((session) => session.authenticated),
       catchError(() => {
-        this.store.clear();
-        return of(false);
+        this.sessionRequest = undefined;
+        return of(this.store.authenticated());
       }),
       shareReplay(1)
     );
@@ -44,13 +44,14 @@ export class AuthService {
   logout(): Observable<void> {
     return this.http.post<{ authenticated: boolean }>('api/v1/auth/logout', {}).pipe(
       tap(() => {
-        this.store.clear();
-        this.sessionRequest = of(false);
-        if ('caches' in window) {
-          void caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))));
-        }
+        this.invalidateSession();
       }),
       map(() => undefined)
     );
+  }
+
+  invalidateSession(): void {
+    this.store.clear();
+    this.sessionRequest = undefined;
   }
 }

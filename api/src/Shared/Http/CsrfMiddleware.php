@@ -17,31 +17,19 @@ final class CsrfMiddleware
 {
     /** @var ResponseFactory */
     private $responseFactory;
-    /** @var list<string> */
-    private $exemptPaths;
 
-    /** @param list<string> $exemptPaths */
-    public function __construct(ResponseFactory $responseFactory, array $exemptPaths = [])
+    public function __construct(ResponseFactory $responseFactory)
     {
         $this->responseFactory = $responseFactory;
-        $this->exemptPaths = $exemptPaths;
     }
 
     public function __invoke(
         ServerRequestInterface $request,
         RequestHandlerInterface $handler
     ): ResponseInterface {
-        if (!isset($_SESSION['csrfToken'])) {
-            $_SESSION['csrfToken'] = bin2hex(random_bytes(32));
-        }
-
-        if (
-            in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)
-            && !$this->isLogoutRequest($request)
-            && !in_array(rtrim($request->getUri()->getPath(), '/'), $this->exemptPaths, true)
-        ) {
+        if (in_array(strtoupper($request->getMethod()), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             $provided = $request->getHeaderLine('X-CSRF-Token');
-            if ($provided === '' || !hash_equals((string) $_SESSION['csrfToken'], $provided)) {
+            if ($provided === '' || !hash_equals((string) ($_SESSION['csrfToken'] ?? ''), $provided)) {
                 $correlationId = (string) $request->getAttribute('correlationId', 'unavailable');
                 return JsonResponder::error(
                     $this->responseFactory->createResponse(),
@@ -54,10 +42,5 @@ final class CsrfMiddleware
         }
 
         return $handler->handle($request);
-    }
-
-    private function isLogoutRequest(ServerRequestInterface $request): bool
-    {
-        return preg_match('#(?:^|/)v1/auth/logout/?$#', $request->getUri()->getPath()) === 1;
     }
 }

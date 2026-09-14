@@ -44,6 +44,33 @@ npm ci
 Set-Location ..
 ```
 
+## Weather in daily notification emails
+
+In **Admin → Meteo di oggi**, search for a town and select a result, or enter a
+custom name and latitude/longitude. Save the location to enable weather for
+the household; **Disattiva meteo nelle email** removes it. Only administrators
+can read or change this setting.
+
+The daily email includes today's weather (using the household time zone),
+minimum/maximum temperature and precipitation probability. Meal plans still
+cover seven days, including today. Recipients remain active users with an
+email address and assigned open/in-progress tasks. Weather does not trigger
+additional emails. Missing forecasts never prevent task/meal notifications.
+
+Forecasts and town search use [Open-Meteo](https://open-meteo.com/), whose free
+API is for non-commercial use and needs no API key. The backend needs outbound
+HTTPS access to `api.open-meteo.com` and `geocoding-api.open-meteo.com`, using
+PHP cURL or HTTPS streams (`allow_url_fopen`). TLS verification remains enabled;
+Windows cURL uses the native certificate store. Forecast requests time out
+after eight seconds and are shared across recipients in the same household
+during each job execution.
+
+The setting uses the nullable `weather_name`, `weather_latitude`,
+`weather_longitude` fields and independent `weather_version` in `lh_households`.
+The baseline schema and local database include these fields. Existing production
+databases must include them before publishing the updated Admin interface;
+no migration scripts are generated.
+
 ## First installation
 
 Create an empty database with the UTF-8 character set and configure it in
@@ -108,6 +135,29 @@ bundle's protected `uploads/files` directory.
 For complete deployment instructions, see
 [DEPLOY_PRODUCTION.txt](DEPLOY_PRODUCTION.txt). Project documentation is
 indexed in [docs/README.md](docs/README.md).
+
+## Sessions and PWA updates
+
+Protected API routes check authentication before CSRF: expired or revoked
+sessions return `401`, while an invalid CSRF token for an active session
+returns `403`. The frontend clears its local session and redirects to login
+with an explicit expiry message. It also rechecks the session when returning
+to the app. A network error alone never triggers a logout. A CSRF rejection
+rechecks the session and refreshes the token, but never replays a write.
+
+The PWA checks for updates at startup, on resume/reconnect and every two
+minutes while visible and online. A ready version triggers a full reload
+when no request, edited form or dialog is active; otherwise a banner lets
+the user save changes before updating. Offline use necessarily retains the
+last downloaded version. Logout does not delete service-worker caches.
+
+Deploy the complete release, including `.htaccess`, `index.html`, JavaScript,
+CSS and service-worker files. Publish `ngsw.json` last, after its referenced
+assets are available; retain previous hashed JavaScript files during rollout
+so existing clients can still load lazy routes. Apache revalidates the entry
+page, update manifest, worker and CSS; online navigations prefer the network.
+Already-installed older clients must first load this release to gain its
+resume/update handling and may need one close/reopen or manual reload.
 
 ## License
 

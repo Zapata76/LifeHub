@@ -32,7 +32,9 @@ describe('FeatureStylesheetLoader', () => {
 
     expect(link.tagName).toBe('LINK');
     expect(link.rel).toBe('stylesheet');
-    expect(link.href).toBe(new URL('styles/modules/tasks.css?v=20260830-6', document.baseURI).href);
+    const url = new URL(link.href);
+    expect(url.origin + url.pathname).toBe(new URL('styles/modules/tasks.css', document.baseURI).href);
+    expect(url.searchParams.get('v')).toMatch(/^\d{8}-\d+$/);
     expect(rankedStyles()).toEqual(['lifehub-style-core', 'lifehub-style-tasks', 'lifehub-style-tail']);
 
     link.dispatchEvent(new Event('load'));

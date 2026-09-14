@@ -6,6 +6,7 @@ namespace LifeHub\Tasks\Notifications;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use LifeHub\Weather\WeatherSummary;
 use Throwable;
 
 final class TaskNotificationService
@@ -15,18 +16,21 @@ final class TaskNotificationService
     /** @var string */ private $siteName;
     /** @var string */ private $tasksUrl;
     /** @var string */ private $mealsUrl;
+    private ?WeatherSummary $weather;
 
     public function __construct(
         TaskNotificationRepository $repository,
         TaskNotificationMailer $mailer,
         string $siteName,
-        string $publicUrl
+        string $publicUrl,
+        ?WeatherSummary $weather = null
     ) {
         $this->repository = $repository;
         $this->mailer = $mailer;
         $this->siteName = $siteName;
         $this->tasksUrl = $publicUrl . '/tasks';
         $this->mealsUrl = $publicUrl . '/meals';
+        $this->weather = $weather;
     }
 
     /** @return array{eligibleUsers:int,sent:int,failed:int,alreadyHandled:int,beforeDailyWindow:int} */
@@ -49,6 +53,7 @@ final class TaskNotificationService
             'beforeDailyWindow' => 0,
         ];
         $mealsByHousehold = [];
+        $weatherByHousehold = [];
         foreach ($groups as $group) {
             $recipient = $group['recipient'];
             try {
@@ -80,7 +85,15 @@ final class TaskNotificationService
                 $result['alreadyHandled']++;
                 continue;
             }
-            [$html, $text] = $this->message($recipient, $group['tasks'], $mealsByHousehold[$householdId]);
+            if (!isset($weatherByHousehold[$householdId])) {
+                $weatherByHousehold[$householdId] = $this->weather?->message($householdId, $localNow) ?? ['', ''];
+            }
+            [$html, $text] = $this->message(
+                $recipient,
+                $group['tasks'],
+                $mealsByHousehold[$householdId],
+                $weatherByHousehold[$householdId]
+            );
             try {
                 $sent = $this->mailer->send(
                     (string) $recipient['email'],
@@ -125,9 +138,10 @@ final class TaskNotificationService
      * @param array<string, mixed> $recipient
      * @param list<array<string, mixed>> $tasks
      * @param list<array<string, mixed>> $meals
+     * @param array{string,string} $weather
      * @return array{string,string}
      */
-    private function message(array $recipient, array $tasks, array $meals): array
+    private function message(array $recipient, array $tasks, array $meals, array $weather): array
     {
         $name = (string) $recipient['username'];
         $lines = [];
@@ -157,6 +171,10 @@ final class TaskNotificationService
             [$mealsHtml, $mealsText] = $this->mealSection($meals);
             $html .= $mealsHtml;
             $text .= "\n\n" . $mealsText;
+        }
+        $html .= $weather[0];
+        if ($weather[1] !== '') {
+            $text .= "\n\n" . $weather[1];
         }
         return [$html . '</body></html>', $text];
     }

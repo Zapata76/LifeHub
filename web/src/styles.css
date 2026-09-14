@@ -34,6 +34,11 @@ nav a.active, nav a:hover { color: var(--text); background: var(--surface-2); }
 .account { display: flex; align-items: center; gap: .6rem; margin-left: auto; }
 main { width: min(1180px, 100%); margin: auto; padding: 2rem max(1rem, env(safe-area-inset-right)) calc(5rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); }
 .offline { padding: .6rem 1rem; text-align: center; background: #7c2d12; }
+/* Global update notice must remain above every modal/backdrop (currently up to 200). */
+.app-update-notice { position: fixed; z-index: 300; top: max(.75rem, env(safe-area-inset-top)); left: max(.75rem, env(safe-area-inset-left)); right: max(.75rem, env(safe-area-inset-right)); max-width: 760px; margin-inline: auto; display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding: 1rem; border: 1px solid var(--brand); border-radius: 14px; background: var(--surface); color: var(--text); box-shadow: 0 12px 40px #0009; }
+.app-update-copy { display: grid; gap: .3rem; flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.app-update-copy span { color: var(--muted); font-size: .875rem; line-height: 1.4; }
+.app-update-notice button { flex: 0 0 auto; margin-left: auto; }
 .hero, .page-heading { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin: 1.5rem 0 2.5rem; }
 .eyebrow { margin-bottom: .5rem; color: var(--brand); font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .muted, .module-card p, small { color: var(--muted); }

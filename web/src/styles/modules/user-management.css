@@ -1,4 +1,11 @@
 .management-heading-actions { display: grid; justify-items: end; gap: .75rem; }
+lh-weather-settings { display: block; }
+lh-weather-settings .weather-results { display: grid; gap: .5rem; margin-block: 1rem; }
+lh-weather-settings .weather-results:empty { display: none; }
+lh-weather-settings .weather-results button { text-align: left; overflow-wrap: anywhere; }
+lh-weather-settings .weather-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; min-width: 0; margin: 1rem 0; padding: .85rem; border: 1px solid var(--border); border-radius: 12px; }
+lh-weather-settings .weather-fields legend { padding: 0 .35rem; }
+lh-weather-settings .admin-home-settings > p:last-child { margin-top: 1rem; line-height: 1.5; }
 .management-heading-actions p { margin: 0; }
 .user-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: #020617d9; backdrop-filter: blur(5px); }
 .user-modal { width: min(760px, 100%); max-height: calc(100vh - 2rem); overflow: auto; border-top: 6px solid var(--brand); }

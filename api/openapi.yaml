@@ -195,6 +195,56 @@ paths:
         '403': {$ref: '#/components/responses/Error'}
         '409': {$ref: '#/components/responses/Error'}
         '422': {$ref: '#/components/responses/Error'}
+  /admin/weather-settings:
+    get:
+      tags: [Identity]
+      summary: Read the household weather location (admin only)
+      responses:
+        '200':
+          description: Saved location or null (disabled), with an independent optimistic-lock version
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [location, version]
+                properties:
+                  location: {$ref: '#/components/schemas/WeatherLocation'}
+                  version: {type: integer, minimum: 1}
+        '403': {$ref: '#/components/responses/Error'}
+    put:
+      tags: [Identity]
+      summary: Set or disable today's weather in daily notification emails (admin only)
+      description: Weather is optional and does not change notification recipients. Only today's forecast is included.
+      parameters: [{$ref: '#/components/parameters/Csrf'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [location, version]
+              properties:
+                location: {$ref: '#/components/schemas/WeatherLocation'}
+                version: {type: integer, minimum: 1}
+      responses:
+        '200': {description: Saved location (null disables weather) and new version}
+        '403': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /admin/weather-locations:
+    get:
+      tags: [Identity]
+      summary: Search up to ten locations using Open-Meteo geocoding (admin only)
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: {type: string, minLength: 2, maxLength: 100}
+      responses:
+        '200': {description: Items with name, latitude and longitude}
+        '403': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
   /tasks/members:
     get:
       tags: [Tasks]
@@ -837,6 +887,14 @@ components:
     Csrf: {name: X-CSRF-Token, in: header, required: true, schema: {type: string}}
     Archived: {name: archived, in: query, required: false, schema: {type: integer, enum: [0, 1]}}
   schemas:
+    WeatherLocation:
+      type: object
+      nullable: true
+      required: [name, latitude, longitude]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 190}
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
     User:
       type: object
       required: [id, householdId, role, username]

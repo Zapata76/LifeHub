@@ -10,6 +10,7 @@ import { forkJoin } from 'rxjs';
 import { ConfirmationService } from '../shared/confirmation.service';
 import { HouseholdTask, TaskCommand, TaskPriority, TaskStatus } from './tasks/task.models';
 import { TasksApiService } from './tasks/tasks-api.service';
+import { apiErrorMessage } from '../shared/api-error';
 
 @Component({
   standalone: true,
@@ -89,7 +90,10 @@ export class TasksComponent {
     this.busy.set(true); this.error.set('');
     request.subscribe({
       next: () => { this.editorOpen.set(false); this.busy.set(false); this.load(); },
-      error: () => { this.error.set('L’attività non è stata salvata: ricarica e riprova.'); this.busy.set(false); }
+      error: (failure: unknown) => {
+        this.error.set(apiErrorMessage(failure, 'L’attività non è stata salvata: ricarica e riprova.'));
+        this.busy.set(false);
+      }
     });
   }
 
@@ -135,7 +139,10 @@ export class TasksComponent {
   private mutate(request: () => ReturnType<TasksApiService['complete']>): void {
     this.busy.set(true); this.error.set('');
     request().subscribe({ next: () => { this.busy.set(false); this.load(); },
-      error: () => { this.error.set('L’attività è cambiata: ricarica e riprova.'); this.busy.set(false); } });
+      error: (failure: unknown) => {
+        this.error.set(apiErrorMessage(failure, 'Operazione non riuscita: ricarica e riprova.'));
+        this.busy.set(false);
+      } });
   }
 
   private finishLoad(): void { this.loading.set(false); this.busy.set(false); }

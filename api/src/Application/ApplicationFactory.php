@@ -21,6 +21,10 @@ use LifeHub\Identity\UserRepository;
 use LifeHub\Home\DashboardController;
 use LifeHub\Home\HomeSettingsController;
 use LifeHub\Home\HomeSettingsRepository;
+use LifeHub\Weather\OpenMeteoClient;
+use LifeHub\Weather\WeatherSettingsController;
+use LifeHub\Weather\WeatherSettingsRepository;
+use LifeHub\Weather\WeatherSummary;
 use LifeHub\Goals\GoalController;
 use LifeHub\Goals\GoalRepository;
 use LifeHub\Inventory\InventoryController;
@@ -79,9 +83,6 @@ final class ApplicationFactory
 
         $app->addRoutingMiddleware();
         $app->addBodyParsingMiddleware();
-        $app->add(new CsrfMiddleware($responses, [
-            $settings->apiPath() . '/v1/jobs/task-notifications',
-        ]));
         $app->add(new SessionMiddleware($settings));
         $app->add(new ApiExceptionMiddleware($responses, $settings->isDebug()));
         $app->add(new SecurityHeadersMiddleware());
@@ -114,6 +115,9 @@ final class ApplicationFactory
         $homeSettingsRepository = new HomeSettingsRepository($pdo);
         $dashboard = new DashboardController($pdo, $homeSettingsRepository);
         $homeSettings = new HomeSettingsController($homeSettingsRepository, $audit);
+        $weatherRepository = new WeatherSettingsRepository($pdo);
+        $weatherClient = new OpenMeteoClient();
+        $weatherSettings = new WeatherSettingsController($weatherRepository, $weatherClient, $audit);
         $attachments = new AttachmentController(
             new AttachmentRepository($pdo),
             new AttachmentPolicy($pdo),
@@ -129,7 +133,9 @@ final class ApplicationFactory
         $taskNotificationController = function () use (
             $pdo,
             $settings,
-            $taskNotificationMailer
+            $taskNotificationMailer,
+            $weatherRepository,
+            $weatherClient
         ) {
             $mailer = $taskNotificationMailer ?? new NativeTaskNotificationMailer(
                 $settings->get('mailFromAddress'),
@@ -140,7 +146,8 @@ final class ApplicationFactory
                     new TaskNotificationRepository($pdo),
                     $mailer,
                     $settings->get('siteName'),
-                    $settings->get('publicUrl')
+                    $settings->get('publicUrl'),
+                    new WeatherSummary($weatherRepository, $weatherClient)
                 ),
                 $settings
             );
@@ -171,11 +178,12 @@ final class ApplicationFactory
             $meals,
             $dashboard,
             $homeSettings,
+            $weatherSettings,
             $pdo,
             $audit
         ): void {
             $group->get('/auth/session', [$auth, 'session']);
-            $group->post('/auth/login', [$auth, 'login']);
+            $group->post('/auth/login', [$auth, 'login'])->add(new CsrfMiddleware(new ResponseFactory()));
             $group->post('/auth/logout', [$auth, 'logout']);
 
             $group->group('', function (RouteCollectorProxyInterface $protected) use (
@@ -191,6 +199,7 @@ final class ApplicationFactory
                 $meals,
                 $dashboard,
                 $homeSettings,
+                $weatherSettings,
                 $pdo,
                 $audit
             ): void {
@@ -287,6 +296,9 @@ final class ApplicationFactory
                 $protected->get('/dashboard', [$dashboard, 'show']);
                 $protected->get('/admin/home-settings', [$homeSettings, 'show']);
                 $protected->put('/admin/home-settings', [$homeSettings, 'update']);
+                $protected->get('/admin/weather-settings', [$weatherSettings, 'show']);
+                $protected->put('/admin/weather-settings', [$weatherSettings, 'update']);
+                $protected->get('/admin/weather-locations', [$weatherSettings, 'search']);
 
                 foreach (self::resources() as $path => $definition) {
                     $controller = new ResourceController(
@@ -301,7 +313,8 @@ final class ApplicationFactory
                         $protected->delete('/' . $path . '/{id:[0-9]+}', [$controller, 'delete']);
                     }
                 }
-            })->add(new AuthenticationMiddleware(new ResponseFactory(), $pdo));
+            })->add(new CsrfMiddleware(new ResponseFactory()))
+                ->add(new AuthenticationMiddleware(new ResponseFactory(), $pdo));
         });
     }
 

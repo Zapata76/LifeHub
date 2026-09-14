@@ -50,6 +50,9 @@ final class SessionMiddleware
             }
         }
         $_SESSION['lastActivity'] = $now;
+        if (!isset($_SESSION['csrfToken'])) {
+            $_SESSION['csrfToken'] = bin2hex(random_bytes(32));
+        }
 
         return $handler->handle($request);
     }

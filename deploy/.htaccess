@@ -10,7 +10,7 @@ RewriteEngine On
     Header always set Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; frame-src 'self' https://calendar.google.com; connect-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; worker-src 'self'"
 </IfModule>
 
-<FilesMatch "\.webmanifest$">
+<FilesMatch "(^index\.html$|^ngsw\.json$|^ngsw-worker\.js$|\.(?:css|webmanifest)$)">
     <IfModule mod_headers.c>
         Header set Cache-Control "no-cache, must-revalidate"
     </IfModule>

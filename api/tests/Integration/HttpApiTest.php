@@ -141,6 +141,40 @@ final class HttpApiTest extends TestCase
         self::assertArrayNotHasKey('sessionVersion', $loginBody['user']);
     }
 
+    public function testExpiredSessionTakesPrecedenceOverCsrfAcrossProtectedSections(): void
+    {
+        $app = $this->app();
+        $session = $this->json($app->handle($this->request('GET', '/v1/auth/session')));
+        $login = $this->json($app->handle($this->request('POST', '/v1/auth/login', [
+            'username' => 'admin', 'password' => 'integration-password',
+        ], (string) $session['csrfToken'])));
+        $user = $_SESSION['user'];
+        $csrf = (string) $login['csrfToken'];
+        $invalidCsrf = $app->handle($this->request('PUT', '/v1/tasks/1', [], 'old-token'));
+        self::assertSame(403, $invalidCsrf->getStatusCode());
+        self::assertSame('csrf.invalid', $this->json($invalidCsrf)['error']['code']);
+
+        $requests = [
+            ['PUT', '/v1/tasks/1'], ['POST', '/v1/tasks/1/complete'], ['GET', '/v1/tasks'],
+            ['POST', '/v1/products'], ['POST', '/v1/categories'], ['POST', '/v1/supermarkets'],
+            ['GET', '/v1/shopping/list-overview'], ['POST', '/v1/recipes'], ['POST', '/v1/inventory'],
+            ['POST', '/v1/notes'], ['POST', '/v1/documents'], ['POST', '/v1/meals'],
+            ['POST', '/v1/goals'], ['POST', '/v1/calendars'], ['POST', '/v1/attachments'],
+            ['PUT', '/v1/admin/home-settings'], ['PUT', '/v1/admin/weather-settings'], ['POST', '/v1/users'],
+        ];
+        foreach ($requests as [$method, $path]) {
+            $_SESSION = ['user' => $user, 'csrfToken' => $csrf, 'lastActivity' => time() - 86400];
+            $response = $app->handle($this->request($method, $path, [], $csrf));
+            self::assertSame(401, $response->getStatusCode(), $path . ': ' . (string) $response->getBody());
+            self::assertSame('auth.required', $this->json($response)['error']['code']);
+        }
+        $_SESSION = ['user' => $user, 'csrfToken' => 'new-token', 'lastActivity' => time()];
+        $this->database()->pdo()->exec('UPDATE lh_users SET session_version = session_version + 1 WHERE id = 1');
+        $revoked = $app->handle($this->request('PUT', '/v1/tasks/1', [], $csrf));
+        self::assertSame(401, $revoked->getStatusCode());
+        self::assertSame('auth.revoked', $this->json($revoked)['error']['code']);
+    }
+
     public function testLogoutSucceedsWithAnExpiredCsrfToken(): void
     {
         $app = $this->app();

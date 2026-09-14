@@ -6,6 +6,7 @@ import { SessionStore } from '../core/session.store';
 import { CalendarDeleteModalComponent } from './calendars/calendar-delete-modal.component';
 import { CalendarFormModalComponent } from './calendars/calendar-form-modal.component';
 import { CalendarItem } from './calendars/calendar.models';
+import { WeatherSettingsComponent } from './weather-settings.component';
 
 type UserRole = 'admin' | 'adult' | 'child';
 type UserStatus = 'active' | 'disabled';
@@ -43,7 +44,7 @@ interface HomeSettings {
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, CalendarFormModalComponent, CalendarDeleteModalComponent],
+  imports: [ReactiveFormsModule, CalendarFormModalComponent, CalendarDeleteModalComponent, WeatherSettingsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page-heading">
@@ -70,6 +71,8 @@ interface HomeSettings {
         </button>
       </form>
     </section>
+
+    <lh-weather-settings />
 
     @if (userModalOpen()) {
     <div class="user-modal-backdrop" (mousedown)="userModalBackdrop($event)">
@@ -131,7 +134,7 @@ interface HomeSettings {
       @else {
         <div class="management-list">
           @for (user of users(); track user.id) {
-            <article class="card management-row">
+            <article class="card management-row" [attr.data-unsaved-changes]="userHasChanges(user) ? 'true' : null">
               <div class="management-identity">
                 <h3>{{ user.username }}</h3>
                 <span class="pill" [class.disabled-pill]="user.status === 'disabled'">
@@ -201,7 +204,7 @@ interface HomeSettings {
       </div>
       <div class="calendar-list">
         @for (calendar of calendars(); track calendar.id) {
-          <article class="calendar-editor">
+          <article class="calendar-editor" [attr.data-unsaved-changes]="calendarHasChanges(calendar) ? 'true' : null">
             <label>Nome
               <input [value]="calendarDraft(calendar).name" [disabled]="busy()"
                 (input)="changeCalendarName(calendar, $event)">
@@ -306,7 +309,7 @@ export class UserManagementComponent {
         this.calendarDrafts.set(Object.fromEntries(normalizedCalendars.map((calendar) => [
           calendar.id, { name: calendar.name, externalId: calendar.external_id }
         ])));
-        this.homeForm.setValue({
+        this.homeForm.reset({
           homeEyebrow: homeSettings.homeEyebrow,
           homeTitle: homeSettings.homeTitle
         });
@@ -452,6 +455,16 @@ export class UserManagementComponent {
 
   calendarDraft(calendar: CalendarItem): CalendarDraft {
     return this.calendarDrafts()[calendar.id] ?? { name: calendar.name, externalId: calendar.external_id };
+  }
+
+  userHasChanges(user: ManagedUser): boolean {
+    const draft = this.userDraft(user);
+    return draft.role !== user.role || draft.status !== user.status || draft.email !== (user.email ?? '');
+  }
+
+  calendarHasChanges(calendar: CalendarItem): boolean {
+    const draft = this.calendarDraft(calendar);
+    return draft.name !== calendar.name || draft.externalId !== calendar.external_id;
   }
 
   changeUserRole(user: ManagedUser, event: Event): void {
