@@ -6,11 +6,13 @@ import { SessionStore } from './core/session.store';
 import { SessionExpiryService } from './core/session-expiry.service';
 import { AppUpdateService } from './core/app-update.service';
 import { ConfirmationDialogComponent } from './shared/confirmation-dialog.component';
+import { PushSettingsComponent } from './shared/push-settings.component';
+import { PushNotificationsService } from './core/push-notifications.service';
 
 @Component({
   selector: 'lh-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ConfirmationDialogComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ConfirmationDialogComponent, PushSettingsComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a class="skip-link" href="#main">Vai al contenuto</a>
@@ -26,6 +28,14 @@ import { ConfirmationDialogComponent } from './shared/confirmation-dialog.compon
         </nav>
         <div class="account">
           <span>{{ store.user()?.username }}</span>
+          <button class="quiet" type="button" data-push-trigger aria-label="Notifiche su questo dispositivo"
+            title="Notifiche su questo dispositivo" [attr.aria-expanded]="push.settingsOpen()"
+            (click)="push.openSettings()">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+            </svg>
+          </button>
           <button class="quiet" type="button" (click)="logout()">Esci</button>
         </div>
       } @else {
@@ -49,11 +59,13 @@ import { ConfirmationDialogComponent } from './shared/confirmation-dialog.compon
     }
     <main id="main" tabindex="-1"><router-outlet /></main>
     <lh-confirmation-dialog />
+    <lh-push-settings />
   `
 })
 export class AppComponent implements OnDestroy {
   readonly store = inject(SessionStore);
   readonly updates = inject(AppUpdateService);
+  readonly push = inject(PushNotificationsService);
   private readonly sessionExpiry = inject(SessionExpiryService);
   readonly siteName = signal('Life Hub');
   readonly online = signal(navigator.onLine);

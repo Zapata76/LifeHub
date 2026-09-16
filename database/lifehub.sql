@@ -403,6 +403,21 @@ CREATE TABLE IF NOT EXISTS `lh_tasks` (
   KEY `ix_lh_tasks_creator` (`household_id`,`created_by`),
   KEY `ix_lh_tasks_due` (`household_id`,`due_date`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+CREATE TABLE IF NOT EXISTS `lh_push_subscriptions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `household_id` bigint(20) unsigned NOT NULL,
+  `user_id` bigint(20) unsigned NOT NULL,
+  `session_version` int(10) unsigned NOT NULL,
+  `endpoint_hash` char(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `endpoint` varchar(2048) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `public_key` varchar(87) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `auth_token` varchar(22) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  `created_at` datetime NOT NULL,
+  `updated_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_lh_push_endpoint` (`endpoint_hash`),
+  KEY `ix_lh_push_recipient` (`household_id`,`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 CREATE TABLE IF NOT EXISTS `lh_task_notification_deliveries` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `household_id` int(11) NOT NULL,

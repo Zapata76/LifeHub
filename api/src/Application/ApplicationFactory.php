@@ -12,6 +12,13 @@ use LifeHub\Attachments\AttachmentController;
 use LifeHub\Attachments\AttachmentPolicy;
 use LifeHub\Attachments\AttachmentRepository;
 use LifeHub\Attachments\StorageGateway;
+use LifeHub\Push\PushConfiguration;
+use LifeHub\Push\PushController;
+use LifeHub\Push\PushSubscriptionRepository;
+use LifeHub\Push\PushTransport;
+use LifeHub\Push\TaskCompletionNotifier;
+use LifeHub\Push\WebPushTransport;
+use LifeHub\Shared\Logging\StructuredLogger;
 use LifeHub\Documents\DocumentController;
 use LifeHub\Documents\DocumentRepository;
 use LifeHub\Identity\AuthController;
@@ -71,7 +78,8 @@ final class ApplicationFactory
     public static function create(
         Settings $settings,
         ?PDO $pdo = null,
-        ?TaskNotificationMailer $taskNotificationMailer = null
+        ?TaskNotificationMailer $taskNotificationMailer = null,
+        ?PushTransport $pushTransport = null
     ): App {
         $pdo = $pdo ?? PdoFactory::create($settings);
         $app = AppFactory::create();
@@ -79,7 +87,7 @@ final class ApplicationFactory
         $responses = new ResponseFactory();
         $audit = new AuditLogger($pdo);
 
-        self::routes($app, $pdo, $audit, $responses, $settings, $taskNotificationMailer);
+        self::routes($app, $pdo, $audit, $responses, $settings, $taskNotificationMailer, $pushTransport);
 
         $app->addRoutingMiddleware();
         $app->addBodyParsingMiddleware();
@@ -98,12 +106,22 @@ final class ApplicationFactory
         AuditLogger $audit,
         ResponseFactory $responses,
         Settings $settings,
-        ?TaskNotificationMailer $taskNotificationMailer
+        ?TaskNotificationMailer $taskNotificationMailer,
+        ?PushTransport $pushTransport
     ): void {
         $users = new UserRepository($pdo);
-        $auth = new AuthController(new AuthService($pdo, $users), $users);
+        $pushSubscriptions = new PushSubscriptionRepository($pdo);
+        $auth = new AuthController(new AuthService($pdo, $users), $users, $pushSubscriptions);
         $userController = new UserController($users, $audit);
-        $tasks = new TaskController(new TaskRepository($pdo), $audit);
+        $pushConfiguration = new PushConfiguration($settings);
+        $push = new PushController($pushSubscriptions, $pushConfiguration);
+        $tasks = new TaskController(new TaskRepository($pdo), $audit, new TaskCompletionNotifier(
+            $pushSubscriptions,
+            $pushConfiguration,
+            $pushTransport ?? new WebPushTransport(),
+            $settings,
+            new StructuredLogger()
+        ));
         $storage = new StorageGateway($settings->get('storagePath'));
         $shoppingList = new ShoppingListController(new ShoppingRepository($pdo), $audit, $storage);
         $goals = new GoalController(new GoalRepository($pdo), $audit, $storage);
@@ -166,6 +184,7 @@ final class ApplicationFactory
         });
         $app->group('/v1', function (RouteCollectorProxyInterface $group) use (
             $auth,
+            $push,
             $userController,
             $tasks,
             $attachments,
@@ -188,6 +207,7 @@ final class ApplicationFactory
 
             $group->group('', function (RouteCollectorProxyInterface $protected) use (
                 $userController,
+                $push,
                 $tasks,
                 $attachments,
                 $shoppingList,
@@ -204,6 +224,9 @@ final class ApplicationFactory
                 $audit
             ): void {
                 $protected->get('/users', [$userController, 'index']);
+                $protected->get('/push/config', [$push, 'configuration']);
+                $protected->post('/push/subscriptions', [$push, 'subscribe']);
+                $protected->post('/push/unsubscribe', [$push, 'unsubscribe']);
                 $protected->post('/users', [$userController, 'create']);
                 $protected->put('/users/{id:[0-9]+}', [$userController, 'update']);
                 $protected->post('/users/{id:[0-9]+}/password', [$userController, 'resetPassword']);

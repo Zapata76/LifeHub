@@ -25,7 +25,7 @@ final class IntegrityChecker
     {
         $tables = [
             'lh_users', 'lh_calendars', 'lh_user_calendars', 'lh_tasks',
-            'lh_task_notification_deliveries', 'lh_notes',
+            'lh_task_notification_deliveries', 'lh_push_subscriptions', 'lh_notes',
             'lh_categories', 'lh_supermarkets', 'lh_products', 'lh_prices', 'lh_recipes',
             'lh_recipe_ingredients', 'lh_meal_plan', 'lh_meal_plan_recipes', 'lh_shopping_lists',
             'lh_shopping_items', 'lh_documents', 'lh_inventory_categories', 'lh_inventory',
@@ -37,6 +37,7 @@ final class IntegrityChecker
             $counts[$table] = $this->scalar('SELECT COUNT(*) FROM ' . $table);
         }
         $orphans = [
+            'push_subscriptions.user_id' => $this->orphan('lh_push_subscriptions', 'user_id', 'lh_users', 'id'),
             'tasks.assigned_to' => $this->orphan(
                 'lh_tasks',
                 'assigned_to',

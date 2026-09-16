@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, map, of, shareReplay, tap } from 'rxjs';
+import { Observable, catchError, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { SessionStore, SessionUser } from './session.store';
+import { PushNotificationsService } from './push-notifications.service';
 
 interface SessionResponse {
   authenticated: boolean;
@@ -13,6 +14,7 @@ interface SessionResponse {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly store = inject(SessionStore);
+  private readonly push = inject(PushNotificationsService);
   private sessionRequest?: Observable<boolean>;
 
   ensureSession(refresh = false): Observable<boolean> {
@@ -42,10 +44,11 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
-    return this.http.post<{ authenticated: boolean }>('api/v1/auth/logout', {}).pipe(
+    return this.http.post<{ authenticated: boolean }>('api/v1/auth/logout', { pushEndpoint: this.push.endpoint() }).pipe(
       tap(() => {
         this.invalidateSession();
       }),
+      switchMap(() => from(this.push.afterLogout())),
       map(() => undefined)
     );
   }

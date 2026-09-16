@@ -9,6 +9,8 @@ declare(strict_types=1);
 namespace LifeHub\Identity;
 
 use LifeHub\Shared\Http\JsonResponder;
+use LifeHub\Push\PushSubscriptionRepository;
+use LifeHub\Shared\Auth\UserContext;
 use LifeHub\Shared\Http\RequestData;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -21,7 +23,7 @@ final class AuthController
     /** @var UserRepository */
     private $users;
 
-    public function __construct(AuthService $service, UserRepository $users)
+    public function __construct(AuthService $service, UserRepository $users, private PushSubscriptionRepository $push)
     {
         $this->service = $service;
         $this->users = $users;
@@ -79,6 +81,11 @@ final class AuthController
 
     public function logout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        $user = $_SESSION['user'] ?? null;
+        $endpoint = (new RequestData($request))->optionalString('pushEndpoint', 2048);
+        if (is_array($user) && isset($user['id'], $user['householdId']) && $endpoint !== null) {
+            $this->push->remove(new UserContext((int) $user['id'], (int) $user['householdId'], '', ''), $endpoint);
+        }
         $_SESSION = [];
         if (session_status() === PHP_SESSION_ACTIVE) {
             $this->regenerateSessionId();

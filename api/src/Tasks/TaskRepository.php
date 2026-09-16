@@ -119,13 +119,15 @@ final class TaskRepository
         return (int) $this->pdo->lastInsertId();
     }
 
-    public function complete(UserContext $user, int $id, int $version): bool
+    /** @return array<string,mixed>|null The completed snapshot, only for a successful transition. */
+    public function complete(UserContext $user, int $id, int $version): ?array
     {
         $task = $this->get($user, $id);
         if ((string) $task['status'] === 'completed') {
-            return false;
+            return null;
         }
-        return $this->mutate($user, $id, $version, "status = 'completed'");
+        $this->mutate($user, $id, $version, "status = 'completed'");
+        return array_replace($task, ['status' => 'completed', 'version' => $version + 1]);
     }
 
     public function archive(UserContext $user, int $id, int $version): bool
@@ -142,10 +144,13 @@ final class TaskRepository
         return $this->mutate($user, $id, $version, 'archived_at = NULL, archived_by = NULL');
     }
 
-    /** @param array<string, mixed> $values */
-    public function update(UserContext $user, int $id, int $version, array $values): void
+    /**
+     * @param array<string, mixed> $values
+     * @return array<string,mixed>|null The completed snapshot, only for a successful transition.
+     */
+    public function update(UserContext $user, int $id, int $version, array $values): ?array
     {
-        $this->get($user, $id);
+        $task = $this->get($user, $id);
         if ($user->role() === 'child' && isset($values['assigned_to']) && $values['assigned_to'] !== $user->id()) {
             throw new ApiException(403, 'task.assignment_denied', 'Children may only assign tasks to themselves.');
         }
@@ -158,6 +163,8 @@ final class TaskRepository
         }
         $changes = implode(', ', $assignments);
         $this->mutate($user, $id, $version, $changes, array_values($values));
+        return ($values['status'] ?? null) === 'completed' && $task['status'] !== 'completed'
+            ? array_replace($task, $values, ['version' => $version + 1]) : null;
     }
 
     /** @param list<mixed> $values */

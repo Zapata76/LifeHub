@@ -41,6 +41,28 @@ final class StructuredLogger
             'duration_ms' => round($durationMs, 2),
             'error_code' => $errorCode,
         ];
+        $this->write($payload);
+    }
+
+    public function pushDelivery(
+        string $correlationId,
+        float $durationMs,
+        int $sent,
+        int $failed,
+        int $expired,
+        ?string $errorCode = null
+    ): void {
+        $this->write([
+            'timestamp' => gmdate('c'), 'event' => 'push.delivery', 'correlation_id' => $correlationId,
+            'route' => 'tasks.completed', 'duration_ms' => round($durationMs, 2),
+            'sent' => $sent, 'failed' => $failed, 'expired' => $expired,
+            'error_code' => $errorCode ?? ($failed > 0 ? 'push.some_failed' : null),
+        ]);
+    }
+
+    /** @param array<string,mixed> $payload */
+    private function write(array $payload): void
+    {
         $line = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (!is_string($line)) {
             return;

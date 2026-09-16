@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace LifeHub\Tasks;
 
 use LifeHub\Shared\Audit\AuditLogger;
+use LifeHub\Push\TaskCompletionNotifier;
 use LifeHub\Shared\Auth\UserContext;
 use LifeHub\Shared\Http\ApiException;
 use LifeHub\Shared\Http\JsonResponder;
@@ -23,7 +24,7 @@ final class TaskController
     /** @var AuditLogger */
     private $audit;
 
-    public function __construct(TaskRepository $tasks, AuditLogger $audit)
+    public function __construct(TaskRepository $tasks, AuditLogger $audit, private TaskCompletionNotifier $notifier)
     {
         $this->tasks = $tasks;
         $this->audit = $audit;
@@ -107,8 +108,15 @@ final class TaskController
             $values['due_date'] = $dueDate === '' ? null : $dueDate;
         }
         $this->validateUpdate($values);
-        $this->tasks->update($user, (int) $args['id'], $data->requiredInt('version'), $values);
+        $completed = $this->tasks->update($user, (int) $args['id'], $data->requiredInt('version'), $values);
         $this->audit($request, $user, 'task.updated', (int) $args['id']);
+        if ($completed !== null) {
+            $this->notifier->completed(
+                $user,
+                $completed,
+                (string) $request->getAttribute('correlationId', 'unavailable')
+            );
+        }
         return JsonResponder::write($response, ['updated' => true]);
     }
 
@@ -124,11 +132,16 @@ final class TaskController
             (int) $args['id'],
             (new RequestData($request))->requiredInt('version')
         );
-        if ($changed) {
+        if ($changed !== null) {
             $this->audit($request, $user, 'task.completed', (int) $args['id']);
+            $this->notifier->completed(
+                $user,
+                $changed,
+                (string) $request->getAttribute('correlationId', 'unavailable')
+            );
         }
 
-        return JsonResponder::write($response, ['changed' => $changed]);
+        return JsonResponder::write($response, ['changed' => $changed !== null]);
     }
 
     /** @param array<string, string> $args */

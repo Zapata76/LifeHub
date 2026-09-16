@@ -9,6 +9,8 @@ declare(strict_types=1);
 use LifeHub\Installation\InitialAdminCreator;
 use LifeHub\Installation\SchemaInitializer;
 use LifeHub\Operations\IntegrityChecker;
+use LifeHub\Push\PushConfiguration;
+use LifeHub\Push\VapidKeyGenerator;
 use LifeHub\Shared\Config\Settings;
 use LifeHub\Shared\Persistence\PdoFactory;
 
@@ -26,9 +28,25 @@ try {
                 'fileinfo' => extension_loaded('fileinfo'),
                 'mbstring' => extension_loaded('mbstring'),
                 'pdo_mysql' => extension_loaded('pdo_mysql'),
+                'curl' => extension_loaded('curl'),
+                'openssl' => extension_loaded('openssl'),
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL;
         exit(0);
+    }
+
+    if ($command === 'push:keys' || $command === 'push:check') {
+        $pushConfiguration = new PushConfiguration(Settings::fromFile($configurationPath));
+        if ($command === 'push:keys') {
+            VapidKeyGenerator::create($pushConfiguration->keyPath());
+        }
+        echo json_encode([
+            'configured' => $pushConfiguration->credentials() !== null,
+            'keyFileExists' => is_file($pushConfiguration->keyPath()),
+            'curl' => extension_loaded('curl'),
+            'openssl' => extension_loaded('openssl'),
+        ], JSON_PRETTY_PRINT) . PHP_EOL;
+        exit($pushConfiguration->credentials() !== null ? 0 : 1);
     }
 
     if ($command === 'config:check') {
@@ -115,7 +133,7 @@ try {
     fwrite(
         STDERR,
         "Commands: runtime:check, config:check, db:init:dry-run, db:init, "
-        . "admin:create, db:inspect, integrity\n"
+        . "admin:create, db:inspect, integrity, push:keys, push:check\n"
     );
     exit($command === 'help' ? 0 : 2);
 } catch (Throwable $exception) {

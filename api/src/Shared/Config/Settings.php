@@ -61,6 +61,7 @@ final class Settings
             'mailFromAddress' => '',
             'mailFromName' => '',
             'publicUrl' => '',
+            'pushVapidSubject' => '',
         ];
         $values = [];
         if (array_key_exists('apiBasePath', $configuration)) {

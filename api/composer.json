@@ -11,6 +11,8 @@
     "ext-pdo": "*",
     "ext-pdo_mysql": "*",
     "ext-session": "*",
+    "minishlink/web-push": "^11.0",
+    "php-http/guzzle7-adapter": "^1.1",
     "slim/psr7": "~1.6.2",
     "slim/slim": "~4.15.2"
   },

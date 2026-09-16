@@ -138,6 +138,9 @@ indexed in [docs/README.md](docs/README.md).
 
 ## Sessions and PWA updates
 
+For opt-in notifications on task completion, private VAPID key setup and
+deployment checks, see [Push notifications](docs/PUSH_NOTIFICATIONS.md).
+
 Protected API routes check authentication before CSRF: expired or revoked
 sessions return `401`, while an invalid CSRF token for an active session
 returns `403`. The frontend clears its local session and redirects to login

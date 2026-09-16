@@ -37,4 +37,8 @@ return [
     'mailFromName' => 'Life Hub',
     // Public application URL, without trailing slash; notification links append /tasks.
     'publicUrl' => 'https://example.com/lifehub',
+    // Optional VAPID contact (mailto: or HTTPS URL); defaults to publicUrl.
+    // Generate the private key file once with: php bin/lifehub push:keys [config.php]
+    // Keep storagePath/push-vapid.php private and preserve it across deployments.
+    'pushVapidSubject' => '',
 ];
