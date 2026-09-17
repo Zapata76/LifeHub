@@ -9,7 +9,7 @@
 .task-done:hover { background: #27ae60; color: #fff; }
 .kanban-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 1rem; }
 .kanban-column { min-height: 220px; border-radius: 14px; padding: 1rem; background: #111827cc; }
-.kanban-column > h2 { margin-bottom: 1rem; color: var(--muted); font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.kanban-column > h2 { margin-bottom: 1rem; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
 .kanban-list { display: grid; gap: .65rem; }
 .kanban-task { border: 1px solid #ffffff14; border-radius: 10px; padding: .85rem; background: #1b2433; cursor: pointer; transition: border-color .18s ease, transform .18s ease; }
 .kanban-task:hover, .kanban-task:focus-visible { border-color: #4f8cff; transform: translateY(-1px); outline: none; }

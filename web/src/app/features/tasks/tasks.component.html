@@ -17,7 +17,7 @@
 @if (loading()) { <p class="state" role="status">Caricamento attività…</p> }
 @else {
   <section class="kanban-board" [attr.aria-label]="showArchived() ? 'Attività archiviate' : 'Board attività'">
-    <section class="kanban-column" aria-labelledby="todo-title">
+    <section class="kanban-column" data-status="open" aria-labelledby="todo-title">
       <h2 id="todo-title">Da fare ({{ todo().length }})</h2>
       <div class="kanban-list">
         @for (task of todo(); track task.id) {
@@ -25,7 +25,7 @@
         }
       </div>
     </section>
-    <section class="kanban-column" aria-labelledby="doing-title">
+    <section class="kanban-column" data-status="in_progress" aria-labelledby="doing-title">
       <h2 id="doing-title">In corso ({{ doing().length }})</h2>
       <div class="kanban-list">
         @for (task of doing(); track task.id) {
@@ -33,7 +33,7 @@
         }
       </div>
     </section>
-    <section class="kanban-column" aria-labelledby="done-title">
+    <section class="kanban-column" data-status="completed" aria-labelledby="done-title">
       <h2 id="done-title">Fatto ({{ done().length }})</h2>
       <div class="kanban-list">
         @for (task of done(); track task.id) {

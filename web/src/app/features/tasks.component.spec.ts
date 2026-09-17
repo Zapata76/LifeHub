@@ -5,6 +5,26 @@ import { TasksComponent } from './tasks.component';
 import { TasksApiService } from './tasks/tasks-api.service';
 
 describe('TasksComponent', () => {
+  it('identifies the status columns for responsive ordering and preserves the desktop sequence', async () => {
+    await TestBed.configureTestingModule({
+      imports: [TasksComponent],
+      providers: [{ provide: TasksApiService, useValue: { list: () => of([]), members: () => of([]) } }]
+    }).compileComponents();
+    const fixture = TestBed.createComponent(TasksComponent);
+    fixture.detectChanges();
+
+    const columns = Array.from(
+      fixture.nativeElement.querySelectorAll('.kanban-column')
+    ) as HTMLElement[];
+    expect(columns.map(column => column.dataset['status'])).toEqual(['open', 'in_progress', 'completed']);
+    expect(columns.map(column => column.querySelector('h2')?.textContent)).toEqual([
+      'Da fare (0)', 'In corso (0)', 'Fatto (0)'
+    ]);
+    for (const column of columns) {
+      expect(column.getAttribute('aria-labelledby')).toBe(column.querySelector('h2')?.id);
+    }
+  });
+
   it('keeps the editor open when a drag starts in the form and ends on the backdrop', async () => {
     await TestBed.configureTestingModule({
       imports: [TasksComponent],

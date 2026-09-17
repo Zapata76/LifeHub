@@ -59,6 +59,7 @@
   .task-toolbar { justify-content: flex-start; }
   .kanban-board { grid-template-columns: 1fr; }
   .kanban-column { min-height: 100px; }
+  .kanban-column[data-status="in_progress"] { order: -1; }
   .task-form-row { grid-template-columns: 1fr; }
   .task-modal-footer { flex-wrap: wrap; padding: .8rem 1rem; }
   .shopping-modal-body { grid-template-columns: 1fr; padding: 1rem; }

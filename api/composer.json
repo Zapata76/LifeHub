@@ -38,7 +38,9 @@
     "quality": ["@lint", "@analyse", "@test"]
   },
   "config": {
-    "allow-plugins": {},
+    "allow-plugins": {
+      "php-http/discovery": false
+    },
     "platform": {
       "php": "8.5.6"
     },

@@ -46,7 +46,7 @@ Copy-Item -LiteralPath (Join-Path $root 'deploy\storage.htaccess') `
     -Destination (Join-Path $releaseRoot 'uploads\files\.htaccess')
 Copy-Item -LiteralPath (Join-Path $root 'api\composer.json') -Destination $releaseRoot
 Copy-Item -LiteralPath (Join-Path $root 'api\composer.lock') -Destination $releaseRoot
-& (Join-Path $root 'tools\composer.ps1') 'install' "--working-dir=$releaseRoot" '--no-dev' '--classmap-authoritative'
+& (Join-Path $root 'tools\composer.ps1') 'install' "--working-dir=$releaseRoot" '--no-dev' '--classmap-authoritative' '--no-interaction'
 if ($LASTEXITCODE -ne 0) { throw 'Production Composer install failed.' }
 $files = Get-ChildItem -LiteralPath $releaseRoot -Recurse -File
 [ordered]@{
