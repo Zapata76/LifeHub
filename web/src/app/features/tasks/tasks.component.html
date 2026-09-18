@@ -13,9 +13,17 @@
   </div>
 </div>
 
+<label class="task-search">Cerca attività
+  <input type="search" placeholder="Titolo o descrizione..." [value]="search()"
+    (input)="search.set($any($event.target).value)">
+</label>
+
 @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
 @if (loading()) { <p class="state" role="status">Caricamento attività…</p> }
 @else {
+  @if (search().trim() && !todo().length && !doing().length && !done().length) {
+    <p class="muted" role="status">Nessuna attività corrisponde alla ricerca e ai filtri selezionati.</p>
+  }
   <section class="kanban-board" [attr.aria-label]="showArchived() ? 'Attività archiviate' : 'Board attività'">
     <section class="kanban-column" data-status="open" aria-labelledby="todo-title">
       <h2 id="todo-title">Da fare ({{ todo().length }})</h2>
@@ -54,7 +62,12 @@
     <footer class="kanban-task-footer">
       <div class="task-meta">
         @if (task.assigned_username) { <span class="user-badge">{{ task.assigned_username }}</span> }
-        @if (task.due_date) { <span class="due-date">{{ dueLabel(task.due_date) }}</span> }
+        @if (task.status === 'completed') {
+          <span class="completion-date">
+            @if (task.completed_at) { Completata il {{ completionLabel(task.completed_at) }} }
+            @else { Data di completamento non disponibile }
+          </span>
+        } @else if (task.due_date) { <span class="due-date">{{ dueLabel(task.due_date) }}</span> }
       </div>
       <div class="task-card-actions">
         @if (showArchived()) {

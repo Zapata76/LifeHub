@@ -390,6 +390,7 @@ CREATE TABLE IF NOT EXISTS `lh_tasks` (
   `status` varchar(16) NOT NULL,
   `priority` varchar(16) NOT NULL,
   `due_date` date DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
   `created_by` int(11) NOT NULL,
   `created_at` datetime NOT NULL,
   `updated_by` int(11) NOT NULL,

@@ -126,8 +126,11 @@ final class TaskRepository
         if ((string) $task['status'] === 'completed') {
             return null;
         }
-        $this->mutate($user, $id, $version, "status = 'completed'");
-        return array_replace($task, ['status' => 'completed', 'version' => $version + 1]);
+        $completedAt = gmdate('Y-m-d H:i:s');
+        $this->mutate($user, $id, $version, "status = 'completed', completed_at = ?", [$completedAt]);
+        return array_replace($task, [
+            'status' => 'completed', 'completed_at' => $completedAt, 'version' => $version + 1,
+        ]);
     }
 
     public function archive(UserContext $user, int $id, int $version): bool
@@ -156,6 +159,9 @@ final class TaskRepository
         }
         if (isset($values['title'])) {
             $values['title_search'] = SearchKey::from((string) $values['title'], 255);
+        }
+        if (isset($values['status']) && $values['status'] !== $task['status']) {
+            $values['completed_at'] = $values['status'] === 'completed' ? gmdate('Y-m-d H:i:s') : null;
         }
         $assignments = [];
         foreach (array_keys($values) as $column) {

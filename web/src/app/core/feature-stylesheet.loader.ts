@@ -4,7 +4,7 @@ import { ResolveFn } from '@angular/router';
 
 export const FEATURE_STYLESHEET_DATA_KEY = 'featureStylesheet';
 // Bump when a feature stylesheet changes because these bundles have stable filenames.
-const featureStylesheetVersion = '20260916-1';
+const featureStylesheetVersion = '20260917-1';
 
 const featureStylesheetRanks = {
   documents: 10,

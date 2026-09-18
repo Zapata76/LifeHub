@@ -141,6 +141,75 @@ final class HttpApiTest extends TestCase
         self::assertArrayNotHasKey('sessionVersion', $loginBody['user']);
     }
 
+    public function testTaskCompletionDateTracksTransitionsAndSurvivesEditsAndArchiving(): void
+    {
+        $app = $this->app();
+        $session = $this->json($app->handle($this->request('GET', '/v1/auth/session')));
+        $login = $this->json($app->handle($this->request('POST', '/v1/auth/login', [
+            'username' => 'admin', 'password' => 'integration-password',
+        ], (string) $session['csrfToken'])));
+        $csrf = (string) $login['csrfToken'];
+        $created = $this->json($app->handle($this->request('POST', '/v1/tasks', [
+            'title' => 'Completion date', 'dueDate' => '2099-12-31',
+        ], $csrf)))['item'];
+        self::assertNull($created['completed_at']);
+        $id = (int) $created['id'];
+        $path = '/v1/tasks/' . $id;
+        $start = gmdate('Y-m-d H:i:s');
+        $completed = $app->handle($this->request('POST', $path . '/complete', ['version' => 1], $csrf));
+        self::assertSame(200, $completed->getStatusCode());
+        $items = $this->json($app->handle($this->request('GET', '/v1/tasks')))['items'];
+        self::assertGreaterThanOrEqual($start, $items[0]['completed_at']);
+        self::assertLessThanOrEqual(gmdate('Y-m-d H:i:s'), $items[0]['completed_at']);
+        self::assertSame('2099-12-31', $items[0]['due_date']);
+
+        // An older timestamp makes accidental resetting observable without sleeping.
+        $oldDate = '2020-01-02 23:30:00';
+        $pdo = $this->database()->pdo();
+        $pdo->prepare('UPDATE lh_tasks SET completed_at = ? WHERE id = ?')->execute([$oldDate, $id]);
+        $retry = $this->json($app->handle($this->request('POST', $path . '/complete', ['version' => 1], $csrf)));
+        self::assertFalse($retry['changed']);
+        $readDate = static function () use ($pdo, $id) {
+            $statement = $pdo->query('SELECT completed_at FROM lh_tasks WHERE id = ' . $id);
+            self::assertNotFalse($statement);
+            return $statement->fetchColumn();
+        };
+        self::assertSame($oldDate, $readDate());
+        $edited = $app->handle($this->request('PUT', $path, [
+            'title' => 'Edited after completion', 'status' => 'completed', 'version' => 2,
+        ], $csrf));
+        self::assertSame(200, $edited->getStatusCode());
+        self::assertSame($oldDate, $readDate());
+        $archived = $app->handle($this->request('POST', $path . '/archive', ['version' => 3], $csrf));
+        self::assertSame(200, $archived->getStatusCode());
+        self::assertSame($oldDate, $readDate());
+        $restored = $app->handle($this->request('POST', $path . '/restore', ['version' => 4], $csrf));
+        self::assertSame(200, $restored->getStatusCode());
+        self::assertSame($oldDate, $readDate());
+        $reopened = $app->handle($this->request('PUT', $path, ['status' => 'in_progress', 'version' => 5], $csrf));
+        self::assertSame(200, $reopened->getStatusCode());
+        self::assertNull($readDate());
+        $again = $app->handle($this->request('PUT', $path, ['status' => 'completed', 'version' => 6], $csrf));
+        self::assertSame(200, $again->getStatusCode());
+        $newDate = $readDate();
+        self::assertGreaterThanOrEqual($start, $newDate);
+        self::assertLessThanOrEqual(gmdate('Y-m-d H:i:s'), $newDate);
+        $stale = $app->handle($this->request('PUT', $path, ['status' => 'open', 'version' => 6], $csrf));
+        self::assertSame(409, $stale->getStatusCode());
+        self::assertSame($newDate, $readDate());
+
+        // Legacy completed tasks have no reliable date; editing must not invent one.
+        $pdo->exec('UPDATE lh_tasks SET completed_at = NULL WHERE id = ' . $id);
+        $legacy = $app->handle($this->request('PUT', $path, [
+            'description' => 'Legacy task', 'status' => 'completed', 'version' => 7,
+        ], $csrf));
+        self::assertSame(200, $legacy->getStatusCode());
+        self::assertNull($readDate());
+        $reopened = $app->handle($this->request('PUT', $path, ['status' => 'open', 'version' => 8], $csrf));
+        self::assertSame(200, $reopened->getStatusCode());
+        self::assertNull($readDate());
+    }
+
     public function testExpiredSessionTakesPrecedenceOverCsrfAcrossProtectedSections(): void
     {
         $app = $this->app();

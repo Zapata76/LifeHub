@@ -21,9 +21,13 @@ import { apiErrorMessage } from '../shared/api-error';
 export class TasksComponent {
   private readonly api = inject(TasksApiService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly completionDateFormatter = new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
   readonly tasks = signal<HouseholdTask[]>([]);
   readonly members = signal<{ id: number; username: string }[]>([]);
   readonly memberFilters = signal<Set<number>>(new Set());
+  readonly search = signal('');
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -40,7 +44,8 @@ export class TasksComponent {
   });
   readonly todo = computed(() => this.filtered('open'));
   readonly doing = computed(() => this.filtered('in_progress'));
-  readonly done = computed(() => this.filtered('completed'));
+  readonly done = computed(() => this.filtered('completed').sort((a, b) =>
+    (b.completed_at ?? '').localeCompare(a.completed_at ?? '') || b.id - a.id));
 
   constructor() { this.load(true); }
 
@@ -121,10 +126,17 @@ export class TasksComponent {
   toggleArchive(): void { this.showArchived.update((value) => !value); this.load(); }
   isMemberVisible(id: number): boolean { return this.memberFilters().has(id); }
   dueLabel(date: string): string { const [year, month, day] = date.split('-'); return `${day}/${month}/${year}`; }
+  completionLabel(date: string): string {
+    // API timestamps are UTC MySQL datetimes; display them in the device's local timezone.
+    return this.completionDateFormatter.format(new Date(date.replace(' ', 'T') + 'Z'));
+  }
 
   private filtered(status: TaskStatus): HouseholdTask[] {
+    const query = this.search().trim().toLocaleLowerCase('it');
     return this.tasks().filter((task) => task.status === status
-      && (task.assigned_to === null || this.memberFilters().has(Number(task.assigned_to))));
+      && (task.assigned_to === null || this.memberFilters().has(Number(task.assigned_to)))
+      && (!query || task.title.toLocaleLowerCase('it').includes(query)
+        || (task.description ?? '').toLocaleLowerCase('it').includes(query)));
   }
 
   private command(): TaskCommand {

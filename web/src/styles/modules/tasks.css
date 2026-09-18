@@ -1,4 +1,5 @@
 .task-heading { align-items: center; margin-bottom: 1rem; }
+.task-search { max-width: 32rem; margin-bottom: 1rem; }
 .task-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .task-primary, .task-filter { border-color: #4f8cff; background: #4f8cff; color: #fff; font-weight: 750; }
 .task-filter { min-height: 36px; border-radius: 99px; padding: .35rem .8rem; font-size: .82rem; }
@@ -26,6 +27,7 @@
 .task-meta, .task-card-actions { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
 .user-badge { border-radius: 4px; padding: .18rem .42rem; background: #2a3342; font-size: .7rem; }
 .due-date { color: #ff7e7e; font-size: .72rem; }
+.completion-date { color: var(--muted); font-size: .72rem; }
 .task-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: #020617cc; backdrop-filter: blur(5px); }
 .task-modal { width: min(680px, 100%); max-height: calc(100vh - 2rem); overflow: auto; border-top: 6px solid #4f8cff; }
 .task-modal > h2 { margin: 0; padding: 1.25rem 1.5rem 0; color: #6ea0ff; }

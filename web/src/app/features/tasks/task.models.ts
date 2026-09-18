@@ -12,6 +12,7 @@ export interface HouseholdTask {
   status: TaskStatus;
   priority: TaskPriority;
   due_date: string | null;
+  completed_at: string | null;
   version: number;
 }
 
