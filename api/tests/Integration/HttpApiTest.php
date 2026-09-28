@@ -1513,6 +1513,69 @@ final class HttpApiTest extends TestCase
         );
     }
 
+    public function testTaskArchiveRequiresAdminOrCurrentAssigneeThroughTheApi(): void
+    {
+        $app = $this->app();
+        $app->handle($this->request('GET', '/v1/auth/session'));
+        $pdo = $this->database()->pdo();
+        $now = gmdate('Y-m-d H:i:s');
+        foreach ([2 => 'adult', 3 => 'child'] as $id => $role) {
+            $pdo->prepare(
+                'INSERT INTO lh_users (id, household_id, username, username_key, role, status, created_at, updated_at) '
+                . "VALUES (?, 1, ?, ?, ?, 'active', ?, ?)"
+            )->execute([$id, 'member' . $id, 'member' . $id, $role, $now, $now]);
+        }
+        $cases = [
+            // Actor, assignee, creator, household, current version, expected HTTP status.
+            'admin other assignee' => [1, 2, 2, 1, 1, 200],
+            'adult assignee' => [2, 2, 1, 1, 1, 200],
+            'child assignee' => [3, 3, 1, 1, 1, 200],
+            'adult creator only' => [2, 3, 2, 1, 1, 403],
+            'child creator only' => [3, 2, 3, 1, 1, 403],
+            'adult unassigned' => [2, null, 2, 1, 1, 403],
+            'child unassigned' => [3, null, 3, 1, 1, 403],
+            'admin unassigned' => [1, null, 3, 1, 1, 200],
+            'admin another household' => [1, 1, 1, 2, 1, 404],
+            'assignee stale version' => [2, 2, 1, 1, 2, 409],
+            'previous assignee after reassignment' => [2, 3, 2, 1, 2, 403],
+        ];
+        foreach ($cases as $label => [$actor, $assignee, $creator, $household, $version, $expected]) {
+            $pdo->prepare(
+                'INSERT INTO lh_tasks (household_id, title, title_search, assigned_to, created_by, '
+                . 'created_at, updated_by, updated_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            )->execute([$household, $label, $label, $assignee, $creator, $now, $creator, $now, $version]);
+            $id = (int) $pdo->lastInsertId();
+            // Middleware must use the actual DB role, not a stale admin role in the session.
+            $_SESSION['user'] = [
+                'id' => $actor, 'householdId' => 1, 'role' => 'admin',
+                'username' => 'test', 'sessionVersion' => 1,
+            ];
+            $_SESSION['csrfToken'] = 'task-archive-test';
+            $response = $app->handle($this->request(
+                'POST',
+                '/v1/tasks/' . $id . '/archive',
+                ['version' => 1],
+                'task-archive-test'
+            ));
+            self::assertSame($expected, $response->getStatusCode(), $label . ': ' . (string) $response->getBody());
+            $row = $this->row('SELECT archived_at, archived_by, version FROM lh_tasks WHERE id = ' . $id);
+            if ($expected === 200) {
+                self::assertNotNull($row['archived_at']);
+                self::assertSame($actor, (int) $row['archived_by']);
+                self::assertSame($version + 1, (int) $row['version']);
+            } else {
+                self::assertNull($row['archived_at']);
+                self::assertSame($version, (int) $row['version']);
+                self::assertSame(0, (int) $this->scalar(
+                    "SELECT COUNT(*) FROM lh_audit_log WHERE event_code = 'task.archived' AND entity_id = " . $id
+                ));
+                if ($expected === 403) {
+                    self::assertSame('task.archive_denied', $this->json($response)['error']['code']);
+                }
+            }
+        }
+    }
+
     private function database(): TemporaryDatabase
     {
         if ($this->database === null) {

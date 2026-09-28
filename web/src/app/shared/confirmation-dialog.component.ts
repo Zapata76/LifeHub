@@ -7,14 +7,7 @@ import { ConfirmationService } from './confirmation.service';
   standalone: true,
   imports: [ModalBackdropDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [`
-    .confirmation-backdrop { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
-      padding: 1rem; background: #020617d9; backdrop-filter: blur(5px); }
-    .confirmation-dialog { width: min(100%, 32rem); padding: 1.5rem; border-top: 5px solid #fb7185; }
-    .confirmation-dialog h2 { margin-top: 0; color: #fb7185; }
-    .confirmation-dialog p { color: var(--muted); white-space: pre-line; }
-    .confirmation-dialog footer { display: flex; justify-content: flex-end; gap: .75rem; margin-top: 1.5rem; }
-  `],
+  // Styles live in the external core stylesheet: production CSP forbids inline styles.
   template: `
     @if (confirmation.current(); as request) {
       <div class="confirmation-backdrop" lhModalBackdrop

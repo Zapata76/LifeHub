@@ -35,6 +35,19 @@ final class AuthorizationTest extends TestCase
         self::assertFalse(Authorization::canReadTask($child, $this->task(11, 3, 3)));
     }
 
+    public function testOnlyAdminsOrAssigneesCanArchiveWithinTheirHousehold(): void
+    {
+        foreach (['admin', 'adult', 'child'] as $role) {
+            $user = new UserContext(3, 10, $role, $role);
+            self::assertTrue(Authorization::canArchiveTask($user, $this->task(10, 1, 3)));
+            self::assertSame($role === 'admin', Authorization::canArchiveTask($user, $this->task(10, 3, 2)));
+            self::assertSame($role === 'admin', Authorization::canArchiveTask($user, [
+                'household_id' => 10, 'created_by' => 3, 'assigned_to' => null,
+            ]));
+            self::assertFalse(Authorization::canArchiveTask($user, $this->task(11, 3, 3)));
+        }
+    }
+
     /** @return array<string, int> */
     private function task(int $householdId, int $createdBy, int $assignedTo): array
     {

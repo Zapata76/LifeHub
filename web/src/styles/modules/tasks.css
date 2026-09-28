@@ -22,7 +22,10 @@
 .priority-dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: #ffcc00; }
 .priority-dot[data-priority="high"] { background: #ff5c5c; }
 .priority-dot[data-priority="low"] { background: #27ae60; }
-.kanban-task > p { margin: .7rem 0; color: var(--muted); font-size: .85rem; white-space: pre-wrap; }
+.task-description { display: block; min-width: 0; }
+.task-description-text { margin: .7rem 0; color: var(--muted); font-size: .85rem; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-description-text.is-collapsed { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; line-clamp: 8; max-height: 11.2em; overflow: hidden; }
+.task-description-toggle { padding: .3rem .65rem; color: #93baff; font-size: .8rem; }
 .kanban-task-footer { display: flex; justify-content: space-between; align-items: end; gap: .6rem; margin-top: .8rem; }
 .task-meta, .task-card-actions { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
 .user-badge { border-radius: 4px; padding: .18rem .42rem; background: #2a3342; font-size: .7rem; }

@@ -131,6 +131,9 @@ describe('TasksComponent', () => {
     fixture.componentInstance.openNew();
     fixture.detectChanges();
 
+    const description = fixture.nativeElement.querySelector('textarea[formControlName="description"]') as HTMLTextAreaElement;
+    expect(description.rows).toBe(7);
+
     const input = fixture.nativeElement.querySelector('input[formControlName="title"]') as HTMLInputElement;
     const backdrop = fixture.nativeElement.querySelector('.task-modal-backdrop') as HTMLDivElement;
     input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));

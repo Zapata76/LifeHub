@@ -8,19 +8,22 @@ import { NgTemplateOutlet } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ConfirmationService } from '../shared/confirmation.service';
+import { SessionStore } from '../core/session.store';
 import { HouseholdTask, TaskCommand, TaskPriority, TaskStatus } from './tasks/task.models';
 import { TasksApiService } from './tasks/tasks-api.service';
+import { TaskDescriptionComponent } from './tasks/task-description.component';
 import { apiErrorMessage } from '../shared/api-error';
 
 @Component({
   standalone: true,
-  imports: [ReactiveFormsModule, NgTemplateOutlet],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, TaskDescriptionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tasks/tasks.component.html',
 })
 export class TasksComponent {
   private readonly api = inject(TasksApiService);
   private readonly confirmation = inject(ConfirmationService);
+  private readonly session = inject(SessionStore);
   private readonly completionDateFormatter = new Intl.DateTimeFormat('it-IT', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   });
@@ -106,15 +109,23 @@ export class TasksComponent {
     this.mutate(() => this.api.complete(task));
   }
 
+  canArchive(task: HouseholdTask): boolean {
+    const user = this.session.user();
+    return user !== null && (user.role === 'admin'
+      || (task.assigned_to !== null && Number(task.assigned_to) === user.id));
+  }
+
   async archive(task: HouseholdTask): Promise<void> {
-    if (!this.showArchived() && !await this.confirmation.confirm({
+    const restore = this.showArchived();
+    if (!restore && !this.canArchive(task)) return;
+    if (!restore && !await this.confirmation.confirm({
       title: 'Archivia attività',
       message: `Archiviare “${task.title}”? Potrai ripristinarla dall’archivio.`,
       confirmLabel: 'Archivia',
       danger: true
     })) return;
     this.editorOpen.set(false);
-    this.mutate(() => this.api.setArchived(task, this.showArchived()));
+    this.mutate(() => this.api.setArchived(task, restore));
   }
 
   toggleMember(id: number): void {

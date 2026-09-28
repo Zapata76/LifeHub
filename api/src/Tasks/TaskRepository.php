@@ -135,10 +135,17 @@ final class TaskRepository
 
     public function archive(UserContext $user, int $id, int $version): bool
     {
-        $this->get($user, $id);
+        $task = $this->get($user, $id);
+        if (!Authorization::canArchiveTask($user, $task)) {
+            throw new ApiException(
+                403,
+                'task.archive_denied',
+                'Only admins or the task assignee may archive this task.'
+            );
+        }
         return $this->mutate($user, $id, $version, 'archived_at = ?, archived_by = ?', [
             gmdate('Y-m-d H:i:s'), $user->id(),
-        ]);
+        ], $user->role() !== 'admin');
     }
 
     public function restore(UserContext $user, int $id, int $version): bool
@@ -174,18 +181,28 @@ final class TaskRepository
     }
 
     /** @param list<mixed> $values */
-    private function mutate(UserContext $user, int $id, int $version, string $changes, array $values = []): bool
-    {
+    private function mutate(
+        UserContext $user,
+        int $id,
+        int $version,
+        string $changes,
+        array $values = [],
+        bool $assigneeOnly = false
+    ): bool {
         $statement = $this->pdo->prepare(
             'UPDATE lh_tasks SET ' . $changes . ', updated_by = ?, updated_at = ?, version = version + 1 '
             . 'WHERE household_id = ? AND id = ? AND version = ?'
             . ($user->role() === 'child' ? ' AND (created_by = ? OR assigned_to = ?)' : '')
+            . ($assigneeOnly ? ' AND assigned_to = ?' : '')
         );
         $parameters = array_merge($values, [
             $user->id(), gmdate('Y-m-d H:i:s'), $user->householdId(), $id, $version,
         ]);
         if ($user->role() === 'child') {
             $parameters[] = $user->id();
+            $parameters[] = $user->id();
+        }
+        if ($assigneeOnly) {
             $parameters[] = $user->id();
         }
         $statement->execute($parameters);
