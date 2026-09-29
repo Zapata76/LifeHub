@@ -1,0 +1,4 @@
+<?php
+// Copy as /umbertini/hosting.php. No credentials here; never overwritten by updates.
+// .lh-private must contain private.htaccess as .htaccess, with HTTP 403 verified.
+return __DIR__ . '/.lh-private/config.php';

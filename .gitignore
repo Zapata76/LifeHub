@@ -68,3 +68,7 @@ blob-report/
 # Production-derived or generated evidence must never be committed
 /secure/
 /backups/
+
+# Isolated updater packages, journals and machine-specific FTPS settings
+/.local/
+__pycache__/

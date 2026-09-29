@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+// Install manually as .lh-private/config.php AFTER verifying HTTP protection.
+// Copy the real values from the existing config, especially job token and session name.
+// Never regenerate the existing storage/push-vapid.php key during deployment.
+return [
+    'environment' => 'production',
+    'basePath' => '/umbertini',
+    'siteName' => 'Life Hub',
+    'dbHost' => 'REPLACE_WITH_PRODUCTION_HOST',
+    'dbPort' => '3306',
+    'dbName' => 'REPLACE_WITH_PRODUCTION_DATABASE',
+    'dbUser' => 'REPLACE_WITH_PRODUCTION_USER',
+    'dbPass' => 'REPLACE_WITH_PRODUCTION_PASSWORD',
+    'sessionName' => 'lifehub_prod',
+    'sessionIdleSeconds' => '28800',
+    'storagePath' => __DIR__ . '/storage',
+    'jobToken' => 'REPLACE_WITH_EXISTING_JOB_TOKEN',
+    'mailFromAddress' => 'REPLACE_WITH_EXISTING_SENDER',
+    'mailFromName' => 'Life Hub',
+    'publicUrl' => 'https://www.emilianomaugeri.it/umbertini',
+    'pushVapidSubject' => '',
+];

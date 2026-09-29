@@ -25,7 +25,9 @@ final class Settings
 
     public static function fromFile(?string $path = null): self
     {
-        $path = $path ?? dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php';
+        $path = $path ?? (defined('LIFEHUB_CONFIG_FILE')
+            ? (string) constant('LIFEHUB_CONFIG_FILE')
+            : dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'app.php');
         if (!is_file($path) || !is_readable($path)) {
             throw new RuntimeException(sprintf('Application configuration file is missing or unreadable: %s', $path));
         }
