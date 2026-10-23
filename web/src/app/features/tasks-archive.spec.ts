@@ -31,7 +31,7 @@ async function setup(archived = false, role: SessionUser['role'] | null = 'admin
   ] });
   if (archived) {
     board.componentInstance.toggleArchive();
-    http.expectOne('api/v1/tasks?archived=1').flush({ items: [item] });
+    http.expectOne('api/v1/tasks?archived=1').flush({ items: [taskItem] });
   }
   board.detectChanges();
   confirmation.detectChanges();
@@ -46,10 +46,10 @@ describe('Task removal confirmation', () => {
   ];
   it.each(permissions)('enforces archive permissions for role=%s assignee=%s in both views', async (role, assignee, allowed) => {
     const { board, confirmation, http, taskItem } = await setup(false, role, assignee);
-    expect(board.nativeElement.querySelector('.task-card-actions .task-delete') !== null).toBe(allowed);
+    expect(board.nativeElement.querySelector('.task-card-actions .task-archive') !== null).toBe(allowed);
     board.componentInstance.openEdit(taskItem);
     board.detectChanges();
-    expect(board.nativeElement.querySelector('.task-modal .task-delete') !== null).toBe(allowed);
+    expect(board.nativeElement.querySelector('.task-modal .task-archive') !== null).toBe(allowed);
     if (!allowed) {
       await board.componentInstance.archive(taskItem);
       confirmation.detectChanges();
@@ -60,13 +60,14 @@ describe('Task removal confirmation', () => {
   });
 
   for (const source of ['board', 'editor'] as const) {
-    it(`archives exactly once after confirming Elimina from the ${source}`, async () => {
+    it(`archives exactly once after confirming Archivia from the ${source}`, async () => {
       const { board, confirmation, http } = await setup();
       if (source === 'editor') {
         board.componentInstance.openEdit(item);
         board.detectChanges();
       }
-      const selector = source === 'editor' ? '.task-modal .task-delete' : '.task-card-actions .task-delete';
+      const selector = source === 'editor' ? '.task-modal .task-archive' : '.task-card-actions .task-archive';
+      expect(board.nativeElement.querySelector(selector).classList.contains('task-delete')).toBe(false);
       (board.nativeElement.querySelector(selector) as HTMLButtonElement).click();
       confirmation.detectChanges();
       http.expectNone('api/v1/tasks/12/archive');
@@ -74,7 +75,9 @@ describe('Task removal confirmation', () => {
       const dialog = confirmation.nativeElement.querySelector('[role="alertdialog"]') as HTMLElement;
       expect(dialog.textContent).toContain(item.title);
       expect(dialog.textContent).toContain('Potrai ripristinarla');
-      (dialog.querySelector('button.danger') as HTMLButtonElement).click();
+      expect(dialog.classList.contains('is-danger')).toBe(false);
+      expect(dialog.querySelector('button.danger')).toBeNull();
+      (dialog.querySelector('footer button:last-child') as HTMLButtonElement).click();
       await Promise.resolve();
       const request = http.expectOne('api/v1/tasks/12/archive');
       expect(request.request.method).toBe('POST');
@@ -95,7 +98,7 @@ describe('Task removal confirmation', () => {
     board.componentInstance.openEdit(item);
     board.componentInstance.form.controls.description.setValue('Modifica non salvata');
     board.detectChanges();
-    (board.nativeElement.querySelector('.task-modal .task-delete') as HTMLButtonElement).click();
+    (board.nativeElement.querySelector('.task-modal .task-archive') as HTMLButtonElement).click();
     confirmation.detectChanges();
     (confirmation.nativeElement.querySelector('button') as HTMLButtonElement).click();
     await Promise.resolve();
@@ -107,14 +110,91 @@ describe('Task removal confirmation', () => {
 
   it('keeps the task and reports an API failure instead of silently removing it', async () => {
     const { board, confirmation, http } = await setup();
-    (board.nativeElement.querySelector('.task-card-actions .task-delete') as HTMLButtonElement).click();
+    (board.nativeElement.querySelector('.task-card-actions .task-archive') as HTMLButtonElement).click();
     confirmation.detectChanges();
-    (confirmation.nativeElement.querySelector('button.danger') as HTMLButtonElement).click();
+    (confirmation.nativeElement.querySelector('footer button:last-child') as HTMLButtonElement).click();
     await Promise.resolve();
     http.expectOne('api/v1/tasks/12/archive').flush({}, { status: 409, statusText: 'Conflict' });
     board.detectChanges();
     expect(board.nativeElement.querySelector('.kanban-task')).not.toBeNull();
     expect(board.nativeElement.querySelector('[role="alert"]')).not.toBeNull();
+    expect(board.componentInstance.busy()).toBe(false);
+    http.verify();
+  });
+
+  for (const archived of [false, true]) {
+    it.each(permissions)('guards permanent deletion for archived=' + archived + ' role=%s assignee=%s', async (role, assignee, allowed) => {
+      const { board, confirmation, http, taskItem } = await setup(archived, role, assignee);
+      expect(board.nativeElement.querySelector('.task-delete-permanent') !== null).toBe(allowed);
+      if (!allowed) {
+        await board.componentInstance.deletePermanently(taskItem);
+        confirmation.detectChanges();
+        expect(confirmation.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
+        http.expectNone('api/v1/tasks/12');
+      }
+      http.verify();
+    });
+  }
+
+  for (const source of ['board', 'editor', 'archive'] as const) {
+    it(`permanently deletes only after confirmation from ${source}`, async () => {
+      const archived = source === 'archive';
+      const { board, confirmation, http } = await setup(archived);
+      if (source === 'editor') board.componentInstance.openEdit(item);
+      board.detectChanges();
+      const selector = source === 'editor' ? '.task-modal .task-delete-permanent' : '.task-card-actions .task-delete-permanent';
+      (board.nativeElement.querySelector(selector) as HTMLButtonElement).click();
+      confirmation.detectChanges();
+      http.expectNone('api/v1/tasks/12');
+      expect(board.componentInstance.editorOpen()).toBe(source === 'editor');
+      expect(confirmation.nativeElement.textContent).toContain('Non sarà possibile ripristinarla');
+      expect(confirmation.nativeElement.querySelector('.confirmation-dialog.is-danger')).not.toBeNull();
+      expect(confirmation.nativeElement.textContent).toContain(item.title);
+      (confirmation.nativeElement.querySelector('button.danger') as HTMLButtonElement).click();
+      await Promise.resolve();
+      const request = http.expectOne('api/v1/tasks/12');
+      expect(request.request.method).toBe('DELETE');
+      expect(request.request.body).toEqual({ version: 3 });
+      await board.componentInstance.deletePermanently(item); // Ignore a repeated click while busy.
+      confirmation.detectChanges();
+      expect(confirmation.nativeElement.querySelector('[role="alertdialog"]')).toBeNull();
+      request.flush({ deleted: true });
+      http.expectOne(`api/v1/tasks?archived=${archived ? 1 : 0}`).flush({ items: [] });
+      board.detectChanges();
+      expect(board.componentInstance.editorOpen()).toBe(false);
+      expect(board.nativeElement.querySelector('.kanban-task')).toBeNull();
+      http.verify();
+    });
+  }
+
+  it('cancels permanent deletion without losing editor changes', async () => {
+    const { board, confirmation, http } = await setup();
+    board.componentInstance.openEdit(item);
+    board.componentInstance.form.controls.description.setValue('Unsaved');
+    const result = board.componentInstance.deletePermanently(item);
+    confirmation.detectChanges();
+    (confirmation.nativeElement.querySelector('button') as HTMLButtonElement).click();
+    await result;
+    expect(board.componentInstance.editorOpen()).toBe(true);
+    expect(board.componentInstance.form.controls.description.value).toBe('Unsaved');
+    http.expectNone('api/v1/tasks/12');
+    http.verify();
+  });
+
+  it.each([403, 409, 500])('preserves task and editor after failed permanent deletion (%s)', async (status) => {
+    const { board, confirmation, http } = await setup();
+    board.componentInstance.openEdit(item);
+    board.componentInstance.form.controls.description.setValue('Unsaved');
+    const result = board.componentInstance.deletePermanently(item);
+    confirmation.detectChanges();
+    (confirmation.nativeElement.querySelector('button.danger') as HTMLButtonElement).click();
+    await result;
+    http.expectOne('api/v1/tasks/12').flush({}, { status, statusText: 'Failure' });
+    board.detectChanges();
+    expect(board.nativeElement.querySelector('.task-modal [role="alert"]')).not.toBeNull();
+    expect(board.componentInstance.editorOpen()).toBe(true);
+    expect(board.componentInstance.form.controls.description.value).toBe('Unsaved');
+    expect(board.componentInstance.tasks()).toHaveLength(1);
     expect(board.componentInstance.busy()).toBe(false);
     http.verify();
   });

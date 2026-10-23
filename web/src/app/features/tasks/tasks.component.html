@@ -74,11 +74,16 @@
           <button class="task-primary compact" type="button" (click)="archive(task); $event.stopPropagation()">Ripristina</button>
         } @else {
           @if (canArchive(task)) {
-            <button class="task-delete compact" type="button" (click)="archive(task); $event.stopPropagation()">Elimina</button>
+            <button class="task-secondary task-archive compact" type="button" (click)="archive(task); $event.stopPropagation()">Archivia</button>
           }
           @if (task.status !== 'completed') {
             <button class="task-done compact" type="button" (click)="complete(task); $event.stopPropagation()">Fatto</button>
           }
+        }
+        @if (canArchive(task)) {
+          <button class="task-delete task-delete-permanent compact" type="button" [disabled]="busy()"
+            (click)="$event.stopPropagation(); deletePermanently(task)"
+            (keydown.enter)="$event.stopPropagation()">Elimina</button>
         }
       </div>
     </footer>
@@ -93,6 +98,7 @@
       <h2 id="task-modal-title">{{ editing() ? 'Modifica attività' : 'Nuova attività' }}</h2>
       <form [formGroup]="form" (ngSubmit)="save()">
         <div class="task-modal-body">
+          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
           <label>Titolo<input formControlName="title" maxlength="255" placeholder="Cosa c’è da fare?"></label>
           <label>Descrizione<textarea formControlName="description" rows="7" placeholder="Aggiungi dettagli…"></textarea></label>
           <div class="task-form-row">
@@ -118,7 +124,9 @@
           <button class="task-secondary" type="button" (click)="closeEditor()">Annulla</button>
           @if (editing(); as task) {
             @if (canArchive(task)) {
-              <button class="task-delete" type="button" (click)="archive(task)">Elimina</button>
+              <button class="task-secondary task-archive" type="button" (click)="archive(task)">Archivia</button>
+              <button class="task-delete task-delete-permanent" type="button" [disabled]="busy()"
+                (click)="deletePermanently(task)">Elimina</button>
             }
           }
           <span class="modal-spacer"></span>

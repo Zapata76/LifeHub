@@ -122,10 +122,29 @@ export class TasksComponent {
       title: 'Archivia attività',
       message: `Archiviare “${task.title}”? Potrai ripristinarla dall’archivio.`,
       confirmLabel: 'Archivia',
-      danger: true
+      danger: false
     })) return;
     this.editorOpen.set(false);
     this.mutate(() => this.api.setArchived(task, restore));
+  }
+
+  async deletePermanently(task: HouseholdTask): Promise<void> {
+    if (this.busy() || !this.canArchive(task)) return;
+    if (!await this.confirmation.confirm({
+      title: 'Elimina definitivamente attività',
+      message: `Eliminare definitivamente “${task.title}”? L’attività e gli eventuali allegati saranno cancellati. Non sarà possibile ripristinarla dall’archivio.`,
+      confirmLabel: 'Elimina definitivamente',
+      danger: true
+    })) return;
+    if (this.busy() || !this.canArchive(task)) return;
+    this.busy.set(true); this.error.set('');
+    this.api.delete(task).subscribe({
+      next: () => { this.editorOpen.set(false); this.busy.set(false); this.load(); },
+      error: (failure: unknown) => {
+        this.error.set(apiErrorMessage(failure, 'L’attività non è stata eliminata: ricarica e riprova.'));
+        this.busy.set(false);
+      }
+    });
   }
 
   toggleMember(id: number): void {

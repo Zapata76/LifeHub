@@ -45,6 +45,11 @@ export class TasksApiService {
     }).pipe(map(() => undefined));
   }
 
+  delete(task: HouseholdTask): Observable<void> {
+    return this.http.delete(`api/v1/tasks/${task.id}`, { body: { version: task.version } })
+      .pipe(map(() => undefined));
+  }
+
   private values(command: TaskCommand, includeStatus: boolean): object {
     const values: Record<string, string | number | null> = {
       title: command.title,

@@ -12,7 +12,7 @@ import { ConfirmationService } from './confirmation.service';
     @if (confirmation.current(); as request) {
       <div class="confirmation-backdrop" lhModalBackdrop
         (backdropDismissed)="confirmation.settle(false)">
-        <section class="card confirmation-dialog" role="alertdialog" aria-modal="true"
+        <section class="card confirmation-dialog" [class.is-danger]="request.danger" role="alertdialog" aria-modal="true"
           aria-labelledby="confirmation-title" aria-describedby="confirmation-message">
           <h2 id="confirmation-title">{{ request.title }}</h2>
           <p id="confirmation-message">{{ request.message }}</p>

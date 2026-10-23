@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace LifeHub\Tasks;
 
 use LifeHub\Shared\Audit\AuditLogger;
+use LifeHub\Attachments\StorageGateway;
 use LifeHub\Push\TaskCompletionNotifier;
 use LifeHub\Shared\Auth\UserContext;
 use LifeHub\Shared\Http\ApiException;
@@ -24,8 +25,12 @@ final class TaskController
     /** @var AuditLogger */
     private $audit;
 
-    public function __construct(TaskRepository $tasks, AuditLogger $audit, private TaskCompletionNotifier $notifier)
-    {
+    public function __construct(
+        TaskRepository $tasks,
+        AuditLogger $audit,
+        private TaskCompletionNotifier $notifier,
+        private StorageGateway $storage
+    ) {
         $this->tasks = $tasks;
         $this->audit = $audit;
     }
@@ -179,6 +184,22 @@ final class TaskController
         $this->audit($request, $user, $restore ? 'task.restored' : 'task.archived', (int) $args['id']);
 
         return JsonResponder::write($response, ['changed' => true]);
+    }
+
+    /** @param array<string, string> $args */
+    public function delete(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $args
+    ): ResponseInterface {
+        $user = $this->user($request);
+        $id = (int) $args['id'];
+        $keys = $this->tasks->delete($user, $id, (new RequestData($request))->requiredInt('version'));
+        foreach ($keys as $key) {
+            $this->storage->discard($key);
+        }
+        $this->audit($request, $user, 'task.deleted', $id);
+        return JsonResponder::write($response, ['deleted' => true]);
     }
 
     private function user(ServerRequestInterface $request): UserContext

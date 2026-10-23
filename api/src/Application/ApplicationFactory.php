@@ -115,14 +115,14 @@ final class ApplicationFactory
         $userController = new UserController($users, $audit);
         $pushConfiguration = new PushConfiguration($settings);
         $push = new PushController($pushSubscriptions, $pushConfiguration);
+        $storage = new StorageGateway($settings->get('storagePath'));
         $tasks = new TaskController(new TaskRepository($pdo), $audit, new TaskCompletionNotifier(
             $pushSubscriptions,
             $pushConfiguration,
             $pushTransport ?? new WebPushTransport(),
             $settings,
             new StructuredLogger()
-        ));
-        $storage = new StorageGateway($settings->get('storagePath'));
+        ), $storage);
         $shoppingList = new ShoppingListController(new ShoppingRepository($pdo), $audit, $storage);
         $goals = new GoalController(new GoalRepository($pdo), $audit, $storage);
         $documents = new DocumentController(new DocumentRepository($pdo), $audit, $storage);
@@ -243,6 +243,7 @@ final class ApplicationFactory
                 $protected->get('/tasks/members', [$tasks, 'members']);
                 $protected->post('/tasks', [$tasks, 'create']);
                 $protected->put('/tasks/{id:[0-9]+}', [$tasks, 'update']);
+                $protected->delete('/tasks/{id:[0-9]+}', [$tasks, 'delete']);
                 $protected->post('/tasks/{id:[0-9]+}/complete', [$tasks, 'complete']);
                 $protected->post('/tasks/{id:[0-9]+}/archive', [$tasks, 'archive']);
                 $protected->post('/tasks/{id:[0-9]+}/restore', [$tasks, 'restore']);

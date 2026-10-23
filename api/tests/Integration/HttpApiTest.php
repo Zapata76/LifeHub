@@ -1576,6 +1576,122 @@ final class HttpApiTest extends TestCase
         }
     }
 
+    public function testPermanentTaskDeletionEnforcesPermissionsVersionAndArchiveIndependence(): void
+    {
+        $app = $this->app();
+        $app->handle($this->request('GET', '/v1/auth/session'));
+        $pdo = $this->database()->pdo();
+        $now = gmdate('Y-m-d H:i:s');
+        foreach ([2 => 'adult', 3 => 'child'] as $id => $role) {
+            $pdo->prepare(
+                'INSERT INTO lh_users (id, household_id, username, username_key, role, status, created_at, updated_at) '
+                . "VALUES (?, 1, ?, ?, ?, 'active', ?, ?)"
+            )->execute([$id, 'member' . $id, 'member' . $id, $role, $now, $now]);
+        }
+        $cases = [
+            // Actor, assignee, creator, household, stored version, expected HTTP status.
+            [1, 2, 2, 1, 1, 200], [1, null, 2, 1, 1, 200],
+            [2, 2, 1, 1, 1, 200], [3, 3, 1, 1, 1, 200],
+            [2, 3, 2, 1, 1, 403], [3, 2, 3, 1, 1, 403],
+            [2, null, 2, 1, 1, 403], [3, null, 3, 1, 1, 403],
+            [1, 1, 1, 2, 1, 404], [2, 2, 1, 1, 2, 409],
+            [2, 3, 2, 1, 2, 403],
+        ];
+        foreach ([null, $now] as $archivedAt) {
+            foreach ($cases as [$actor, $assignee, $creator, $household, $version, $expected]) {
+                $pdo->prepare(
+                    'INSERT INTO lh_tasks (household_id, title, title_search, assigned_to, created_by, '
+                    . 'created_at, updated_by, updated_at, version, archived_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                )->execute([$household, 'Delete test', 'delete test', $assignee, $creator,
+                    $now, $creator, $now, $version, $archivedAt]);
+                $id = (int) $pdo->lastInsertId();
+                $_SESSION['user'] = [
+                    'id' => $actor, 'householdId' => 1, 'role' => 'admin',
+                    'username' => 'test', 'sessionVersion' => 1,
+                ];
+                $_SESSION['csrfToken'] = 'task-delete-test';
+                $response = $app->handle($this->request(
+                    'DELETE',
+                    '/v1/tasks/' . $id,
+                    ['version' => 1],
+                    'task-delete-test'
+                ));
+                self::assertSame($expected, $response->getStatusCode(), (string) $response->getBody());
+                self::assertSame($expected === 200 ? 0 : 1, (int) $this->scalar(
+                    'SELECT COUNT(*) FROM lh_tasks WHERE id = ' . $id
+                ));
+                self::assertSame($expected === 200 ? 1 : 0, (int) $this->scalar(
+                    "SELECT COUNT(*) FROM lh_audit_log WHERE event_code = 'task.deleted' AND entity_id = " . $id
+                ));
+                if ($expected === 403) {
+                    self::assertSame('task.delete_denied', $this->json($response)['error']['code']);
+                }
+                if ($expected === 200) {
+                    self::assertTrue($this->json($response)['deleted']);
+                    self::assertSame(404, $app->handle($this->request(
+                        'POST',
+                        '/v1/tasks/' . $id . '/restore',
+                        ['version' => 1],
+                        'task-delete-test'
+                    ))->getStatusCode());
+                }
+            }
+        }
+    }
+
+    public function testPermanentTaskDeletionProtectsAndRemovesOnlyOwnedAttachments(): void
+    {
+        $app = $this->app();
+        $app->handle($this->request('GET', '/v1/auth/session'));
+        $_SESSION['user'] = [
+            'id' => 1, 'householdId' => 1, 'role' => 'admin', 'username' => 'admin', 'sessionVersion' => 1,
+        ];
+        $_SESSION['csrfToken'] = 'task-delete-test';
+        $csrf = 'task-delete-test';
+        $ids = [];
+        $files = [];
+        foreach (['Delete this', 'Keep this'] as $title) {
+            $created = $app->handle($this->request('POST', '/v1/tasks', ['title' => $title], $csrf));
+            self::assertSame(201, $created->getStatusCode());
+            $id = (int) $this->json($created)['item']['id'];
+            $ids[] = $id;
+            $uploaded = $app->handle($this->multipartRequest('POST', '/v1/attachments', [
+                'ownerType' => 'task', 'ownerId' => $id,
+            ], $csrf));
+            self::assertSame(201, $uploaded->getStatusCode(), (string) $uploaded->getBody());
+            $attachment = $this->json($uploaded)['item'];
+            $files[] = $attachment;
+        }
+        self::assertNotNull($this->storage);
+        $deletedPath = $this->storage->path() . '/files/' . $files[0]['storage_key'];
+        $retainedPath = $this->storage->path() . '/files/' . $files[1]['storage_key'];
+        // Invalid CSRF, missing version and stale version must not touch task or files.
+        $invalidRequests = [['bad-token', ['version' => 1], 403], [$csrf, [], 422], [$csrf, ['version' => 99], 409]];
+        foreach ($invalidRequests as [$token, $body, $expected]) {
+            self::assertSame($expected, $app->handle($this->request(
+                'DELETE',
+                '/v1/tasks/' . $ids[0],
+                $body,
+                $token
+            ))->getStatusCode());
+            self::assertFileExists($deletedPath);
+            self::assertSame(1, (int) $this->scalar('SELECT COUNT(*) FROM lh_tasks WHERE id = ' . $ids[0]));
+            self::assertSame(2, (int) $this->scalar('SELECT COUNT(*) FROM lh_attachments'));
+        }
+        $deleted = $app->handle($this->request('DELETE', '/v1/tasks/' . $ids[0], ['version' => 1], $csrf));
+        self::assertSame(200, $deleted->getStatusCode(), (string) $deleted->getBody());
+        self::assertFileDoesNotExist($deletedPath);
+        self::assertFileExists($retainedPath);
+        self::assertSame(1, (int) $this->scalar('SELECT COUNT(*) FROM lh_attachments'));
+        self::assertSame(1, (int) $this->scalar('SELECT COUNT(*) FROM lh_tasks WHERE id = ' . $ids[1]));
+        self::assertSame(404, $app->handle($this->request(
+            'DELETE',
+            '/v1/tasks/' . $ids[0],
+            ['version' => 1],
+            $csrf
+        ))->getStatusCode());
+    }
+
     private function database(): TemporaryDatabase
     {
         if ($this->database === null) {

@@ -148,6 +148,37 @@ final class TaskRepository
         ], $user->role() !== 'admin');
     }
 
+    /** @return list<string> Storage keys to discard only after the guarded deletion succeeds. */
+    public function delete(UserContext $user, int $id, int $version): array
+    {
+        $task = $this->get($user, $id);
+        if (!Authorization::canArchiveTask($user, $task)) {
+            throw new ApiException(403, 'task.delete_denied', 'Only admins or the task assignee may delete this task.');
+        }
+        $files = $this->pdo->prepare(
+            "SELECT storage_key FROM lh_attachments WHERE household_id = ? AND owner_type = 'task' AND owner_id = ?"
+        );
+        $files->execute([$user->householdId(), $id]);
+        $storageKeys = $files->fetchAll(PDO::FETCH_COLUMN);
+        // One guarded statement removes both task and attachment metadata on MyISAM.
+        // Recheck the assignee in SQL as well as the version, not just in the earlier read.
+        $delete = $this->pdo->prepare(
+            'DELETE t, a FROM lh_tasks t LEFT JOIN lh_attachments a '
+            . "ON a.household_id = t.household_id AND a.owner_type = 'task' AND a.owner_id = t.id "
+            . 'WHERE t.household_id = ? AND t.id = ? AND t.version = ?'
+            . ($user->role() !== 'admin' ? ' AND t.assigned_to = ?' : '')
+        );
+        $parameters = [$user->householdId(), $id, $version];
+        if ($user->role() !== 'admin') {
+            $parameters[] = $user->id();
+        }
+        $delete->execute($parameters);
+        if ($delete->rowCount() === 0) {
+            throw new ApiException(409, 'version.conflict', 'The task was modified by another request.');
+        }
+        return array_map(static fn ($key): string => (string) $key, $storageKeys);
+    }
+
     public function restore(UserContext $user, int $id, int $version): bool
     {
         $this->get($user, $id);
