@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+define('LIFEHUB_REQUEST_STARTED_NS', hrtime(true));
 // LH-DEPLOY-V1
 // Generated during upload; switches release without changing private configuration.
 $release = '@@RELEASE@@';

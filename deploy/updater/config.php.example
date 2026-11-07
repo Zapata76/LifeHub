@@ -22,4 +22,8 @@ return [
     'mailFromName' => 'Life Hub',
     'publicUrl' => 'https://www.emilianomaugeri.it/umbertini',
     'pushVapidSubject' => '',
+    // Optional sessionless diagnostic probe: disabled unless both values are configured.
+    // SHA-256 of a dedicated random token (not the job token); never put the token in a URL.
+    'diagnosticProbeTokenHash' => '',
+    'diagnosticProbeHouseholdId' => '',
 ];

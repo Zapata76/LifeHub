@@ -41,4 +41,8 @@ return [
     // Generate the private key file once with: php bin/lifehub push:keys [config.php]
     // Keep storagePath/push-vapid.php private and preserve it across deployments.
     'pushVapidSubject' => '',
+    // Optional sessionless diagnostic probe: disabled unless both values are configured.
+    // SHA-256 of a dedicated random token (not the job token); never put the token in a URL.
+    'diagnosticProbeTokenHash' => '',
+    'diagnosticProbeHouseholdId' => '',
 ];

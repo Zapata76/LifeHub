@@ -76,6 +76,58 @@ smoke testing, is documented in
 
 ## API latency and session locks
 
+### Optional sessionless diagnostic probe
+
+`GET /api/v1/diagnostics/probe` (under the configured base path) is dispatched before
+the regular application factory and session middleware. It is disabled by default
+(404). It is not advertised to or called by the frontend. An unguessable URL is not
+used as authentication: HTTPS and a dedicated `X-LifeHub-Probe-Token` header are required.
+
+Activation after deploying the code:
+
+1. Run `python ops/probe.py --init` locally. This creates an ignored
+   `.local/diagnostic-probe-token` without overwriting an existing token and prints
+   only its SHA-256 hash. Keep the local token private; do not paste it in chat, URLs,
+   command arguments, source control or screenshots.
+2. In the protected production `.lh-private/config.php`, set `diagnosticProbeTokenHash`
+   to that hash and `diagnosticProbeHouseholdId` to the intended household's numeric ID.
+   Do not reuse the daily-job token. No database/schema changes are needed.
+3. Run `python ops/probe.py` for one sample, or
+   `python ops/probe.py --samples 10 --interval 65` for a short series.
+   The client verifies TLS, refuses redirects, sends no cookies and prints only
+   status, UTC timestamp, total duration, diagnostic timing and correlation headers.
+4. Disable by clearing `diagnosticProbeTokenHash`. To rotate, replace both the local
+   token and its server-side hash. Private configuration is preserved by deployment.
+
+The probe performs exactly three fixed, indexed, bounded SELECTs (up to 100 rows
+each) scoped to the configured household: task status/priority/due date, shopping
+item status/product reference, and meals in the next seven UTC calendar days. No
+titles, descriptions, attachments or user records are selected. Small PHP grouping,
+sorting and serialization are performed and discarded. The response contains only
+`ok`, a fixed diagnostic `code`, and `correlationId`; no real records or counts.
+This is a representative sample, not an exact replay of a full Dashboard query.
+
+Headers and sanitized `diagnostic.probe` logs expose `early_php`, `db_connect`,
+`tasks_read`, `shopping_read`, `meals_read`, `calculation`, `response_encoding`,
+and `php_total` in milliseconds. Read phases include prepare/execute/fetch; the
+total includes other diagnostic overhead and is not a sum to add to those phases.
+`early_php` starts at the deployed front controller's first timer, including config
+and autoload work before the probe. PHP-worker queueing, execution before that
+timer, response transmission and browser/network delays remain outside `php_total`.
+No PHP session is opened, so this does not reproduce a particular user's session lock.
+
+There is one nonblocking filesystem slot per installation, held through the DB
+work, and at least 60 seconds between starts (429 with `Retry-After: 60`). Failed
+attempts after authorization also consume the slot. Missing/unwritable gate storage
+fails closed (503). The only persistent writes are a timestamp in
+`storagePath/diagnostic-probe.lock` and diagnostic logs, never application DB rows.
+Keep that storage outside public access, as required for normal operation.
+
+Bounded reads still consume resources and can contend with MyISAM writes. There is
+no portable hard SQL execution deadline across supported hosting configurations:
+a client timeout does not guarantee the server stopped the query. The held lock
+prevents concurrent probe workloads; do not bypass it during an investigation.
+
 ### Regular API timing
 
 Protected routes release the PHP session after authentication and CSRF checks,

@@ -54,6 +54,22 @@ final class StructuredLogger
         $this->write($payload);
     }
 
+    /** @param array<string, float> $timings */
+    public function diagnosticProbe(string $correlationId, int $status, ?string $errorCode, array $timings): void
+    {
+        $safe = [];
+        foreach (\LifeHub\Diagnostics\DiagnosticProbe::PHASES as $phase) {
+            if (isset($timings[$phase]) && is_finite($timings[$phase])) {
+                $safe[$phase] = round(max(0.0, $timings[$phase]), 2);
+            }
+        }
+        $this->write([
+            'timestamp' => gmdate('c'), 'event' => 'diagnostic.probe',
+            'correlation_id' => $correlationId, 'route' => '/api/v1/diagnostics/probe',
+            'status' => $status, 'error_code' => $errorCode, 'timings_ms' => $safe,
+        ]);
+    }
+
     public function pushDelivery(
         string $correlationId,
         float $durationMs,

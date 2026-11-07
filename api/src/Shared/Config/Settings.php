@@ -60,6 +60,8 @@ final class Settings
             'sessionIdleSeconds' => '28800',
             'storagePath' => '',
             'jobToken' => '',
+            'diagnosticProbeTokenHash' => '',
+            'diagnosticProbeHouseholdId' => '',
             'mailFromAddress' => '',
             'mailFromName' => '',
             'publicUrl' => '',
