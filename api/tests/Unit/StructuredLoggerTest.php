@@ -30,4 +30,18 @@ final class StructuredLoggerTest extends TestCase
         self::assertArrayNotHasKey('body', $payload);
         self::assertArrayNotHasKey('query', $payload);
     }
+
+    public function testTimingsRejectUnknownFieldsAndNonFiniteValues(): void
+    {
+        $lines = [];
+        $logger = new StructuredLogger(function (string $line) use (&$lines): void {
+            $lines[] = $line;
+        });
+        $logger->httpRequest('timing-test-123', 'GET', '/api/health', 200, 15.0, null, [
+            'db_connect' => 12.345, 'bootstrap' => INF, 'session_start' => -1.0,
+            'session_id' => 12345.0, 'password' => 98765.0,
+        ]);
+        $logged = json_decode($lines[0], true);
+        self::assertSame(['db_connect' => 12.35, 'session_start' => 0], $logged['timings_ms']);
+    }
 }

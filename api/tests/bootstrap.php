@@ -8,6 +8,10 @@ declare(strict_types=1);
 
 date_default_timezone_set('Europe/Rome');
 
+// The HTTP tests reopen real sessions between synthetic requests in one CLI process.
+// Keep PHPUnit progress output from sending headers before those session operations.
+ob_start();
+
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name('lifehub_test');
     session_start();

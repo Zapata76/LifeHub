@@ -25,8 +25,13 @@ final class ApiExceptionMiddleware
     /** @var StructuredLogger */
     private $logger;
 
-    public function __construct(ResponseFactory $responseFactory, bool $debug, ?StructuredLogger $logger = null)
-    {
+    public function __construct(
+        ResponseFactory $responseFactory,
+        bool $debug,
+        ?StructuredLogger $logger = null,
+        private float $dbConnectMs = 0.0,
+        private float $bootstrapMs = 0.0
+    ) {
         $this->responseFactory = $responseFactory;
         $this->debug = $debug;
         $this->logger = $logger ?? new StructuredLogger();
@@ -34,16 +39,11 @@ final class ApiExceptionMiddleware
 
     public function __invoke(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $startedAt = hrtime(true);
+        $timings = new RequestTimings($this->dbConnectMs, $this->bootstrapMs);
+        $request = $request->withAttribute(RequestTimings::class, $timings);
+        $previousTimings = RequestTimings::activate($timings);
         try {
             $response = $handler->handle($request);
-            $this->log(
-                $request,
-                $startedAt,
-                $response->getStatusCode(),
-                $this->responseErrorCode($response)
-            );
-            return $response;
         } catch (ApiException $exception) {
             $response = JsonResponder::error(
                 $this->responseFactory->createResponse(),
@@ -52,8 +52,6 @@ final class ApiExceptionMiddleware
                 $exception->getMessage(),
                 (string) $request->getAttribute('correlationId', 'unavailable')
             );
-            $this->log($request, $startedAt, $exception->status(), $exception->apiCode());
-            return $response;
         } catch (HttpNotFoundException $exception) {
             $response = JsonResponder::error(
                 $this->responseFactory->createResponse(),
@@ -62,8 +60,6 @@ final class ApiExceptionMiddleware
                 'Not found.',
                 (string) $request->getAttribute('correlationId', 'unavailable')
             );
-            $this->log($request, $startedAt, 404, 'http.not_found');
-            return $response;
         } catch (Throwable $exception) {
             $message = $this->debug ? $exception->getMessage() : 'An unexpected error occurred.';
             $response = JsonResponder::error(
@@ -73,9 +69,12 @@ final class ApiExceptionMiddleware
                 $message,
                 (string) $request->getAttribute('correlationId', 'unavailable')
             );
-            $this->log($request, $startedAt, 500, 'server.unexpected');
-            return $response;
+        } finally {
+            RequestTimings::activate($previousTimings);
         }
+        $metrics = $timings->snapshot();
+        $this->log($request, $metrics, $response->getStatusCode(), $this->responseErrorCode($response));
+        return $response->withHeader('Server-Timing', RequestTimings::header($metrics));
     }
 
     private function responseErrorCode(ResponseInterface $response): ?string
@@ -105,9 +104,10 @@ final class ApiExceptionMiddleware
         return is_string($code) && $code !== '' ? $code : $fallback;
     }
 
+    /** @param array<string, float> $metrics */
     private function log(
         ServerRequestInterface $request,
-        int $startedAt,
+        array $metrics,
         int $status,
         ?string $errorCode
     ): void {
@@ -118,8 +118,9 @@ final class ApiExceptionMiddleware
             $request->getMethod(),
             $route,
             $status,
-            (hrtime(true) - $startedAt) / 1000000,
-            $errorCode
+            $metrics['app_total'],
+            $errorCode,
+            $metrics
         );
     }
 }

@@ -32,6 +32,15 @@ final class AuthenticationMiddleware
         ServerRequestInterface $request,
         RequestHandlerInterface $handler
     ): ResponseInterface {
+        $result = \LifeHub\Shared\Http\RequestTimings::measure(
+            'authentication',
+            fn () => $this->authenticate($request)
+        );
+        return $result instanceof ResponseInterface ? $result : $handler->handle($result);
+    }
+
+    private function authenticate(ServerRequestInterface $request): ServerRequestInterface|ResponseInterface
+    {
         $user = isset($_SESSION['user']) && is_array($_SESSION['user']) ? $_SESSION['user'] : null;
         if (
             $user === null
@@ -80,6 +89,6 @@ final class AuthenticationMiddleware
             'sessionVersion' => (int) $current['session_version'],
         ]);
 
-        return $handler->handle($request->withAttribute(UserContext::class, $context));
+        return $request->withAttribute(UserContext::class, $context);
     }
 }

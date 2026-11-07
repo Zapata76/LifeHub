@@ -23,13 +23,15 @@ final class StructuredLogger
             : Closure::fromCallable($writer);
     }
 
+    /** @param array<string, float> $timings */
     public function httpRequest(
         string $correlationId,
         string $method,
         string $route,
         int $status,
         float $durationMs,
-        ?string $errorCode
+        ?string $errorCode,
+        array $timings = []
     ): void {
         $payload = [
             'timestamp' => gmdate('c'),
@@ -41,6 +43,14 @@ final class StructuredLogger
             'duration_ms' => round($durationMs, 2),
             'error_code' => $errorCode,
         ];
+        if ($timings !== []) {
+            $payload['timings_ms'] = [];
+            foreach (\LifeHub\Shared\Http\RequestTimings::NAMES as $name) {
+                if (isset($timings[$name]) && is_finite($timings[$name])) {
+                    $payload['timings_ms'][$name] = round(max(0.0, $timings[$name]), 2);
+                }
+            }
+        }
         $this->write($payload);
     }
 

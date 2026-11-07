@@ -37,7 +37,7 @@ final class TemporaryDatabase
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
         );
         $this->server->exec('CREATE DATABASE `' . $this->name . '` DEFAULT CHARACTER SET utf8');
-        $this->database = new PDO(
+        $this->database = new \LifeHub\Shared\Persistence\TimedPdo(
             sprintf('mysql:host=%s;port=%s;dbname=%s', $host, $port, $this->name),
             $user,
             $pass,
@@ -47,6 +47,9 @@ final class TemporaryDatabase
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
+        $this->database->setAttribute(PDO::ATTR_STATEMENT_CLASS, [
+            \LifeHub\Shared\Persistence\TimedPdoStatement::class,
+        ]);
         $this->database->exec("SET NAMES 'utf8'");
     }
 

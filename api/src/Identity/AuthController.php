@@ -31,6 +31,14 @@ final class AuthController
 
     public function session(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        return \LifeHub\Shared\Http\RequestTimings::measure(
+            'authentication',
+            fn () => $this->sessionResponse($request, $response)
+        );
+    }
+
+    private function sessionResponse(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
         $user = isset($_SESSION['user']) && is_array($_SESSION['user']) ? $_SESSION['user'] : null;
         if ($user !== null && !isset($user['id'], $user['householdId'], $user['sessionVersion'])) {
             unset($_SESSION['user']);
@@ -62,6 +70,14 @@ final class AuthController
 
     public function login(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
+        return \LifeHub\Shared\Http\RequestTimings::measure(
+            'authentication',
+            fn () => $this->loginResponse($request, $response)
+        );
+    }
+
+    private function loginResponse(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
         $data = new RequestData($request);
         $user = $this->service->login(
             $data->requiredString('username', 190),
@@ -80,6 +96,14 @@ final class AuthController
     }
 
     public function logout(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        return \LifeHub\Shared\Http\RequestTimings::measure(
+            'authentication',
+            fn () => $this->logoutResponse($request, $response)
+        );
+    }
+
+    private function logoutResponse(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
         $user = $_SESSION['user'] ?? null;
         $endpoint = (new RequestData($request))->optionalString('pushEndpoint', 2048);

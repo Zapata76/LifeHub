@@ -79,6 +79,29 @@ final class HttpApiTest extends TestCase
         self::assertSame('http.not_found', $this->json($response)['error']['code']);
     }
 
+    public function testHandledApiResponsesExposeTimingsAndAlwaysCloseTheSession(): void
+    {
+        $app = $this->app();
+        $cases = [
+            ['GET', '/v1/auth/session', null, 200],
+            ['GET', '/v1/tasks/members', null, 401],
+            ['POST', '/v1/auth/login', ['username' => 'admin', 'password' => 'unused'], 403],
+            ['GET', '/missing-route', null, 404],
+        ];
+        foreach ($cases as [$method, $path, $body, $status]) {
+            $response = $app->handle($this->request($method, $path, $body));
+            self::assertSame($status, $response->getStatusCode());
+            self::assertSame(PHP_SESSION_NONE, session_status());
+            foreach (['db_connect', 'bootstrap', 'session_start', 'processing', 'app_total'] as $metric) {
+                self::assertMatchesRegularExpression(
+                    '/' . $metric . ';dur=[0-9]+\\.[0-9]{2}/',
+                    $response->getHeaderLine('Server-Timing')
+                );
+            }
+            self::assertNotEmpty($response->getHeaderLine('X-Correlation-ID'));
+        }
+    }
+
     public function testAuthenticatedTaskJourneyAndCsrfRejection(): void
     {
         $app = $this->app();
@@ -1248,6 +1271,8 @@ final class HttpApiTest extends TestCase
         self::assertSame(200, $download->getStatusCode(), (string) $download->getBody());
         self::assertSame('image/png', $download->getHeaderLine('Content-Type'));
         self::assertStringStartsWith('inline;', $download->getHeaderLine('Content-Disposition'));
+        self::assertSame(PHP_SESSION_NONE, session_status());
+        self::assertStringContainsString('processing;dur=', $download->getHeaderLine('Server-Timing'));
 
         $updated = $app->handle($this->multipartRequest('POST', '/v1/documents/' . $id, [
             'title' => 'Contratto aggiornato', 'category' => 'Contratti',
@@ -1750,7 +1775,9 @@ final class HttpApiTest extends TestCase
             'mailFromName' => 'Life Hub Test',
             'publicUrl' => 'https://example.test/lifehub',
         ]);
-        return ApplicationFactory::create($settings, $this->database->pdo());
+        $app = ApplicationFactory::create($settings, $this->database->pdo());
+        $app->add(new \LifeHub\Tests\Support\SyntheticSessionMiddleware());
+        return $app;
     }
 
     /** @param array<string, mixed>|null $body */

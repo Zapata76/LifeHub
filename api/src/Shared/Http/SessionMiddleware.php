@@ -12,6 +12,7 @@ use LifeHub\Shared\Config\Settings;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use RuntimeException;
 
 final class SessionMiddleware
 {
@@ -38,22 +39,44 @@ final class SessionMiddleware
                 'httponly' => true,
                 'samesite' => 'Lax',
             ]);
-            session_start();
-        }
-
-        $now = time();
-        $lastActivity = isset($_SESSION['lastActivity']) ? (int) $_SESSION['lastActivity'] : $now;
-        if (($now - $lastActivity) > (int) $this->settings->get('sessionIdleSeconds')) {
-            $_SESSION = [];
-            if (!headers_sent()) {
-                session_regenerate_id(true);
+            $startedAt = hrtime(true);
+            try {
+                if (!session_start()) {
+                    throw new RuntimeException('Unable to open the session.');
+                }
+            } finally {
+                $timings = $request->getAttribute(RequestTimings::class);
+                if ($timings instanceof RequestTimings) {
+                    $timings->sessionOpened((hrtime(true) - $startedAt) / 1000000);
+                }
             }
         }
-        $_SESSION['lastActivity'] = $now;
-        if (!isset($_SESSION['csrfToken'])) {
-            $_SESSION['csrfToken'] = bin2hex(random_bytes(32));
-        }
 
-        return $handler->handle($request);
+        try {
+            $now = time();
+            $lastActivity = isset($_SESSION['lastActivity']) ? (int) $_SESSION['lastActivity'] : $now;
+            if (($now - $lastActivity) > (int) $this->settings->get('sessionIdleSeconds')) {
+                $_SESSION = [];
+                if (!headers_sent()) {
+                    session_regenerate_id(true);
+                }
+            }
+            $_SESSION['lastActivity'] = $now;
+            if (!isset($_SESSION['csrfToken'])) {
+                $_SESSION['csrfToken'] = bin2hex(random_bytes(32));
+            }
+            return $handler->handle($request);
+        } finally {
+            // Public auth endpoints must persist login/logout/rotation before closing.
+            // Also release on rejected requests and exceptions, before body emission.
+            self::close();
+        }
+    }
+
+    public static function close(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE && !session_write_close()) {
+            throw new RuntimeException('Unable to save the session.');
+        }
     }
 }

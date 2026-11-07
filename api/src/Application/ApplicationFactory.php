@@ -51,6 +51,7 @@ use LifeHub\Shared\Http\CorrelationIdMiddleware;
 use LifeHub\Shared\Http\CsrfMiddleware;
 use LifeHub\Shared\Http\JsonResponder;
 use LifeHub\Shared\Http\SessionMiddleware;
+use LifeHub\Shared\Http\ReleaseSessionMiddleware;
 use LifeHub\Shared\Http\SecurityHeadersMiddleware;
 use LifeHub\Shared\Persistence\OperationJournal;
 use LifeHub\Shared\Persistence\PdoFactory;
@@ -81,7 +82,13 @@ final class ApplicationFactory
         ?TaskNotificationMailer $taskNotificationMailer = null,
         ?PushTransport $pushTransport = null
     ): App {
-        $pdo = $pdo ?? PdoFactory::create($settings);
+        $bootstrapStartedAt = hrtime(true);
+        $dbConnectMs = 0.0;
+        if ($pdo === null) {
+            $dbStartedAt = hrtime(true);
+            $pdo = PdoFactory::create($settings);
+            $dbConnectMs = (hrtime(true) - $dbStartedAt) / 1000000;
+        }
         $app = AppFactory::create();
         $app->setBasePath($settings->apiPath());
         $responses = new ResponseFactory();
@@ -92,7 +99,8 @@ final class ApplicationFactory
         $app->addRoutingMiddleware();
         $app->addBodyParsingMiddleware();
         $app->add(new SessionMiddleware($settings));
-        $app->add(new ApiExceptionMiddleware($responses, $settings->isDebug()));
+        $bootstrapMs = max(0.0, (hrtime(true) - $bootstrapStartedAt) / 1000000 - $dbConnectMs);
+        $app->add(new ApiExceptionMiddleware($responses, $settings->isDebug(), null, $dbConnectMs, $bootstrapMs));
         $app->add(new SecurityHeadersMiddleware());
         $app->add(new CorrelationIdMiddleware());
 
@@ -175,13 +183,13 @@ final class ApplicationFactory
             $response
         ) use ($taskNotificationController) {
             return $taskNotificationController()->run($request, $response);
-        });
+        })->add(new ReleaseSessionMiddleware());
         $app->get('/v1/jobs/task-notifications/status', function (
             $request,
             $response
         ) use ($taskNotificationController) {
             return $taskNotificationController()->status($request, $response);
-        });
+        })->add(new ReleaseSessionMiddleware());
         $app->group('/v1', function (RouteCollectorProxyInterface $group) use (
             $auth,
             $push,
@@ -337,7 +345,8 @@ final class ApplicationFactory
                         $protected->delete('/' . $path . '/{id:[0-9]+}', [$controller, 'delete']);
                     }
                 }
-            })->add(new CsrfMiddleware(new ResponseFactory()))
+            })->add(new ReleaseSessionMiddleware())
+                ->add(new CsrfMiddleware(new ResponseFactory()))
                 ->add(new AuthenticationMiddleware(new ResponseFactory(), $pdo));
         });
     }

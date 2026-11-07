@@ -19,6 +19,12 @@ final class JsonResponder
      */
     public static function write(ResponseInterface $response, $payload, int $status = 200): ResponseInterface
     {
+        return RequestTimings::measure('response_encoding', fn () => self::encode($response, $payload, $status));
+    }
+
+    /** @param mixed $payload */
+    private static function encode(ResponseInterface $response, $payload, int $status): ResponseInterface
+    {
         $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $response->getBody()->write($json);
 

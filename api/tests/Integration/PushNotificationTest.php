@@ -246,6 +246,7 @@ final class PushNotificationTest extends TestCase
             $request = $request->withHeader('X-CSRF-Token', 'test-csrf');
         }
         $app = ApplicationFactory::create($this->settings, $this->database->pdo(), null, $this->transport);
+        $app->add(new \LifeHub\Tests\Support\SyntheticSessionMiddleware());
         return $app->handle($request);
     }
 }

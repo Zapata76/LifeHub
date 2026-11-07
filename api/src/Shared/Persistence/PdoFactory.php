@@ -22,7 +22,7 @@ final class PdoFactory
             $settings->get('dbName')
         );
 
-        $pdo = new PDO(
+        $pdo = new TimedPdo(
             $dsn,
             $settings->get('dbUser'),
             $settings->get('dbPass'),
@@ -33,6 +33,7 @@ final class PdoFactory
                 PDO::ATTR_STRINGIFY_FETCHES => false,
             ]
         );
+        $pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [TimedPdoStatement::class]);
         $pdo->exec("SET NAMES 'utf8'");
 
         return $pdo;
