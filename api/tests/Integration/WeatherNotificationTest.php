@@ -123,11 +123,11 @@ final class WeatherNotificationTest extends TestCase
                 throw new RuntimeException('Provider offline');
             }
             parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
-            self::assertSame('2026-09-08', $query['start_date']);
+            self::assertSame('2026-09-12', $query['start_date']);
             self::assertSame($query['start_date'], $query['end_date']);
-            self::assertSame('Pacific/Auckland', $query['timezone']);
+            self::assertSame('Europe/Rome', $query['timezone']);
             return ['daily' => [
-                'time' => ['2026-09-08', '2026-09-09'], 'weather_code' => [0, 95],
+                'time' => ['2026-09-12', '2026-09-13'], 'weather_code' => [0, 95],
                 'temperature_2m_min' => [18, 15], 'temperature_2m_max' => [27, 25],
                 'precipitation_probability_max' => [10, 90],
             ]];
@@ -140,15 +140,15 @@ final class WeatherNotificationTest extends TestCase
             'https://example.test',
             new WeatherSummary($settings, $client)
         );
-        $today = new DateTimeImmutable('2026-09-07 20:30:00 UTC');
+        $today = new DateTimeImmutable('2026-09-12 04:00:00 UTC');
         self::assertSame(2, $service->run($today)['sent']);
         self::assertSame(2, $service->run($today)['alreadyHandled']);
         self::assertSame(1, $calls);
         self::assertStringContainsString('Meteo di oggi · Casa &lt;test&gt;', $mailer->messages[0]['html']);
-        self::assertStringContainsString('08/09/2026 — Sereno, min 18 °C, max 27 °C', $mailer->messages[0]['text']);
+        self::assertStringContainsString('12/09/2026 — Sereno, min 18 °C, max 27 °C', $mailer->messages[0]['text']);
         self::assertStringContainsString('probabilità di pioggia 10%', $mailer->messages[0]['text']);
-        self::assertStringNotContainsString('09/09/2026', $mailer->messages[0]['text']);
-        self::assertSame(2, $service->run($today->modify('+1 day'))['sent']);
+        self::assertStringNotContainsString('13/09/2026', $mailer->messages[0]['text']);
+        self::assertSame(2, $service->run($today->modify('+7 days'))['sent']);
         self::assertSame(2, $calls);
         self::assertStringContainsString('Task', $mailer->messages[2]['text']);
         self::assertStringContainsString(
@@ -156,7 +156,7 @@ final class WeatherNotificationTest extends TestCase
             $mailer->messages[2]['html']
         );
         $settings->update(1, null, 2);
-        self::assertSame(2, $service->run($today->modify('+2 days'))['sent']);
+        self::assertSame(2, $service->run($today->modify('+14 days'))['sent']);
         self::assertSame(2, $calls);
         self::assertStringNotContainsString('Meteo', $mailer->messages[4]['html']);
     }

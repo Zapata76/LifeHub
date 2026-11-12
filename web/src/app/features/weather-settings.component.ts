@@ -13,8 +13,8 @@ interface WeatherSettings { location: WeatherLocation | null; version: number; }
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="card editor admin-home-settings" aria-labelledby="weather-settings-title">
-      <div><p class="eyebrow">Email giornaliera</p><h2 id="weather-settings-title">Meteo di oggi</h2></div>
-      <p class="muted">Scegli una località per aggiungere alla mail le previsioni del giorno:
+      <div><p class="eyebrow">Dashboard ed email settimanale</p><h2 id="weather-settings-title">Località meteo</h2></div>
+      <p class="muted">Scegli una località per mostrare le previsioni di oggi nella dashboard e nella mail settimanale:
         condizioni, temperature minima e massima e probabilità di pioggia.</p>
       @if (loading()) { <p role="status">Caricamento impostazioni meteo…</p> }
       @if (error()) {
@@ -22,7 +22,7 @@ interface WeatherSettings { location: WeatherLocation | null; version: number; }
         <button type="button" (click)="load()" [disabled]="busy() || loading()">Ricarica impostazioni meteo</button>
       }
       @if (success()) { <p class="success" role="status">{{ success() }}</p> }
-      <p class="muted">{{ savedName() ? 'Località salvata: ' + savedName() : 'Meteo non attivo nelle email.' }}</p>
+      <p class="muted">{{ savedName() ? 'Località salvata: ' + savedName() : 'Meteo non attivo.' }}</p>
       <form [formGroup]="searchForm" (ngSubmit)="search()" class="form-grid" role="search">
         <label>Cerca località
           <input formControlName="query" maxlength="100" placeholder="Es. Catania" [readOnly]="searching()">
@@ -57,7 +57,7 @@ interface WeatherSettings { location: WeatherLocation | null; version: number; }
             {{ busy() ? 'Salvataggio…' : 'Salva località meteo' }}
           </button>
           @if (savedName()) {
-            <button type="button" (click)="remove()" [disabled]="busy() || loading()">Disattiva meteo nelle email</button>
+            <button type="button" (click)="remove()" [disabled]="busy() || loading()">Disattiva meteo</button>
           }
         </div>
       </form>
@@ -145,7 +145,7 @@ export class WeatherSettingsComponent {
         next: (settings) => {
           this.apply(settings);
           this.busy.set(false);
-          this.success.set(location ? 'Località meteo salvata.' : 'Meteo disattivato nelle email.');
+          this.success.set(location ? 'Località meteo salvata.' : 'Meteo disattivato nella dashboard e nelle email.');
         },
         error: (failure: unknown) => {
           this.busy.set(false);

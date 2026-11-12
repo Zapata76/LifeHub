@@ -16,11 +16,36 @@ final class TaskNotificationRepository
     }
 
     /** @return list<array<string, mixed>> */
+    public function recipients(): array
+    {
+        $statement = $this->pdo->query(
+            'SELECT u.id AS user_id, u.household_id, u.username, u.email '
+            . 'FROM lh_users u INNER JOIN lh_households h ON h.id = u.household_id '
+            . "WHERE u.status = 'active' AND u.archived_at IS NULL AND u.email IS NOT NULL AND u.email <> '' "
+            . 'ORDER BY u.household_id, u.id'
+        );
+        return $statement === false ? [] : $statement->fetchAll();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function completedTasks(int $householdId, string $startUtc, string $endUtc): array
+    {
+        // Archiving a completed task must not remove it from the weekly recap.
+        $statement = $this->pdo->prepare(
+            'SELECT t.id AS task_id, t.title, t.completed_at, u.username AS assigned_username '
+            . 'FROM lh_tasks t LEFT JOIN lh_users u ON u.household_id = t.household_id AND u.id = t.assigned_to '
+            . "WHERE t.household_id = ? AND t.status = 'completed' "
+            . 'AND t.completed_at >= ? AND t.completed_at < ? ORDER BY t.completed_at DESC, t.id DESC'
+        );
+        $statement->execute([$householdId, $startUtc, $endUtc]);
+        return $statement->fetchAll();
+    }
+
+    /** @return list<array<string, mixed>> */
     public function pendingAssignments(): array
     {
         $statement = $this->pdo->query(
-            "SELECT u.id AS user_id, u.household_id, u.username, u.email, "
-            . "h.name AS household_name, h.timezone, t.id AS task_id, t.title, t.status, "
+            "SELECT u.id AS user_id, u.household_id, t.id AS task_id, t.title, t.status, "
             . "t.priority, t.due_date FROM lh_users u "
             . "INNER JOIN lh_households h ON h.id = u.household_id "
             . "INNER JOIN lh_tasks t ON t.household_id = u.household_id AND t.assigned_to = u.id "
@@ -123,19 +148,19 @@ final class TaskNotificationRepository
         $statement->execute([$now, $id]);
     }
 
-    /** @return array{sentToday:int,failedToday:int,lastSentAt:?string} */
+    /** @return array{sentThisWeek:int,failedThisWeek:int,lastSentAt:?string} */
     public function deliverySummary(string $date): array
     {
         $statement = $this->pdo->prepare(
-            "SELECT SUM(CASE WHEN notification_date = ? AND status = 'sent' THEN 1 ELSE 0 END) AS sent_today, "
-            . "SUM(CASE WHEN notification_date = ? AND status = 'failed' THEN 1 ELSE 0 END) AS failed_today, "
+            "SELECT SUM(CASE WHEN notification_date = ? AND status = 'sent' THEN 1 ELSE 0 END) AS sent_in_period, "
+            . "SUM(CASE WHEN notification_date = ? AND status = 'failed' THEN 1 ELSE 0 END) AS failed_in_period, "
             . 'MAX(sent_at) AS last_sent_at FROM lh_task_notification_deliveries'
         );
         $statement->execute([$date, $date]);
         $row = $statement->fetch();
         return [
-            'sentToday' => is_array($row) ? (int) $row['sent_today'] : 0,
-            'failedToday' => is_array($row) ? (int) $row['failed_today'] : 0,
+            'sentThisWeek' => is_array($row) ? (int) $row['sent_in_period'] : 0,
+            'failedThisWeek' => is_array($row) ? (int) $row['failed_in_period'] : 0,
             'lastSentAt' => is_array($row) && $row['last_sent_at'] !== null
                 ? (string) $row['last_sent_at']
                 : null,

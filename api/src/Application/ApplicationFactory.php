@@ -29,6 +29,7 @@ use LifeHub\Home\DashboardController;
 use LifeHub\Home\HomeSettingsController;
 use LifeHub\Home\HomeSettingsRepository;
 use LifeHub\Weather\OpenMeteoClient;
+use LifeHub\Weather\WeatherController;
 use LifeHub\Weather\WeatherSettingsController;
 use LifeHub\Weather\WeatherSettingsRepository;
 use LifeHub\Weather\WeatherSummary;
@@ -144,6 +145,7 @@ final class ApplicationFactory
         $weatherRepository = new WeatherSettingsRepository($pdo);
         $weatherClient = new OpenMeteoClient();
         $weatherSettings = new WeatherSettingsController($weatherRepository, $weatherClient, $audit);
+        $weather = new WeatherController($weatherRepository, $weatherClient, $settings->get('storagePath'));
         $attachments = new AttachmentController(
             new AttachmentRepository($pdo),
             new AttachmentPolicy($pdo),
@@ -206,6 +208,7 @@ final class ApplicationFactory
             $dashboard,
             $homeSettings,
             $weatherSettings,
+            $weather,
             $pdo,
             $audit
         ): void {
@@ -228,6 +231,7 @@ final class ApplicationFactory
                 $dashboard,
                 $homeSettings,
                 $weatherSettings,
+                $weather,
                 $pdo,
                 $audit
             ): void {
@@ -326,6 +330,7 @@ final class ApplicationFactory
                 $protected->put('/meals/{id:[0-9]+}', [$meals, 'update']);
                 $protected->delete('/meals/{id:[0-9]+}', [$meals, 'delete']);
                 $protected->get('/dashboard', [$dashboard, 'show']);
+                $protected->get('/weather/today', [$weather, 'today']);
                 $protected->get('/admin/home-settings', [$homeSettings, 'show']);
                 $protected->put('/admin/home-settings', [$homeSettings, 'update']);
                 $protected->get('/admin/weather-settings', [$weatherSettings, 'show']);

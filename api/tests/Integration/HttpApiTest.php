@@ -85,6 +85,7 @@ final class HttpApiTest extends TestCase
         $cases = [
             ['GET', '/v1/auth/session', null, 200],
             ['GET', '/v1/tasks/members', null, 401],
+            ['GET', '/v1/weather/today', null, 401],
             ['POST', '/v1/auth/login', ['username' => 'admin', 'password' => 'unused'], 403],
             ['GET', '/missing-route', null, 404],
         ];
@@ -126,6 +127,9 @@ final class HttpApiTest extends TestCase
         $csrf = (string) $loginBody['csrfToken'];
 
         $homeSettings = $this->json($app->handle($this->request('GET', '/v1/admin/home-settings')));
+        $weather = $app->handle($this->request('GET', '/v1/weather/today'));
+        self::assertSame(200, $weather->getStatusCode());
+        self::assertNull($this->json($weather)['location']);
         self::assertSame('Oggi in famiglia', $homeSettings['homeEyebrow']);
         self::assertSame('Simona puzzona', $homeSettings['homeTitle']);
         $updatedHome = $app->handle($this->request('PUT', '/v1/admin/home-settings', [
@@ -459,7 +463,7 @@ final class HttpApiTest extends TestCase
         self::assertCount(0, $afterRemove['items']);
     }
 
-    public function testDailyTaskNotificationsAreSentOncePerUserAndDay(): void
+    public function testWeeklyTaskNotificationsAreSentOncePerUserAndSaturday(): void
     {
         $pdo = $this->database()->pdo();
         $now = '2026-09-02 08:00:00';
@@ -483,7 +487,7 @@ final class HttpApiTest extends TestCase
             'Life Hub Test',
             'https://example.test/lifehub'
         );
-        $runAt = new DateTimeImmutable('2026-09-02 09:00:00', new DateTimeZone('UTC'));
+        $runAt = new DateTimeImmutable('2026-09-05 04:00:00', new DateTimeZone('UTC'));
 
         $first = $service->run($runAt);
         $second = $service->run($runAt);
@@ -515,9 +519,9 @@ final class HttpApiTest extends TestCase
         $status = $service->status($runAt);
         self::assertSame(1, $status['eligibleUsers']);
         self::assertSame(3, $status['pendingTasks']);
-        self::assertSame(1, $status['sentToday']);
-        self::assertSame(0, $status['failedToday']);
-        self::assertSame('2026-09-02 09:00:00', $status['lastSentAt']);
+        self::assertSame(1, $status['sentThisWeek']);
+        self::assertSame(0, $status['failedThisWeek']);
+        self::assertSame('2026-09-05 04:00:00', $status['lastSentAt']);
     }
 
     public function testTaskNotificationIncludesOnlyTheHouseholdsNextSevenDaysOfMeals(): void
@@ -535,14 +539,14 @@ final class HttpApiTest extends TestCase
             . 'created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())'
         );
         $plannedMeals = [
-            [1, '2026-09-14', 'dinner', 'Ultimo giorno', null],
-            [1, '2026-09-08', 'dinner', 'Cena fuori', null],
-            [1, '2026-09-08', 'lunch', 'Verdure & <pane>', null],
-            [1, '2026-09-08', 'breakfast', 'Latte', null],
-            [1, '2026-09-07', 'dinner', 'Pasto passato', null],
-            [1, '2026-09-15', 'lunch', 'Oltre la settimana', null],
-            [1, '2026-09-09', 'lunch', 'Pasto archiviato', '2026-09-08 07:00:00'],
-            [2, '2026-09-09', 'lunch', 'Altra famiglia', null],
+            [1, '2026-09-18', 'dinner', 'Ultimo giorno', null],
+            [1, '2026-09-12', 'dinner', 'Cena fuori', null],
+            [1, '2026-09-12', 'lunch', 'Verdure & <pane>', null],
+            [1, '2026-09-12', 'breakfast', 'Latte', null],
+            [1, '2026-09-11', 'dinner', 'Pasto passato', null],
+            [1, '2026-09-19', 'lunch', 'Oltre la settimana', null],
+            [1, '2026-09-13', 'lunch', 'Pasto archiviato', '2026-09-12 07:00:00'],
+            [2, '2026-09-13', 'lunch', 'Altra famiglia', null],
         ];
         foreach ($plannedMeals as $values) {
             $meal->execute($values);
@@ -551,7 +555,7 @@ final class HttpApiTest extends TestCase
             'INSERT INTO lh_recipes (household_id, title, title_search, created_by, created_at, '
             . 'updated_by, updated_at, archived_at) VALUES (1, ?, ?, 1, NOW(), 1, NOW(), ?)'
         );
-        foreach ([['Pasta', null], ['Insalata', null], ['Ricetta archiviata', '2026-09-08 07:00:00']] as $values) {
+        foreach ([['Pasta', null], ['Insalata', null], ['Ricetta archiviata', '2026-09-12 07:00:00']] as $values) {
             $recipe->execute([$values[0], $values[0], $values[1]]);
         }
         $pdo->exec(
@@ -565,17 +569,16 @@ final class HttpApiTest extends TestCase
             'Life Hub Test',
             'https://example.test/lifehub'
         );
-        // UTC date is still September 7; the household is already at September 8, 08:30.
-        $pdo->exec("UPDATE lh_households SET timezone = 'Pacific/Auckland' WHERE id = 1");
-        $result = $service->run(new DateTimeImmutable('2026-09-07 20:30:00', new DateTimeZone('UTC')));
+        // The shared scheduler and recap use Italian time: Saturday 06:30 is 04:30 UTC.
+        $result = $service->run(new DateTimeImmutable('2026-09-12 04:30:00', new DateTimeZone('UTC')));
         self::assertSame(1, $result['sent']);
         self::assertCount(1, $mailer->messages);
         $message = $mailer->messages[0];
         $expectedLines = [
-            '08/09/2026 — Colazione: Latte',
-            '08/09/2026 — Pranzo: Verdure & <pane>; Insalata; Pasta',
-            '08/09/2026 — Cena: Cena fuori',
-            '14/09/2026 — Cena: Ultimo giorno',
+            '12/09/2026 — Colazione: Latte',
+            '12/09/2026 — Pranzo: Verdure & <pane>; Insalata; Pasta',
+            '12/09/2026 — Cena: Cena fuori',
+            '18/09/2026 — Cena: Ultimo giorno',
         ];
         self::assertStringContainsString(implode("\n- ", $expectedLines), $message['text']);
         foreach ($expectedLines as $line) {

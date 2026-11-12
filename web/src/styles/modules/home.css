@@ -1,11 +1,47 @@
-.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; }
-.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .8rem; margin: -1rem 0 2.5rem; }
-.metric { display: grid; gap: .3rem; padding: 1rem; }
-.metric strong { color: var(--brand); font-size: 1.8rem; }
-.metric span { color: var(--muted); }
-.module-card { min-height: 190px; padding: 1.25rem; transition: transform .18s ease, border-color .18s ease; }
-.module-card:hover { transform: translateY(-3px); border-color: var(--brand); }
-.module-icon { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 1.25rem; border-radius: 13px; background: var(--brand-dark); color: var(--brand); font-size: 1.45rem; font-weight: 900; }
-.home-footer { margin-top: 2.5rem; padding: 1.5rem 1rem 0; border-top: 1px solid #ffffff14; text-align: center; }
-.home-footer a { color: var(--muted); }
-.home-footer a:hover { color: var(--brand); }
+/* Keep the dashboard compact without changing other pages or the shared font size. */
+main:has(> .home-page) { padding-top: 1rem; padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+.home-page { display: block; }
+.home-page .hero { align-items: center; gap: 1rem; margin: 0 0 1rem; }
+.home-page .hero > div { min-width: 0; }
+.home-page .hero h1 { max-width: none; margin: 0; font-size: clamp(1.8rem, 3vw, 2.3rem); line-height: 1.15; overflow-wrap: anywhere; }
+.home-page .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 1rem; padding: .65rem 0; }
+.home-page .metric { display: flex; align-items: center; gap: .65rem; min-width: 0; padding: 0 1rem; }
+.home-page .metric + .metric { border-left: 1px solid #ffffff14; }
+.home-page .metric strong { color: var(--brand); font-size: 1.5rem; line-height: 1.2; }
+.home-page .metric span { color: var(--muted); line-height: 1.3; }
+.home-page #modules-title { margin: 0 0 .65rem; font-size: 1.2rem; }
+.home-page .card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.home-page .module-card { min-height: 0; padding: .8rem; transition: transform .18s ease, border-color .18s ease; }
+.home-page .module-card:hover { transform: translateY(-2px); border-color: var(--brand); }
+.home-page .module-heading { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.home-page .module-heading h3 { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.home-page .module-icon { display: grid; place-items: center; flex: 0 0 32px; height: 32px; border-radius: 10px; background: var(--brand-dark); font-size: 1.15rem; }
+.home-page .module-card p { margin: 0; line-height: 1.35; overflow-wrap: anywhere; }
+.home-page .home-footer { margin-top: 1rem; padding-top: .65rem; border-top: 1px solid #ffffff14; text-align: center; }
+.home-page .home-footer a { color: var(--muted); }
+.home-page .home-footer a:hover { color: var(--brand); }
+.home-page .home-weather { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem; padding: .75rem 1rem; margin-bottom: 1.4rem; }
+.home-page .home-weather-heading { display: flex; flex: 1 1 280px; align-items: center; justify-content: space-between; gap: .5rem 1rem; min-width: 0; }
+.home-page .home-weather-heading > div { min-width: 0; }
+.home-page .home-weather-heading h2 { margin: 0 0 .2rem; font-size: 1rem; }
+.home-page .home-weather-heading p { margin: 0; overflow-wrap: anywhere; }
+.home-page .home-weather-condition { flex-shrink: 0; max-width: 45%; color: var(--brand); font-weight: 700; }
+.home-page .home-weather-values { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin: 0; }
+.home-page .home-weather-values > div { display: flex; align-items: baseline; gap: .35rem; }
+.home-page .home-weather-values dt { font-size: .9rem; text-transform: none; }
+.home-page .home-weather-values dd { margin: 0; font-weight: 700; white-space: nowrap; }
+.home-page .home-weather > [role="status"] { margin: 0; }
+@media (min-width: 1100px) {
+  .home-page .card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .home-page .hero { align-items: stretch; }
+  .home-page .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: .75rem; }
+  .home-page .metric { padding-inline: .75rem; }
+  .home-page .metric:nth-child(odd) { border-left: 0; }
+  .home-page .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-page .home-weather-heading { flex-basis: 100%; }
+}
+@media (max-width: 390px) {
+  .home-page .card-grid { grid-template-columns: 1fr; }
+}

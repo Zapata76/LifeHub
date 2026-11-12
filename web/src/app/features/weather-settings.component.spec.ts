@@ -22,7 +22,8 @@ describe('WeatherSettingsComponent', () => {
   it('searches a location, saves it explicitly and can disable weather', () => {
     const { component, fixture, http } = setup();
     expect(fixture.nativeElement.querySelector('form[role="search"]')).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Meteo di oggi');
+    expect(fixture.nativeElement.textContent).toContain('Località meteo');
+    expect(fixture.nativeElement.textContent).toContain('Dashboard ed email settimanale');
     expect(fixture.nativeElement.textContent).toContain('Meteo non attivo');
     component.searchForm.setValue({ query: 'Catania' });
     component.search();

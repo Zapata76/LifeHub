@@ -25,7 +25,7 @@ final class TaskNotificationController
     {
         $this->authorize($request);
         $result = $this->service->run();
-        $retryRequired = $result['failed'] > 0 || $result['beforeDailyWindow'] > 0;
+        $retryRequired = $result['failed'] > 0;
         return JsonResponder::write($response, ['result' => $result], $retryRequired ? 503 : 200);
     }
 

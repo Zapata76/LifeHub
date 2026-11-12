@@ -91,7 +91,7 @@ Activation after deploying the code:
    command arguments, source control or screenshots.
 2. In the protected production `.lh-private/config.php`, set `diagnosticProbeTokenHash`
    to that hash and `diagnosticProbeHouseholdId` to the intended household's numeric ID.
-   Do not reuse the daily-job token. No database/schema changes are needed.
+   Do not reuse the notification-job token. No database/schema changes are needed.
 3. Run `python ops/probe.py` for one sample, or
    `python ops/probe.py --samples 10 --interval 65` for a short series.
    The client verifies TLS, refuses redirects, sends no cookies and prints only
@@ -176,3 +176,61 @@ A large `session_start` indicates session opening/lock contention; a large
 `db_connect` points to connection setup. A short `app_total` with long browser
 waiting time points outside the measured application stages. Correlate a slow
 request using `X-Correlation-ID` rather than collecting cookies or credentials.
+
+### Weekly email recap
+
+Task email is sent on **Saturday from 06:00 Europe/Rome**, including daylight saving
+time. The authenticated notification endpoint also enforces this window; calls on
+other weekdays or before 06:00 return HTTP 200 with `outsideWeeklyWindow: 1` and
+send nothing. No session or CSRF token is needed; the dedicated job token is required.
+
+Each active, non-archived user with a valid email receives their own non-archived
+open/in-progress tasks (earliest due date first, undated last, with priorities) and
+the completed tasks of everyone in their household. Completed tasks cover the
+previous Saturday at 06:00 inclusive through this Saturday at 06:00 exclusive,
+ordered by completion time descending. This cutoff stays fixed during retries.
+Archived completed tasks are included; permanently deleted tasks, reopened tasks
+and tasks without a completion timestamp cannot appear. Users with no pending tasks
+still receive household completions; entirely empty task recaps are skipped.
+Existing meals for the next seven days and weather for the sending day remain included.
+
+No schema change or migration is required. `lh_task_notification_deliveries` keeps
+the existing history and uses the Saturday date as the weekly delivery key. A sent
+recap is not sent again on retries; failed recipients may be retried on the same
+Saturday. This retains the existing SMTP delivery semantics: there is no atomic
+transaction between mail acceptance and marking a delivery as sent.
+
+The shared scheduler is in the separate `data-auto-acquisition-scripts` repository.
+After deploying LifeHub, upload `dailyJobs.php`, `lifehub-notifications-job.php` and
+`lifehub-job.php` to the hosting scripts directory. LifeHub's `update.ps1` does not
+deploy that repository. Keep `lifehub-job.local.php` and its current token unchanged.
+The existing external job must invoke `dailyJobs.php` **at 06:00 on Saturdays**;
+the script sends on the first invocation at or after 06:00, not via a background
+timer. Preserve the other scheduler ticks needed by AlignGarden Push and Finviz.
+Invoking the old job only at 08:00 would send the recap at 08:00 instead.
+
+The runner uses `.runtime/lifehub-weekly-task-notifications.json` with a nonblocking
+lock and records successful Saturdays. The former daily state file is ignored and
+may remain on disk. The read-only `lifehub-job.php` dashboard shows the weekly
+period, recipient/task counts, `sentThisWeek`, `failedThisWeek`, last delivery and
+next scheduled cutoff. Counts reflect current database contents, not a saved copy
+of the email. After a successful weekly run, new recipients/tasks wait until next week.
+
+### Dashboard weather
+
+The dashboard displays today's forecast for the same household location configured
+in Admin for the weekly email. Any authenticated household member can read it via
+`GET /api/v1/weather/today`; changing or disabling the location remains admin-only
+and applies to both dashboard and email. No additional configuration or database
+changes are needed. With no location configured, the dashboard hides the card.
+
+Weather loads separately from dashboard metrics, using the existing Open-Meteo
+client and Europe/Rome calendar day. The private runtime stores one
+`weather-<householdId>.json` cache file per household for 30 minutes, with a 60-second
+failure cache. A new day or a settings version change invalidates it. A nonblocking
+lock avoids simultaneous provider requests; unavailable forecasts are shown as such,
+never replaced with yesterday's data. If runtime storage is unwritable, the request
+still attempts a forecast without caching. The frontend refreshes while visible
+after 30 minutes, on a new Italian date, and when returning to the app if due.
+The new API retains the normal authentication/session-expiry behavior. Only the
+backend contacts the forecast provider; no browser geolocation permission is needed.
